@@ -3,7 +3,7 @@ import { FaPlay, FaPause, FaArrowRotateLeft } from 'react-icons/fa6'
 import { CheckIcon, CopyIcon, SlashIcon, MegaphoneOffIcon } from '@yamada-ui/lucide'
 import { PiTildeBold, PiCaretUpBold, PiSelectionBold } from 'react-icons/pi'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { updateSelectedSound } from '../../store/fetchSlice'
 import { isAboveVersion, VersionInfoType } from '../../types/VersionInfo'
 import { useAudioPlay } from '../../hooks/useAudioPlay'
@@ -16,6 +16,7 @@ export const Footer = () => {
   const { t } = useTranslation()
   const dispatch = useAddDispatch()
   const AudioController = useAudioPlay()
+  const isPlayingRef = useRef(false)
 
   const sounds = useAppSelector(state => state.fetch.sounds)
   const selectedSound = useAppSelector(state => state.fetch.selectedSound)
@@ -101,7 +102,7 @@ export const Footer = () => {
   useEffect(() => {
     (async () => {
       const playbackCategory = await window.myAPI.getSetting('playbackCategory') as string
-      setPlaySource(playbackCategory ?? 'master')
+      setPlaySource(playbackCategory ?? 'player')
     })()
   }, [])
 
@@ -221,22 +222,36 @@ export const Footer = () => {
 
   useEffect(() => {
     (async () => {
-      await AudioController.commands.stop()
-      if (selectedSound) {
-        const targetSound = sounds.filter(sound => sound.id == selectedSound)[0]
-        const targetHashes = targetSound?.sounds ?? []
-        const sound = targetHashes[Math.floor(Math.random() * targetHashes.length)]
-        let target_pitch = parseFloat(pitch) * sound.pitch
-        if (target_pitch < 0.5) target_pitch = 0.5
-        else if (target_pitch > 2) target_pitch = 2
-        try {
-          const hash = await window.myAPI.get_mcSoundHash(sound?.hash ?? '')
-          await AudioController.commands.setSound(selectedSound, hash, target_pitch, appVolume - 1)
-          AudioController.commands.play()
+      if (isPlayingRef.current) return
+
+      try {
+        isPlayingRef.current = true
+
+        await AudioController.commands.stop()
+
+        if (selectedSound) {
+          const targetSound = sounds.filter(sound => sound.id == selectedSound)[0]
+          const targetHashes = targetSound?.sounds ?? []
+          const sound = targetHashes[Math.floor(Math.random() * targetHashes.length)]
+          let target_pitch = parseFloat(pitch) * sound.pitch
+          if (target_pitch < 0.5) target_pitch = 0.5
+          else if (target_pitch > 2) target_pitch = 2
+
+          try {
+            const hash = await window.myAPI.get_mcSoundHash(sound?.hash ?? '')
+            // 再度stopを呼び出して確実に停止させる
+            await AudioController.commands.stop()
+            await AudioController.commands.setSound(selectedSound, hash, target_pitch, appVolume - 1)
+            await new Promise(resolve => setTimeout(resolve, 50))
+            AudioController.commands.play()
+          }
+          catch (e: unknown) {
+            alert(e)
+          }
         }
-        catch (e: unknown) {
-          alert(e)
-        }
+      }
+      finally {
+        isPlayingRef.current = false
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -245,9 +260,9 @@ export const Footer = () => {
   return (
     <>
       <footer className="fixed_bottom">
-        <Box w="full" bg="footerBackground" padding={2} borderTop="1px solid" borderColor="inherit" style={{ userSelect: 'none' }}>
+        <Box w="full" bg="footerBackground" padding={2} borderTop="1px solid" borderColor="inherit">
 
-          <Box alignContent="center" paddingX={1}>
+          <Box alignContent="center" paddingX={1} style={{ userSelect: 'none' }}>
             <Slider
               value={seekbar}
               onChange={onChangeSeekbar}
@@ -261,7 +276,7 @@ export const Footer = () => {
             />
           </Box>
 
-          <Flex w="full" marginTop={2}>
+          <Flex w="full" marginTop={2} style={{ userSelect: 'none' }}>
             <IconButton onClick={() => dispatch(updateSelectedSound({ id: selectedSound }))} icon={<FaArrowRotateLeft size={20} />} variant="ghost" />
             <Spacer maxW={1} />
             <IconButton
@@ -279,7 +294,7 @@ export const Footer = () => {
             <PitchInput pitch={pitch} onChange={onChangePitch} />
           </Flex>
 
-          <Flex w="full" marginTop={1}>
+          <Flex w="full" marginTop={1} style={{ userSelect: 'none' }}>
             <Tooltip label={t('add_slash')} placement="bottom" animation="top">
               <Toggle variant="outline" colorScheme="primary" icon={<SlashIcon fontSize="xl" />} onClick={toggleSlash} />
             </Tooltip>
@@ -297,7 +312,7 @@ export const Footer = () => {
             </Tooltip>
           </Flex>
 
-          <Flex w="full" marginTop={1}>
+          <Flex w="full" marginTop={1} style={{ userSelect: 'none' }}>
             <Tooltip label={t('coordinate')} placement="bottom" animation="top">
               <Input value={Coordinate} onChange={onChangeCoordinate} invalid={CoordinateError} w="calc(full - xs)" placeholder={t('coordinate')} />
             </Tooltip>
@@ -315,7 +330,7 @@ export const Footer = () => {
             </Tooltip>
           </Flex>
 
-          <Flex w="full" marginTop={1}>
+          <Flex w="full" marginTop={1} style={{ userSelect: 'none' }}>
             <Tooltip label={t('selector')} placement="bottom" animation="top">
               <Input onChange={onChangeSelector} invalid={SelectorError} defaultValue="@a" w="calc(full - xs)" placeholder={t('selector')} />
             </Tooltip>
@@ -327,7 +342,7 @@ export const Footer = () => {
 
           <Box w="full" marginTop={1} border="1px solid" borderColor="bg" borderRadius={5}>
             <Flex>
-              <Box alignContent="center" paddingX={3} style={{ userSelect: 'none' }}>{command}</Box>
+              <Box alignContent="center" paddingX={3}>{command}</Box>
               <Spacer />
               <Box><Separator orientation="vertical" borderColor="bg" /></Box>
               <Tooltip label={hasCopied ? 'Copied!' : 'Copy'} placement="bottom" animation="bottom">

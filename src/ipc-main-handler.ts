@@ -1,5 +1,5 @@
 import { Dict } from '@yamada-ui/react'
-import { ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { Sound } from './store/fetchSlice'
@@ -43,6 +43,9 @@ const getHashBySoundName = (hashMap: { [key: string]: { hash: string } }, soundN
     ?? hashMap[`sound/${soundName}.ogg`].hash
     ?? ''
 }
+
+let mainSelectedSoundId = ''
+const timelineFilePaths = new Map<number, string>()
 
 export const initIpcMain = (): void => {
   ipcMain.handle('get_versions', async () => {
@@ -149,4 +152,97 @@ export const initIpcMain = (): void => {
   ipcMain.handle('save-rating-star-as-string', (_, data: string) => {
     saveRatingStarAsString(data)
   })
+
+  ipcMain.handle('getCurrentSounds', async () => {
+    return ((globalThis as typeof globalThis & { currentSounds?: import('./store/fetchSlice').Sound[] }).currentSounds) || []
+  })
+
+  ipcMain.on('set_selected_sound', (_event, id) => {
+    mainSelectedSoundId = id
+  })
+
+  ipcMain.handle('get_main_selected_sound', () => {
+    return mainSelectedSoundId
+  })
+
+  ipcMain.handle(
+    'timeline:save',
+    async (
+      event,
+      json: string,
+    ): Promise<{ ok: true, path: string } | { ok: false, error: string }> => {
+      const filePath = timelineFilePaths.get(event.sender.id)
+      if (!filePath) return { ok: false, error: '上書き先が未選択です' }
+      try {
+        await fs.promises.writeFile(filePath, json, 'utf-8')
+        return { ok: true, path: filePath }
+      }
+      catch (e) {
+        return { ok: false, error: (e as Error).message }
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'timeline:save-dialog',
+    async (
+      event,
+      defaultPath: string | undefined,
+      json: string,
+    ): Promise<{ ok: true, path: string } | { ok: false, canceled: true } | { ok: false, error: string }> => {
+      // win が取れない場合でも Electron はウィンドウレスなダイアログ表示を受け付けるため、
+      // win! のような非 null アサーションはせず、あるかどうかで呼び分ける (I9)
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      try {
+        const result = win
+          ? await dialog.showSaveDialog(win, {
+            title: 'Knead Project を保存',
+            defaultPath: defaultPath ?? 'timeline.kp',
+            filters: [{ name: 'Knead Project', extensions: ['kp'] }],
+          })
+          : await dialog.showSaveDialog({
+            title: 'Knead Project を保存',
+            defaultPath: defaultPath ?? 'timeline.kp',
+            filters: [{ name: 'Knead Project', extensions: ['kp'] }],
+          })
+        if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+        await fs.promises.writeFile(result.filePath, json, 'utf-8')
+        timelineFilePaths.set(event.sender.id, result.filePath)
+        return { ok: true, path: result.filePath }
+      }
+      catch (e) {
+        return { ok: false, error: (e as Error).message }
+      }
+    },
+  )
+
+  ipcMain.handle(
+    'timeline:open-dialog',
+    async (
+      event,
+    ): Promise<{ ok: true, path: string, json: string } | { ok: false, canceled: true } | { ok: false, error: string }> => {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      try {
+        const result = win
+          ? await dialog.showOpenDialog(win, {
+            title: 'Knead Project を開く',
+            properties: ['openFile'],
+            filters: [{ name: 'Knead Project', extensions: ['kp'] }],
+          })
+          : await dialog.showOpenDialog({
+            title: 'Knead Project を開く',
+            properties: ['openFile'],
+            filters: [{ name: 'Knead Project', extensions: ['kp'] }],
+          })
+        if (result.canceled || result.filePaths.length === 0) return { ok: false, canceled: true }
+        const filePath = result.filePaths[0]
+        const json = await fs.promises.readFile(filePath, 'utf-8')
+        timelineFilePaths.set(event.sender.id, filePath)
+        return { ok: true, path: filePath, json }
+      }
+      catch (e) {
+        return { ok: false, error: (e as Error).message }
+      }
+    },
+  )
 }

@@ -1,0 +1,318 @@
+import { useCallback, useMemo, useReducer } from 'react'
+import { produce, Draft } from 'immer'
+import { v4 as uuidv4 } from 'uuid'
+import type { Curve, Marker, Tick, TimelineState } from '../types/timeline'
+import {
+  DEFAULT_RETRIGGER_INTERVAL,
+  DEFAULT_TIMELINE_LENGTH_TICKS,
+  SINGLE_SHOT_CURVE_PREVIEW_TICKS,
+} from '../types/timeline'
+
+const MAX_HISTORY = 100
+
+function resizeCurve(curve: Draft<Curve> | undefined, oldSpan: number, newSpan: number): Curve | undefined {
+  if (!curve) return undefined
+  const byTick = new Map<number, Curve['keyframes'][number]>()
+  for (const keyframe of curve.keyframes) {
+    const tick = Math.max(0, Math.min(newSpan, Math.round(keyframe.tick / oldSpan * newSpan)))
+    byTick.set(tick, { ...keyframe, tick })
+  }
+  return { keyframes: Array.from(byTick.values()).sort((a, b) => a.tick - b.tick) }
+}
+
+function resizeMarkerCurves(marker: Draft<Marker>, duration: number): void {
+  const oldSpan = marker.duration && marker.duration > 0
+    ? marker.duration
+    : SINGLE_SHOT_CURVE_PREVIEW_TICKS
+  const newSpan = duration > 0 ? duration : SINGLE_SHOT_CURVE_PREVIEW_TICKS
+  marker.volumeCurve = resizeCurve(marker.volumeCurve, oldSpan, newSpan)
+  marker.pitchCurve = resizeCurve(marker.pitchCurve, oldSpan, newSpan)
+}
+
+const defaultState = (): TimelineState => ({
+  targetVersion: '',
+  lengthTicks: DEFAULT_TIMELINE_LENGTH_TICKS,
+  markers: [],
+})
+
+interface History {
+  past: TimelineState[]
+  current: TimelineState
+  future: TimelineState[]
+  txSnapshot: TimelineState | null
+}
+
+type Action =
+  | { type: 'mutate', recipe: (d: Draft<TimelineState>) => void }
+  | { type: 'beginTx' }
+  | { type: 'commitTx' }
+  | { type: 'undo' }
+  | { type: 'redo' }
+  | { type: 'replace', state: TimelineState }
+
+function reducer(h: History, a: Action): History {
+  switch (a.type) {
+    case 'mutate': {
+      const next = produce(h.current, a.recipe)
+      if (next === h.current) return h
+      if (h.txSnapshot !== null) return { ...h, current: next }
+      return {
+        past: [...h.past, h.current].slice(-MAX_HISTORY),
+        current: next,
+        future: [],
+        txSnapshot: null,
+      }
+    }
+    case 'beginTx':
+      if (h.txSnapshot !== null) return h
+      return { ...h, txSnapshot: h.current }
+    case 'commitTx': {
+      if (h.txSnapshot === null) return h
+      if (h.txSnapshot === h.current) return { ...h, txSnapshot: null }
+      return {
+        past: [...h.past, h.txSnapshot].slice(-MAX_HISTORY),
+        current: h.current,
+        future: [],
+        txSnapshot: null,
+      }
+    }
+    case 'undo': {
+      if (h.past.length === 0) return h
+      const prev = h.past[h.past.length - 1]
+      return {
+        past: h.past.slice(0, -1),
+        current: prev,
+        future: [h.current, ...h.future].slice(0, MAX_HISTORY),
+        txSnapshot: null,
+      }
+    }
+    case 'redo': {
+      if (h.future.length === 0) return h
+      const next = h.future[0]
+      return {
+        past: [...h.past, h.current].slice(-MAX_HISTORY),
+        current: next,
+        future: h.future.slice(1),
+        txSnapshot: null,
+      }
+    }
+    case 'replace':
+      return { past: [], current: a.state, future: [], txSnapshot: null }
+  }
+}
+
+export function useTimeline(initial?: TimelineState) {
+  const [h, dispatch] = useReducer(reducer, undefined, () => ({
+    past: [], current: initial ?? defaultState(), future: [], txSnapshot: null,
+  }))
+
+  const addMarker = useCallback(
+    (partial: Partial<Marker> & { tick: Tick }): string => {
+      const id = uuidv4()
+      dispatch({
+        type: 'mutate',
+        recipe: (draft) => {
+          draft.markers.push({
+            id,
+            tick: Math.max(0, Math.trunc(partial.tick)),
+            soundId: partial.soundId ?? '',
+            variantIndex: partial.variantIndex ?? -1,
+            volume: partial.volume ?? 1.0,
+            pitch: partial.pitch ?? 1.0,
+            duration: partial.duration,
+            retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
+            volumeCurve: partial.volumeCurve,
+            pitchCurve: partial.pitchCurve,
+            trackY: partial.trackY,
+          })
+        },
+      })
+      return id
+    },
+    [],
+  )
+
+  const addMarkers = useCallback((partials: (Partial<Marker> & { tick: Tick })[]): string[] => {
+    const ids = partials.map(() => uuidv4())
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        partials.forEach((p, i) => {
+          draft.markers.push({
+            id: ids[i],
+            tick: Math.max(0, Math.trunc(p.tick)),
+            soundId: p.soundId ?? '',
+            variantIndex: p.variantIndex ?? -1,
+            volume: p.volume ?? 1.0,
+            pitch: p.pitch ?? 1.0,
+            duration: p.duration,
+            retriggerInterval: p.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
+            volumeCurve: p.volumeCurve,
+            pitchCurve: p.pitchCurve,
+            trackY: p.trackY,
+          })
+        })
+      },
+    })
+    return ids
+  }, [])
+
+  const removeMarker = useCallback((id: string) => {
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        draft.markers = draft.markers.filter(m => m.id !== id)
+      },
+    })
+  }, [])
+
+  const removeMarkers = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        draft.markers = draft.markers.filter(m => !idSet.has(m.id))
+      },
+    })
+  }, [])
+
+  const moveMarker = useCallback((id: string, newTick: Tick) => {
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        const m = draft.markers.find(m => m.id === id)
+        if (!m) return
+        const maxTick = Math.max(0, draft.lengthTicks - 1)
+        m.tick = Math.min(maxTick, Math.max(0, Math.trunc(newTick)))
+      },
+    })
+  }, [])
+
+  const moveMarkers = useCallback((deltas: Map<string, Tick>) => {
+    if (deltas.size === 0) return
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        const maxTick = Math.max(0, draft.lengthTicks - 1)
+        for (const m of draft.markers) {
+          const next = deltas.get(m.id)
+          if (next === undefined) continue
+          m.tick = Math.min(maxTick, Math.max(0, Math.trunc(next)))
+        }
+      },
+    })
+  }, [])
+
+  const moveMarkersOnTrack = useCallback((positions: Map<string, { tick: Tick, trackY?: number }>) => {
+    if (positions.size === 0) return
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        const maxTick = Math.max(0, draft.lengthTicks - 1)
+        for (const m of draft.markers) {
+          const next = positions.get(m.id)
+          if (next === undefined) continue
+          m.tick = Math.min(maxTick, Math.max(0, Math.trunc(next.tick)))
+          m.trackY = next.trackY
+        }
+      },
+    })
+  }, [])
+
+  const updateMarker = useCallback((id: string, patch: Partial<Marker>) => {
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        const m = draft.markers.find(m => m.id === id)
+        if (!m) return
+        if (patch.duration !== undefined && patch.duration !== m.duration) {
+          resizeMarkerCurves(m, patch.duration)
+        }
+        Object.assign(m, patch)
+        if (patch.tick !== undefined) {
+          const maxTick = Math.max(0, draft.lengthTicks - 1)
+          m.tick = Math.min(maxTick, Math.max(0, Math.trunc(patch.tick)))
+        }
+      },
+    })
+  }, [])
+
+  const updateMarkers = useCallback((ids: string[], patch: Partial<Marker>) => {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => {
+        const maxTick = Math.max(0, draft.lengthTicks - 1)
+        for (const m of draft.markers) {
+          if (!idSet.has(m.id)) continue
+          if (patch.duration !== undefined && patch.duration !== m.duration) {
+            resizeMarkerCurves(m, patch.duration)
+          }
+          Object.assign(m, patch)
+          if (patch.tick !== undefined) {
+            m.tick = Math.min(maxTick, Math.max(0, Math.trunc(patch.tick)))
+          }
+        }
+      },
+    })
+  }, [])
+
+  const setLength = useCallback((ticks: Tick) => {
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => { draft.lengthTicks = Math.max(1, Math.trunc(ticks)) },
+    })
+  }, [])
+
+  const setTargetVersion = useCallback((v: string) => {
+    dispatch({
+      type: 'mutate',
+      recipe: (draft) => { draft.targetVersion = v },
+    })
+  }, [])
+
+  const replaceAll = useCallback((next: TimelineState) => {
+    dispatch({ type: 'replace', state: next })
+  }, [])
+
+  const beginTransaction = useCallback(() => {
+    dispatch({ type: 'beginTx' })
+  }, [])
+
+  const commitTransaction = useCallback(() => {
+    dispatch({ type: 'commitTx' })
+  }, [])
+
+  const undo = useCallback(() => dispatch({ type: 'undo' }), [])
+  const redo = useCallback(() => dispatch({ type: 'redo' }), [])
+
+  return useMemo(() => ({
+    state: h.current,
+    canUndo: h.past.length > 0,
+    canRedo: h.future.length > 0,
+    addMarker,
+    addMarkers,
+    removeMarker,
+    removeMarkers,
+    moveMarker,
+    moveMarkers,
+    moveMarkersOnTrack,
+    updateMarker,
+    updateMarkers,
+    setLength,
+    setTargetVersion,
+    replaceAll,
+    beginTransaction,
+    commitTransaction,
+    undo,
+    redo,
+  }), [
+    h.current, h.past.length, h.future.length,
+    addMarker, addMarkers, removeMarker, removeMarkers,
+    moveMarker, moveMarkers, moveMarkersOnTrack, updateMarker, updateMarkers,
+    setLength, setTargetVersion, replaceAll,
+    beginTransaction, commitTransaction, undo, redo,
+  ])
+}

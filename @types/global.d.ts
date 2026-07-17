@@ -20,4 +20,17 @@ export interface Sandbox {
   saveRatingStar: (data: string) => Promise<void>
   saveRatingStarAsString: (data: string) => Promise<void>
   updateRatingStar: (key: string, value: number) => Promise<void>
+  getCurrentSounds: () => Promise<Sound[]>
+  setSelectedSound: (id: string) => void
+  getMainSelectedSound: () => Promise<string>
+  timeline: {
+    save: (
+      json: string,
+    ) => Promise<{ ok: true, path: string } | { ok: false, error: string }>
+    saveDialog: (
+      defaultPath: string | undefined,
+      json: string,
+    ) => Promise<{ ok: true, path: string } | { ok: false, canceled: true } | { ok: false, error: string }>
+    openDialog: () => Promise<{ ok: true, path: string, json: string } | { ok: false, canceled: true } | { ok: false, error: string }>
+  }
 }

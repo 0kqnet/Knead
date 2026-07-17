@@ -1,11 +1,16 @@
 import path from 'node:path'
 import { BrowserWindow, app, ipcMain } from 'electron'
 import { initIpcMain } from './ipc-main-handler'
+import { initAutoUpdateChecker } from './update-checker'
+import { Sound } from './store/fetchSlice'
 
 initIpcMain()
 
 let mainWindow: BrowserWindow
+let currentSounds = []
+
 const createMainWindow = () => {
+  initAutoUpdateChecker()
   mainWindow = new BrowserWindow({
     width: 950,
     height: 790 + 40,
@@ -35,9 +40,9 @@ const createMainWindow = () => {
 
 const createSubWindow = () => {
   const subWindow = new BrowserWindow({
-    width: 950,
+    width: 1200,
     height: 650 + 40,
-    minWidth: 650,
+    minWidth: 900,
     minHeight: 650,
     frame: true,
     title: 'Knead',
@@ -45,7 +50,11 @@ const createSubWindow = () => {
     opacity: 1,
     show: false,
     icon: path.join(__dirname, 'assets/icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+    },
   })
+
   // メニューバー削除
   subWindow.setMenu(null)
   // レンダラープロセスをロード
@@ -59,9 +68,17 @@ const createSubWindow = () => {
   subWindow.once('closed', () => mainWindow.focus())
 }
 
+export const setCurrentSounds = (sounds: Sound[]) => {
+  currentSounds = sounds
+}
+
 app.on('ready', () => {
   // 多重起動禁止
-  if (!app.requestSingleInstanceLock()) app.quit()
+  if (!app.requestSingleInstanceLock()) {
+    console.error('Another instance is already running.')
+    app.quit()
+    return
+  }
   // メインウインドウ作成
   createMainWindow()
 

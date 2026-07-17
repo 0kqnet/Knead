@@ -129,14 +129,34 @@ export const useAudioPlay = (): { context: GlobalContext, contexts: { head?: Pub
   }, [])
 
   // MARK: stop
-  const stop = useCallback(() => {
-    setAudioState(prev => mapEntries(prev, (ctx) => {
-      if (!ctx.isPlaying) return { ...ctx, playbackTime: 0, playTime: 0 }
+  const stop = useCallback(async () => {
+    return new Promise<void>((resolve) => {
+      setAudioState((prev) => {
+        const newState = { ...prev }
+        // すべてのコンテキストを停止状態にリセット
+        Object.entries(prev).forEach(([key, ctx]) => {
+          if ('isPlaying' in ctx && ctx.isPlaying) {
+            try {
+              ctx.absn.onended = null
+              ctx.absn.stop()
+            }
+            catch (e) {
+              console.error('Error stopping audio:', e)
+            }
+          }
+          // 再生状態に関わらず全てのサウンドを停止状態にする
+          newState[key] = {
+            ...ctx,
+            isPlaying: false as const,
+            playbackTime: 0,
+            playTime: 0,
+          }
+        })
 
-      ctx.absn.onended = null
-      ctx.absn.stop()
-      return { ...ctx, isPlaying: false, playbackTime: 0, playTime: 0 }
-    }))
+        resolve()
+        return newState
+      })
+    })
   }, [setAudioState])
 
   // MARK: createAudioBuffer
@@ -158,9 +178,24 @@ export const useAudioPlay = (): { context: GlobalContext, contexts: { head?: Pub
 
   // MARK: setSound
   const setSound = useCallback(async (soundKey: string, uri: string, speed: number = 1, volume: number = 1) => {
-    stop()
-    const buffer = await createAudioBuffer(uri)
-    setAudioState({ [soundKey]: createContext({ buffer, maxTime: buffer.duration, volume, speed }) })
+    try {
+      // 同期的に確実に停止する
+      await stop()
+
+      // 少し待機して AudioContext の処理を完了させる
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      // 現在のstateを一度クリアしてから新しいサウンドを設定
+      setAudioState({})
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      const buffer = await createAudioBuffer(uri)
+      setAudioState({ [soundKey]: createContext({ buffer, maxTime: buffer.duration, volume, speed }) })
+    }
+    catch (e) {
+      console.error('Error setting sound:', e)
+      throw e
+    }
   }, [createAudioBuffer, createContext, stop])
 
   // MARK: setSounds
