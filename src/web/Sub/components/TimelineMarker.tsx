@@ -1,50 +1,65 @@
 import React from 'react'
 import { Box, Text } from '@yamada-ui/react'
-import { TIMELINE_MARKER_SIZE, type Marker } from '../types/timeline'
+import { TIMELINE_MARKER_HEIGHT, type Marker, type Track } from '../types/timeline'
 import { tickToPx } from '../utils/tickPixel'
 
 export type ResizeEdge = 'start' | 'end'
 
 interface Props {
   marker: Marker
-  invalidSound: boolean
+  track: Track
   pxPerTick: number
   selected: boolean
+  invalidSound: boolean
   resizeCursor: boolean
   topPx: number
-  onPointerDown: (edge: ResizeEdge | null, e: React.PointerEvent) => void
+  onPointerDown: (edge: ResizeEdge | null, event: React.PointerEvent) => void
+}
+
+const COLOR_MAP: Record<Track['color'], string> = {
+  blue: '#3b82f6',
+  cyan: '#06b6d4',
+  green: '#22c55e',
+  yellow: '#eab308',
+  orange: '#f97316',
+  red: '#ef4444',
+  pink: '#ec4899',
+  purple: '#a855f7',
 }
 
 export const TimelineMarker: React.FC<Props> = ({
-  marker, invalidSound, pxPerTick, selected, resizeCursor, topPx, onPointerDown,
+  marker, track, pxPerTick, selected, invalidSound, resizeCursor, topPx, onPointerDown,
 }) => {
-  const left = tickToPx(marker.tick, pxPerTick) - TIMELINE_MARKER_SIZE / 2
+  const size = TIMELINE_MARKER_HEIGHT
   const durationPx = marker.duration && marker.duration > 0
     ? tickToPx(marker.duration, pxPerTick)
     : 0
-  const endpointFill = invalidSound ? 'red.500' : (selected ? 'blue.400' : 'gray.300')
-  const endpointBorder = invalidSound ? 'red.200' : (selected ? 'blue.200' : 'gray.500')
-  const lineColor = invalidSound ? 'red.800' : (selected ? 'blue.700' : 'gray.600')
+  const left = tickToPx(marker.tick, pxPerTick) - size / 2
+  const color = invalidSound ? '#dc2626' : COLOR_MAP[track.color]
+  const endpointBorder = selected ? '#f8fafc' : 'rgba(255,255,255,.45)'
+  const lineColor = invalidSound ? '#7f1d1d' : selected ? '#93c5fd' : color
 
   const endpoint = (edge: ResizeEdge, offset: number) => (
     <Box
+      data-marker-edge={edge}
       position="absolute"
       left={`${offset}px`}
       top="0"
-      w={`${TIMELINE_MARKER_SIZE}px`}
-      h={`${TIMELINE_MARKER_SIZE}px`}
+      w={`${size}px`}
+      h={`${size}px`}
       cursor={resizeCursor ? 'ew-resize' : 'grab'}
       _active={{ cursor: resizeCursor ? 'ew-resize' : 'grabbing' }}
-      onPointerDown={e => onPointerDown(edge, e)}
+      onPointerDown={event => onPointerDown(edge, event)}
     >
       <Box
         position="absolute"
         inset="0"
-        transform="rotate(45deg) scale(0.78)"
-        borderRadius="2px"
-        bg={endpointFill}
+        transform="rotate(45deg) scale(.68)"
+        borderRadius="3px"
+        bg={color}
         border="2px solid"
         borderColor={endpointBorder}
+        boxShadow={selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)'}
         pointerEvents="none"
       />
     </Box>
@@ -52,33 +67,38 @@ export const TimelineMarker: React.FC<Props> = ({
 
   return (
     <Box
+      data-marker-id={marker.id}
+      data-marker-top={topPx}
       position="absolute"
       left={`${left}px`}
       top={`${topPx}px`}
       transform="translateY(-50%)"
-      w={`${TIMELINE_MARKER_SIZE + durationPx}px`}
-      h={`${TIMELINE_MARKER_SIZE}px`}
+      w={`${size + durationPx}px`}
+      h={`${size}px`}
       cursor="grab"
       _active={{ cursor: 'grabbing' }}
-      onPointerDown={e => onPointerDown(null, e)}
-      title={`t=${marker.tick} ${marker.soundId || '(no sound)'}`}
+      userSelect="none"
+      zIndex={selected ? 4 : 2}
+      onPointerDown={event => onPointerDown(null, event)}
+      title={`${track.name} · t=${marker.tick} · ${marker.soundId || '(no sound)'}`}
     >
       {durationPx > 0 && (
         <Box
           position="absolute"
-          left={`${TIMELINE_MARKER_SIZE / 2}px`}
+          left={`${size / 2}px`}
           top="50%"
           transform="translateY(-50%)"
           w={`${durationPx}px`}
-          h="12px"
+          h="10px"
           bg={lineColor}
+          borderY={selected ? '1px solid white' : undefined}
           pointerEvents="none"
         />
       )}
       {endpoint(durationPx > 0 ? 'start' : 'end', 0)}
       {durationPx > 0 && endpoint('end', durationPx)}
       {invalidSound && (
-        <Text position="absolute" top="-14px" left="0" fontSize="10px" color="red.400">!</Text>
+        <Text position="absolute" top="-12px" left="0" fontSize="9px" color="red.300">!</Text>
       )}
     </Box>
   )

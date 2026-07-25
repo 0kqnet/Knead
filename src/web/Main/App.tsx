@@ -5,8 +5,10 @@ import { Footer } from '../Main/Footer'
 import { Configuration } from '../Main/Configuration'
 import { VolumeChange } from '../Main/VolumeChange'
 import { Separator, Flex, Spacer, Box, VStack, Button, useColorMode, ColorModeWithSystem } from '@yamada-ui/react'
+import { useTranslation } from 'react-i18next'
 
 export const App = () => {
+  const { t } = useTranslation()
   const openSubWindow = () => {
     window.myAPI.make_sub_window()
   }
@@ -41,7 +43,7 @@ export const App = () => {
             <Spacer />
 
             <VolumeChange />
-            <Button onClick={openSubWindow}>test</Button>
+            <Button colorScheme="purple" onClick={openSubWindow}>{t('studio.title')}</Button>
             <Configuration />
           </Flex>
           <Separator marginY={2} size="xs" />

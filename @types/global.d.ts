@@ -1,5 +1,6 @@
 import { Sound } from '../src/store/fetchSlice'
 import { SettingType } from '../src/types/Settings'
+import type { TimelineState } from '../src/web/Sub/types/timeline'
 
 export type ProjectDragDropEvent =
   | { type: 'enter', paths: string[] }
@@ -11,6 +12,43 @@ export type TimelineOpenResult =
   | { ok: true, path: string, json: string }
   | { ok: false, canceled: true }
   | { ok: false, error: string }
+
+export interface AudioExportOptions {
+  format: 'wav' | 'ogg' | 'mp3'
+  targets: ('mix' | 'stems')[]
+  sampleRate: 44100 | 48000 | 96000
+  channels: 1 | 2
+  wavBitDepth: 16 | 24 | 32
+  oggQuality: number
+  mp3Bitrate: 128 | 192 | 256 | 320
+  range: 'project' | 'loop'
+  includeTails: boolean
+  includeMutedTracks: boolean
+}
+
+export interface AudioExportVariant {
+  path: string
+  hash: string
+  pitch: number
+}
+
+export interface AudioExportRequest {
+  defaultName: string
+  options: AudioExportOptions
+  project: TimelineState
+  soundManifest: Record<string, AudioExportVariant[]>
+}
+
+export interface AudioExportProgress {
+  jobId: string
+  progress: number
+  stage: string
+  currentTrack?: string
+  done?: boolean
+  canceled?: boolean
+  error?: string
+  outputPaths?: string[]
+}
 
 declare global {
   interface Window {
@@ -55,5 +93,12 @@ export interface Sandbox {
     takeOpenRequest: () => Promise<string | null>
     onOpenRequested: (handler: () => void) => Promise<() => void>
     onDragDrop: (handler: (event: ProjectDragDropEvent) => void) => Promise<() => void>
+  }
+  audioExport: {
+    start: (request: AudioExportRequest) => Promise<
+      { ok: true, jobId: string } | { ok: false, canceled: true } | { ok: false, error: string }
+    >
+    cancel: (jobId: string) => Promise<void>
+    onProgress: (handler: (progress: AudioExportProgress) => void) => Promise<() => void>
   }
 }

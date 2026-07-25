@@ -1,3 +1,5 @@
+mod audio_export;
+
 use futures_util::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -7,8 +9,8 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
-        Mutex,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc, Mutex,
     },
     time::{Duration, SystemTime},
 };
@@ -18,7 +20,6 @@ use std::{io::Write, process::Command};
 use tauri::window::{ProgressBarState, ProgressBarStatus};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
-#[cfg(not(debug_assertions))]
 use tauri_plugin_dialog::{MessageDialogButtons, MessageDialogKind};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,6 +124,7 @@ const ASSET_OBJECT_BASE_URL: &str = "https://resources.download.minecraft.net";
 const ASSET_DOWNLOAD_CONCURRENCY: usize = 12;
 const VERSION_MANIFEST_CACHE_MAX_AGE: Duration = Duration::from_secs(6 * 60 * 60);
 static DOWNLOAD_TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+static EXPORT_JOB_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Default)]
 struct AppState {
@@ -130,6 +132,7 @@ struct AppState {
     current_sounds: Mutex<Vec<Sound>>,
     timeline_paths: Mutex<HashMap<String, PathBuf>>,
     pending_timeline_path: Mutex<Option<PathBuf>>,
+    export_jobs: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 const TIMELINE_OPEN_REQUESTED_EVENT: &str = "timeline-open-requested";
@@ -1119,6 +1122,183 @@ fn timeline_take_open_request(state: State<'_, AppState>) -> Result<Option<Strin
         .map(|path| path.to_string_lossy().into_owned()))
 }
 
+#[tauri::command]
+async fn audio_export_start(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: audio_export::AudioExportRequest,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let format = match request.options.format.as_str() {
+        "wav" => "wav",
+        "ogg" => "ogg",
+        "mp3" => "mp3",
+        other => {
+            return Ok(json!({ "ok": false, "error": format!("Unsupported format: {other}") }))
+        }
+    };
+    let path_is_directory = request
+        .options
+        .targets
+        .iter()
+        .any(|target| target == "stems");
+    let selected_path = if path_is_directory {
+        let Some(folder) = app
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("書き出し先フォルダーを選択")
+            .blocking_pick_folder()
+        else {
+            return Ok(json!({ "ok": false, "canceled": true }));
+        };
+        match folder.into_path() {
+            Ok(path) => path,
+            Err(error) => return Ok(json!({ "ok": false, "error": error.to_string() })),
+        }
+    } else {
+        let default_name = format!(
+            "{}.{}",
+            audio_export::sanitize_name(&request.default_name),
+            format
+        );
+        let Some(file) = app
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .set_title("オーディオを書き出す")
+            .add_filter("Audio", &[format])
+            .set_file_name(&default_name)
+            .blocking_save_file()
+        else {
+            return Ok(json!({ "ok": false, "canceled": true }));
+        };
+        match file.into_path() {
+            Ok(mut path) => {
+                if !path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .is_some_and(|value| value.eq_ignore_ascii_case(format))
+                {
+                    path.set_extension(format);
+                }
+                path
+            }
+            Err(error) => return Ok(json!({ "ok": false, "error": error.to_string() })),
+        }
+    };
+
+    let planned = match audio_export::planned_outputs(&selected_path, path_is_directory, &request) {
+        Ok(paths) => paths,
+        Err(error) => return Ok(json!({ "ok": false, "error": error })),
+    };
+    let existing = planned
+        .iter()
+        .filter(|(path, _)| path.exists())
+        .map(|(path, _)| {
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect::<Vec<_>>();
+    if !existing.is_empty() {
+        let accepted = app
+            .dialog()
+            .message(format!("{}\n\n上書きしますか？", existing.join("\n")))
+            .title("既存ファイルがあります")
+            .parent(&window)
+            .kind(MessageDialogKind::Warning)
+            .buttons(MessageDialogButtons::OkCancel)
+            .blocking_show();
+        if !accepted {
+            return Ok(json!({ "ok": false, "canceled": true }));
+        }
+    }
+
+    let root = minecraft_dir()?;
+    let job_id = format!(
+        "export-{}-{}",
+        std::process::id(),
+        EXPORT_JOB_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
+    let canceled = Arc::new(AtomicBool::new(false));
+    state
+        .export_jobs
+        .lock()
+        .map_err(|error| error.to_string())?
+        .insert(job_id.clone(), canceled.clone());
+
+    let app_for_job = app.clone();
+    let job_id_for_job = job_id.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let emit_progress = |progress: audio_export::ExportProgress| {
+            let _ = app_for_job.emit("audio-export-progress", progress);
+        };
+        let result = audio_export::run_export(
+            &job_id_for_job,
+            &root,
+            &selected_path,
+            path_is_directory,
+            request,
+            canceled,
+            emit_progress,
+        );
+        let progress = match result {
+            Ok(paths) => audio_export::ExportProgress {
+                job_id: job_id_for_job.clone(),
+                progress: 1.0,
+                stage: "完了".to_string(),
+                current_track: None,
+                done: true,
+                canceled: false,
+                error: None,
+                output_paths: Some(paths),
+            },
+            Err(error) if error == "canceled" => audio_export::ExportProgress {
+                job_id: job_id_for_job.clone(),
+                progress: 0.0,
+                stage: "キャンセルしました".to_string(),
+                current_track: None,
+                done: false,
+                canceled: true,
+                error: None,
+                output_paths: None,
+            },
+            Err(error) => audio_export::ExportProgress {
+                job_id: job_id_for_job.clone(),
+                progress: 0.0,
+                stage: "失敗".to_string(),
+                current_track: None,
+                done: false,
+                canceled: false,
+                error: Some(error),
+                output_paths: None,
+            },
+        };
+        let _ = app_for_job.emit("audio-export-progress", progress);
+        if let Some(state) = app_for_job.try_state::<AppState>() {
+            if let Ok(mut jobs) = state.export_jobs.lock() {
+                jobs.remove(&job_id_for_job);
+            }
+        }
+    });
+
+    Ok(json!({ "ok": true, "jobId": job_id }))
+}
+
+#[tauri::command]
+fn audio_export_cancel(job_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let jobs = state
+        .export_jobs
+        .lock()
+        .map_err(|error| error.to_string())?;
+    if let Some(canceled) = jobs.get(&job_id) {
+        canceled.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
 #[cfg(not(debug_assertions))]
 fn show_update_error(app: &AppHandle, title: &str, message: impl Into<String>) {
     app.dialog()
@@ -1344,6 +1524,8 @@ pub fn run() {
             timeline_open_path,
             timeline_set_current_path,
             timeline_take_open_request,
+            audio_export_start,
+            audio_export_cancel,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Knead");

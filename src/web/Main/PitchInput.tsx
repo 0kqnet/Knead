@@ -1,6 +1,7 @@
-import { Slider, Spacer, Tooltip, NumberInput, Select, SelectItem, Flex } from '@yamada-ui/react'
+import { Slider, Spacer, Tooltip, Select, SelectItem, Flex } from '@yamada-ui/react'
 import React, { JSX, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { CommitNumberInput } from '../components/CommitNumberInput'
 
 type PitchInputProps = {
   pitch: string
@@ -66,12 +67,10 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
     setInternalPitch(value.toString())
     onChange(value.toString())
   }, [onChange])
-  const onChangePitchInput = useCallback((value: string) => {
-    const pitch = parseFloat(value).toString()
+  const onCommitPitchInput = useCallback((value: number) => {
+    const pitch = value.toString()
     setInternalPitch(pitch)
-    if (!Number.isNaN(pitch) && (0.5 <= parseFloat(pitch) && parseFloat(pitch) <= 2)) {
-      onChange(pitch)
-    }
+    onChange(pitch)
   }, [onChange, setInternalPitch])
 
   const onChangePitchScaleMenu = useCallback((value: string) => {
@@ -103,8 +102,8 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
             }}
           />
           <Spacer minW={3} />
-          <NumberInput
-            onChange={onChangePitchInput} value={internalPitch}
+          <CommitNumberInput
+            onCommit={onCommitPitchInput} value={internalPitch}
             w={20} placeholder="pitch" step={0.01} precision={2} min={0.5} max={2}
           />
         </Flex>

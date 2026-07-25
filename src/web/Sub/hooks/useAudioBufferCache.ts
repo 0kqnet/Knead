@@ -55,6 +55,14 @@ export function useAudioBufferCache() {
     return cacheRef.current.get(hash)
   }, [soundMap])
 
+  const getVariantCount = useCallback((soundId: string): number => {
+    return soundMap[soundId]?.length ?? 0
+  }, [soundMap])
+
+  const getBasePitch = useCallback((soundId: string, variantIndex: number): number => {
+    return soundMap[soundId]?.[variantIndex]?.pitch ?? 1
+  }, [soundMap])
+
   const clear = useCallback(() => {
     cacheRef.current.clear()
   }, [])
@@ -72,7 +80,7 @@ export function useAudioBufferCache() {
   }, [])
 
   return useMemo(
-    () => ({ preload, getBuffer, getAudioContext, clear, preloading }),
-    [preload, getBuffer, getAudioContext, clear, preloading],
+    () => ({ preload, getBuffer, getVariantCount, getBasePitch, getAudioContext, clear, preloading }),
+    [preload, getBuffer, getVariantCount, getBasePitch, getAudioContext, clear, preloading],
   )
 }

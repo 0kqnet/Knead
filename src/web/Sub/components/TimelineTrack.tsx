@@ -1,8 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box } from '@yamada-ui/react'
-import { TIMELINE_MARKER_SIZE, type Marker } from '../types/timeline'
-import { tickToPx, pxToTick } from '../utils/tickPixel'
-import { TimelineMarker, type ResizeEdge } from './TimelineMarker'
+import {
+  TIMELINE_MARKER_HEIGHT,
+  TRACK_HEIGHT,
+  TRACK_HEIGHT_COLLAPSED,
+  snapTick,
+  type Marker,
+  type TimelineSettings,
+  type Track,
+} from '../types/timeline'
+import { pxDeltaToTick, pxToTick, tickToPx } from '../utils/tickPixel'
+import { ResizeEdge, TimelineMarker } from './TimelineMarker'
 
 export interface SelectModifiers {
   ctrl: boolean
@@ -10,70 +18,53 @@ export interface SelectModifiers {
 }
 
 interface Props {
+  track: Track
   markers: Marker[]
-  trackHeight: number
-  validSoundIds: Set<string>
   lengthTicks: number
   pxPerTick: number
+  settings: TimelineSettings
   selectedIds: Set<string>
-  onMarkerClick: (id: string, mods: SelectModifiers) => void
+  validSoundIds: Set<string>
+  onSelectMarker: (id: string, modifiers: SelectModifiers) => void
   onClearSelection: () => void
-  onRectangleSelect: (ids: string[], mods: SelectModifiers) => void
-  onBeginMove: () => void
-  onMoveMarkers: (positions: Map<string, { tick: number, trackY?: number }>) => void
+  onRectangleSelect: (ids: string[], additive: boolean) => void
+  onBeginEdit: (primaryId: string) => void
+  onEndEdit: () => void
+  onMoveSelection: (
+    primaryId: string,
+    tick: number,
+    targetTrackId: string,
+    laneYs?: Map<string, number>,
+  ) => void
   onResizeMarker: (id: string, tick: number, duration: number) => void
-  onEndMove: () => void
-  onAddMarker: (tick: number) => void
-}
-
-interface MarkerOrigin {
-  tick: number
-  displayY: number
-  trackY?: number
+  onDuplicateForDrag: (primaryId: string) => string
+  onAddMarker: (tick: number, trackId: string) => void
 }
 
 interface DragState {
-  mode: 'move' | 'resize'
+  pointerId: number
   primaryId: string
-  origins: Map<string, MarkerOrigin>
-  startClientX: number
-  startClientY: number
+  originClientX: number
+  originClientY: number
   originTick: number
   originDuration: number
-  resizeEdge: ResizeEdge | null
-  wasSelected: boolean
+  originLaneYs: Map<string, number>
+  edge: ResizeEdge | null
   moved: boolean
+  editing: boolean
 }
-
-interface RectState {
-  startX: number
-  startY: number
-  x: number
-  y: number
-  additive: boolean
-}
-
-const clampTrackY = (y: number, trackHeight: number): number => Math.max(
-  TIMELINE_MARKER_SIZE / 2,
-  Math.min(trackHeight - TIMELINE_MARKER_SIZE / 2, y),
-)
 
 export const TimelineTrack: React.FC<Props> = ({
-  markers, trackHeight, validSoundIds, lengthTicks, pxPerTick, selectedIds,
-  onMarkerClick, onClearSelection, onRectangleSelect,
-  onBeginMove, onMoveMarkers, onResizeMarker, onEndMove, onAddMarker,
+  track, markers, lengthTicks, pxPerTick, settings, selectedIds, validSoundIds,
+  onSelectMarker, onClearSelection, onRectangleSelect, onBeginEdit, onEndEdit,
+  onMoveSelection, onResizeMarker, onDuplicateForDrag, onAddMarker,
 }) => {
-  const trackRef = useRef<HTMLDivElement | null>(null)
-  const dragStateRef = useRef<DragState | null>(null)
-  const [rect, setRect] = useState<RectState | null>(null)
+  const rowRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<DragState | null>(null)
+  const ignoreClickRef = useRef(false)
+  const [selectionRect, setSelectionRect] = useState<{ start: number, end: number } | null>(null)
+  const selectionPointerRef = useRef<number | null>(null)
   const [ctrlPressed, setCtrlPressed] = useState(false)
-  const [resizingId, setResizingId] = useState<string | null>(null)
-  const selectedIdsRef = useRef(selectedIds)
-  selectedIdsRef.current = selectedIds
-  const markersRef = useRef(markers)
-  markersRef.current = markers
-
-  const totalPx = tickToPx(lengthTicks, pxPerTick)
 
   const markerYById = useMemo(() => {
     const result = new Map<string, number>()
@@ -83,295 +74,250 @@ export const TimelineTrack: React.FC<Props> = ({
       if (group) group.push(marker)
       else groups.set(marker.tick, [marker])
     }
-
-    const centerY = trackHeight / 2
+    const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
+    const center = height / 2
+    const half = TIMELINE_MARKER_HEIGHT / 2
     const candidates = Array.from(
-      { length: trackHeight - TIMELINE_MARKER_SIZE + 1 },
-      (_, index) => TIMELINE_MARKER_SIZE / 2 + index,
-    ).sort((a, b) => Math.abs(a - centerY) - Math.abs(b - centerY) || a - b)
-
+      { length: Math.max(1, Math.floor(height - TIMELINE_MARKER_HEIGHT + 1)) },
+      (_, index) => half + index,
+    ).sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b)
     for (const group of groups.values()) {
       const assigned: number[] = []
       for (const marker of group) {
-        if (marker.trackY !== undefined) continue
-        const y = candidates.find(candidate => (
-          assigned.every(existing => Math.abs(existing - candidate) >= TIMELINE_MARKER_SIZE)
-        )) ?? centerY
+        if (marker.laneY === undefined) continue
+        const y = half + marker.laneY * Math.max(1, height - TIMELINE_MARKER_HEIGHT)
         result.set(marker.id, y)
         assigned.push(y)
       }
       for (const marker of group) {
-        if (marker.trackY === undefined) continue
-        result.set(marker.id, clampTrackY(marker.trackY, trackHeight))
+        if (marker.laneY !== undefined) continue
+        const y = candidates.find(candidate => (
+          assigned.every(existing => Math.abs(existing - candidate) >= TIMELINE_MARKER_HEIGHT + 2)
+        )) ?? center
+        result.set(marker.id, y)
+        assigned.push(y)
       }
     }
     return result
-  }, [markers, trackHeight])
-  const markerYByIdRef = useRef(markerYById)
-  markerYByIdRef.current = markerYById
+  }, [markers, track.collapsed])
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Control') setCtrlPressed(true)
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Control' || event.key === 'Meta') setCtrlPressed(true)
     }
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control') setCtrlPressed(false)
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Control' || event.key === 'Meta') setCtrlPressed(false)
     }
-    const handleBlur = () => setCtrlPressed(false)
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    window.addEventListener('blur', handleBlur)
+    const blur = () => setCtrlPressed(false)
+    window.addEventListener('keydown', keyDown)
+    window.addEventListener('keyup', keyUp)
+    window.addEventListener('blur', blur)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('keydown', keyDown)
+      window.removeEventListener('keyup', keyUp)
+      window.removeEventListener('blur', blur)
     }
   }, [])
 
-  const handleMarkerPointerDown = useCallback(
-    (id: string) => (resizeEdge: ResizeEdge | null, e: React.PointerEvent) => {
-      e.stopPropagation()
-      const mods = { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }
-      if (mods.shift || e.metaKey) {
-        onMarkerClick(id, mods)
-        return
-      }
-
-      const marker = markersRef.current.find(m => m.id === id)
-      if (!marker) return
-      const isSelected = selectedIdsRef.current.has(id)
-
-      if (e.ctrlKey && resizeEdge !== null) {
-        dragStateRef.current = {
-          mode: 'resize',
-          primaryId: id,
-          origins: new Map(),
-          startClientX: e.clientX,
-          startClientY: e.clientY,
-          originTick: marker.tick,
-          originDuration: marker.duration ?? 0,
-          resizeEdge,
-          wasSelected: isSelected,
-          moved: false,
-        }
-        setResizingId(id)
-        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-        return
-      }
-      if (e.ctrlKey) {
-        onMarkerClick(id, mods)
-        return
-      }
-
-      // 未選択マーカーを掴んだ場合はここで単独選択に切り替える
-      if (!isSelected) onMarkerClick(id, { ctrl: false, shift: false })
-      const targetIds = isSelected ? selectedIdsRef.current : new Set([id])
-      const origins = new Map<string, MarkerOrigin>()
-      for (const m of markersRef.current) {
-        if (!targetIds.has(m.id)) continue
-        origins.set(m.id, {
-          tick: m.tick,
-          displayY: markerYByIdRef.current.get(m.id) ?? trackHeight / 2,
-          trackY: m.trackY,
-        })
-      }
-      dragStateRef.current = {
-        mode: 'move',
-        primaryId: id,
-        origins,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        originTick: marker.tick,
-        originDuration: marker.duration ?? 0,
-        resizeEdge: null,
-        wasSelected: isSelected,
-        moved: false,
-      }
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    },
-    [onMarkerClick, trackHeight],
-  )
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // 矩形選択中
-    if (rect) {
-      if (!trackRef.current) return
-      const r = trackRef.current.getBoundingClientRect()
-      setRect({ ...rect, x: e.clientX - r.left, y: e.clientY - r.top })
+  const handleMarkerPointerDown = useCallback((marker: Marker, edge: ResizeEdge | null, event: React.PointerEvent) => {
+    if (track.locked || event.button !== 0) return
+    event.stopPropagation()
+    const control = event.ctrlKey || event.metaKey
+    const resizing = control && edge !== null
+    if (!resizing && (control || event.shiftKey)) {
+      onSelectMarker(marker.id, { ctrl: control, shift: event.shiftKey })
       return
     }
-    const d = dragStateRef.current
-    if (!d) return
-    const deltaPx = e.clientX - d.startClientX
-    const deltaY = e.clientY - d.startClientY
-    if (!d.moved && Math.hypot(deltaPx, deltaY) > 2) {
-      d.moved = true
-      if (d.mode === 'resize' && !d.wasSelected) {
-        onMarkerClick(d.primaryId, { ctrl: false, shift: false })
-      }
-      onBeginMove()
+    if (resizing && !selectedIds.has(marker.id)) {
+      onSelectMarker(marker.id, { ctrl: false, shift: false })
     }
-    if (!d.moved) return
-    const deltaTick = pxToTick(Math.abs(deltaPx), pxPerTick) * (deltaPx < 0 ? -1 : 1)
-    if (d.mode === 'resize') {
-      const originEnd = d.originTick + d.originDuration
-      if (d.resizeEdge === 'start') {
-        const nextTick = Math.max(0, Math.min(originEnd, d.originTick + deltaTick))
-        onResizeMarker(d.primaryId, nextTick, originEnd - nextTick)
-      }
-      else {
-        const nextDuration = Math.max(0, d.originDuration + deltaTick)
-        onResizeMarker(d.primaryId, d.originTick, nextDuration)
-      }
-      return
+    let primaryId = marker.id
+    if (event.altKey && edge === null) {
+      primaryId = onDuplicateForDrag(marker.id)
     }
-    const nextPositions = new Map<string, { tick: number, trackY?: number }>()
-    let minOrigin = Infinity
-    for (const origin of d.origins.values()) {
-      minOrigin = Math.min(minOrigin, origin.tick)
-    }
-    const clampedDelta = Math.max(
-      -minOrigin,
-      deltaTick,
-    )
-    const hasVerticalMove = Math.abs(deltaY) > 2
-    if (hasVerticalMove) {
-      const originTicks = new Set(Array.from(d.origins.values(), origin => origin.tick))
-      for (const marker of markersRef.current) {
-        if (d.origins.has(marker.id) || marker.trackY !== undefined || !originTicks.has(marker.tick)) {
-          continue
-        }
-        nextPositions.set(marker.id, {
-          tick: marker.tick,
-          trackY: markerYByIdRef.current.get(marker.id) ?? trackHeight / 2,
-        })
-      }
-    }
-    for (const [id, origin] of d.origins) {
-      nextPositions.set(id, {
-        tick: origin.tick + clampedDelta,
-        trackY: origin.trackY !== undefined || hasVerticalMove
-          ? clampTrackY(origin.displayY + deltaY, trackHeight)
-          : undefined,
+    else if (!selectedIds.has(marker.id)) {
+      onSelectMarker(marker.id, {
+        ctrl: false,
+        shift: false,
       })
     }
-    onMoveMarkers(nextPositions)
+    const dragIds = selectedIds.has(marker.id) ? selectedIds : new Set([marker.id])
+    const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
+    const half = TIMELINE_MARKER_HEIGHT / 2
+    const laneSpan = Math.max(1, height - TIMELINE_MARKER_HEIGHT)
+    const originLaneYs = new Map<string, number>()
+    for (const item of markers) {
+      if (!dragIds.has(item.id)) continue
+      const y = markerYById.get(item.id) ?? height / 2
+      originLaneYs.set(item.id, Math.max(0, Math.min(1, (y - half) / laneSpan)))
+    }
+    ignoreClickRef.current = true
+    dragRef.current = {
+      pointerId: event.pointerId,
+      primaryId,
+      originClientX: event.clientX,
+      originClientY: event.clientY,
+      originTick: marker.tick,
+      originDuration: marker.duration ?? 0,
+      originLaneYs,
+      edge: resizing ? edge : null,
+      moved: false,
+      editing: false,
+    }
+    rowRef.current?.setPointerCapture?.(event.pointerId)
   }, [
-    rect, pxPerTick, lengthTicks, trackHeight, onMoveMarkers, onResizeMarker, onMarkerClick, onBeginMove,
+    markerYById, markers, onDuplicateForDrag, onSelectMarker, selectedIds,
+    track.collapsed, track.locked,
   ])
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (rect) {
-      if (!trackRef.current) return
-      const r = trackRef.current.getBoundingClientRect()
-      const x1 = Math.min(rect.startX, rect.x)
-      const x2 = Math.max(rect.startX, rect.x)
-      const y1 = Math.min(rect.startY, rect.y)
-      const y2 = Math.max(rect.startY, rect.y)
-      const startTick = pxToTick(x1, pxPerTick)
-      const endTick = pxToTick(x2, pxPerTick)
-      const inside = markersRef.current
-        .filter((m) => {
-          const y = markerYByIdRef.current.get(m.id) ?? trackHeight / 2
-          return m.tick >= startTick && m.tick <= endTick && y >= y1 && y <= y2
-        })
-        .map(m => m.id)
-      onRectangleSelect(inside, { ctrl: rect.additive, shift: false })
-      setRect(null)
-      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) }
-      catch { /* noop */ }
-      return
-    }
-    const d = dragStateRef.current
-    if (d) {
-      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) }
-      catch { /* noop */ }
-      if (d.moved) onEndMove()
-      else if (d.mode === 'resize' && e.type === 'pointerup') {
-        onMarkerClick(d.primaryId, { ctrl: true, shift: false })
+  const handlePointerMove = useCallback((event: React.PointerEvent) => {
+    const drag = dragRef.current
+    if (drag && drag.pointerId === event.pointerId) {
+      const deltaPx = event.clientX - drag.originClientX
+      const deltaY = event.clientY - drag.originClientY
+      if (!drag.moved && Math.hypot(deltaPx, deltaY) < 3) return
+      drag.moved = true
+      if (!drag.editing) {
+        drag.editing = true
+        onBeginEdit(drag.primaryId)
       }
-      dragStateRef.current = null
-      setResizingId(null)
-    }
-  }, [rect, pxPerTick, trackHeight, onRectangleSelect, onEndMove, onMarkerClick])
-
-  const handleTrackPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.target !== e.currentTarget) return
-    // Shift 押下 → 矩形選択開始（既存選択に追加する場合は Ctrl 併用）
-    if (e.shiftKey) {
-      const r = trackRef.current!.getBoundingClientRect()
-      const x = e.clientX - r.left
-      const y = e.clientY - r.top
-      setRect({ startX: x, startY: y, x, y, additive: e.ctrlKey || e.metaKey })
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      const deltaTick = pxDeltaToTick(deltaPx, pxPerTick)
+      if (drag.edge) {
+        const originEnd = drag.originTick + drag.originDuration
+        if (drag.edge === 'start') {
+          const tick = snapTick(
+            Math.max(0, Math.min(originEnd, drag.originTick + deltaTick)),
+            settings,
+            event.altKey,
+          )
+          onResizeMarker(drag.primaryId, tick, Math.max(0, originEnd - tick))
+        }
+        else {
+          const end = snapTick(Math.max(drag.originTick, originEnd + deltaTick), settings, event.altKey)
+          onResizeMarker(drag.primaryId, drag.originTick, Math.max(0, end - drag.originTick))
+        }
+      }
+      else {
+        const target = document.elementFromPoint(event.clientX, event.clientY)
+          ?.closest<HTMLElement>('[data-track-id]')
+        const targetTrackId = target?.dataset.trackId ?? track.id
+        const tick = snapTick(drag.originTick + deltaTick, settings, event.altKey)
+        let laneYs: Map<string, number> | undefined
+        if (Math.abs(deltaY) >= 3) {
+          const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
+          const laneDelta = deltaY / Math.max(1, height - TIMELINE_MARKER_HEIGHT)
+          laneYs = new Map(Array.from(drag.originLaneYs, ([id, origin]) => [
+            id,
+            Math.max(0, Math.min(1, origin + laneDelta)),
+          ]))
+        }
+        onMoveSelection(drag.primaryId, tick, targetTrackId, laneYs)
+      }
       return
     }
+
+    if (selectionPointerRef.current === event.pointerId && selectionRect && rowRef.current) {
+      const rect = rowRef.current.getBoundingClientRect()
+      setSelectionRect(current => current ? { ...current, end: event.clientX - rect.left } : null)
+    }
+  }, [
+    onBeginEdit, onMoveSelection, onResizeMarker, pxPerTick, selectionRect, settings,
+    track.collapsed, track.id,
+  ])
+
+  const finishPointer = useCallback((event: React.PointerEvent) => {
+    const drag = dragRef.current
+    if (drag?.pointerId === event.pointerId) {
+      if (drag.editing) {
+        ignoreClickRef.current = true
+        onEndEdit()
+      }
+      rowRef.current?.releasePointerCapture?.(event.pointerId)
+      dragRef.current = null
+      window.setTimeout(() => {
+        ignoreClickRef.current = false
+      }, 0)
+    }
+    if (selectionPointerRef.current === event.pointerId) {
+      selectionPointerRef.current = null
+      if (selectionRect) {
+        const left = Math.min(selectionRect.start, selectionRect.end)
+        const right = Math.max(selectionRect.start, selectionRect.end)
+        const ids = markers
+          .filter((marker) => {
+            const x = tickToPx(marker.tick, pxPerTick)
+            return x >= left && x <= right
+          })
+          .map(marker => marker.id)
+        onRectangleSelect(ids, event.ctrlKey || event.metaKey)
+      }
+      setSelectionRect(null)
+    }
+  }, [markers, onEndEdit, onRectangleSelect, pxPerTick, selectionRect])
+
+  const handleBackgroundPointerDown = useCallback((event: React.PointerEvent) => {
+    if (event.button !== 0 || !event.shiftKey || !rowRef.current) return
+    const rect = rowRef.current.getBoundingClientRect()
+    selectionPointerRef.current = event.pointerId
+    setSelectionRect({ start: event.clientX - rect.left, end: event.clientX - rect.left })
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
   }, [])
 
-  const handleTrackClick = useCallback((e: React.MouseEvent) => {
-    if (e.target !== e.currentTarget) return
-    if (e.detail === 2) return
-    if (e.shiftKey || e.ctrlKey || e.metaKey) return
-    onClearSelection()
-  }, [onClearSelection])
-
-  const handleTrackDoubleClick = useCallback((e: React.MouseEvent) => {
-    if (!trackRef.current) return
-    if (e.target !== e.currentTarget) return
-    const r = trackRef.current.getBoundingClientRect()
-    const x = e.clientX - r.left
-    onAddMarker(pxToTick(x, pxPerTick))
-  }, [pxPerTick, onAddMarker])
-
-  const rectStyle = useMemo(() => {
-    if (!rect) return null
-    const x = Math.min(rect.startX, rect.x)
-    const y = Math.min(rect.startY, rect.y)
-    const w = Math.abs(rect.x - rect.startX)
-    const h = Math.abs(rect.y - rect.startY)
-    return { x, y, w, h }
-  }, [rect])
-
+  const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
   return (
     <Box
-      ref={trackRef}
+      ref={rowRef}
+      data-track-id={track.id}
       position="relative"
-      w={`${totalPx}px`}
-      h={`${trackHeight}px`}
-      bg="gray.800"
+      h={`${height}px`}
+      w={`${tickToPx(lengthTicks, pxPerTick)}px`}
+      minW="100%"
       borderBottom="1px solid"
       borderColor="gray.700"
-      onClick={handleTrackClick}
-      onDoubleClick={handleTrackDoubleClick}
-      onPointerDown={handleTrackPointerDown}
+      bg={track.locked ? 'rgba(51,65,85,.5)' : 'gray.900'}
+      backgroundImage="linear-gradient(to right, rgba(148,163,184,.08) 1px, transparent 1px)"
+      backgroundSize={`${Math.max(1, tickToPx(settings.snap.tickStep, pxPerTick))}px 100%`}
+      onPointerDown={handleBackgroundPointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerUp={finishPointer}
+      onPointerCancel={finishPointer}
+      onClick={(event) => {
+        if (ignoreClickRef.current) {
+          ignoreClickRef.current = false
+          return
+        }
+        if (event.target === event.currentTarget && !event.shiftKey) onClearSelection()
+      }}
+      onDoubleClick={(event) => {
+        if (track.locked || event.target !== event.currentTarget) return
+        const rect = event.currentTarget.getBoundingClientRect()
+        onAddMarker(snapTick(pxToTick(event.clientX - rect.left, pxPerTick), settings, event.altKey), track.id)
+      }}
     >
-      {markers.map(m => (
+      {!track.collapsed && markers.map(marker => (
         <TimelineMarker
-          key={m.id}
-          marker={m}
-          invalidSound={m.soundId === '' || !validSoundIds.has(m.soundId)}
+          key={marker.id}
+          marker={marker}
+          track={track}
           pxPerTick={pxPerTick}
-          selected={selectedIds.has(m.id)}
-          resizeCursor={ctrlPressed || resizingId === m.id}
-          topPx={markerYById.get(m.id) ?? trackHeight / 2}
-          onPointerDown={handleMarkerPointerDown(m.id)}
+          selected={selectedIds.has(marker.id)}
+          invalidSound={!marker.soundId || !validSoundIds.has(marker.soundId)}
+          resizeCursor={ctrlPressed}
+          topPx={markerYById.get(marker.id) ?? height / 2}
+          onPointerDown={(edge, event) => handleMarkerPointerDown(marker, edge, event)}
         />
       ))}
-      {rectStyle && (
+      {selectionRect && (
         <Box
           position="absolute"
-          left={`${rectStyle.x}px`}
-          top={`${rectStyle.y}px`}
-          w={`${rectStyle.w}px`}
-          h={`${rectStyle.h}px`}
-          border="1px solid"
-          borderColor="blue.300"
-          bg="blue.500"
-          opacity={0.15}
+          left={`${Math.min(selectionRect.start, selectionRect.end)}px`}
+          top="2px"
+          bottom="2px"
+          w={`${Math.abs(selectionRect.end - selectionRect.start)}px`}
+          bg="rgba(59,130,246,.2)"
+          border="1px solid #60a5fa"
           pointerEvents="none"
+          zIndex="8"
         />
       )}
     </Box>

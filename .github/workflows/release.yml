@@ -87,6 +87,12 @@ jobs:
       - name: Run self-checks
         run: npm run selfcheck
 
+      - name: Run TypeScript type checks
+        run: npm run typecheck
+
+      - name: Run frontend tests
+        run: npm test
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
 

@@ -50,6 +50,11 @@ const api: Sandbox = {
     onOpenRequested: handler => listen('timeline-open-requested', handler),
     onDragDrop: handler => getCurrentWindow().onDragDropEvent(event => handler(event.payload)),
   },
+  audioExport: {
+    start: request => invoke('audio_export_start', { request }),
+    cancel: jobId => invokeVoid('audio_export_cancel', { jobId }),
+    onProgress: handler => listen('audio-export-progress', event => handler(event.payload as Parameters<typeof handler>[0])),
+  },
 }
 
 window.myAPI = api

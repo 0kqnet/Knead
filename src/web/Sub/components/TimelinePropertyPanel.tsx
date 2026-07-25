@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Box, Button, Flex, NumberInput, Select, SelectItem, Slider, Text } from '@yamada-ui/react'
+import { Box, Button, Flex, Select, SelectItem, Slider, Text } from '@yamada-ui/react'
 import {
   DEFAULT_RETRIGGER_INTERVAL,
   SINGLE_SHOT_CURVE_PREVIEW_TICKS,
@@ -8,6 +8,7 @@ import {
 } from '../types/timeline'
 import { AudioSelectDropdown } from './AudioSelectDropdown'
 import { CurveEditor } from './CurveEditor'
+import { CommitNumberInput } from '../../components/CommitNumberInput'
 
 const PITCH_SNAP_VALUES = Array.from({ length: 25 }, (_, index) => 2 ** ((index - 12) / 12))
 const PITCH_NOTE_NAMES = ['F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F']
@@ -93,12 +94,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
         {!isMulti && marker !== null ? (
           <Box w="120px">
             <Text fontSize="sm" color="gray.400" mb="1">Tick</Text>
-            <NumberInput
+            <CommitNumberInput
               value={marker.tick}
               min={0} step={1} precision={0}
-              onChange={(_str, num) => {
-                if (!Number.isNaN(num)) onChange({ tick: num })
-              }}
+              onCommit={tick => onChange({ tick })}
               w="120px"
             />
           </Box>
@@ -106,9 +105,9 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
           <Box w="240px">
             <Text fontSize="sm" color="gray.400" mb="1">Tick シフト (選択全体)</Text>
             <Flex gap="2">
-              <NumberInput
+              <CommitNumberInput
                 value={tickShift} step={1} precision={0}
-                onChange={(_str, num) => { if (!Number.isNaN(num)) setTickShift(num) }}
+                onCommit={setTickShift}
                 w="100px"
               />
               <Button
@@ -168,12 +167,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               <Text as="span" color="yellow.400" ml="2">(混在)</Text>
             )}
           </Text>
-          <NumberInput
+          <CommitNumberInput
             value={displayNum(volumeCommon, 1)}
-            min={0} step={0.1} precision={2}
-            onChange={(_str, num) => {
-              if (!Number.isNaN(num)) onChange({ volume: num })
-            }}
+            min={0} max={1} step={0.1} precision={2}
+            onCommit={volume => onChange({ volume })}
             w="120px"
           />
         </Box>
@@ -204,14 +201,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               <Text as="span" color="yellow.400" ml="2">(混在)</Text>
             )}
           </Text>
-          <NumberInput
+          <CommitNumberInput
             value={displayNum(durationCommon, 0)}
             min={0} step={1} precision={0}
-            onChange={(_str, num) => {
-              if (!Number.isNaN(num)) {
-                onChange({ duration: num > 0 ? num : undefined })
-              }
-            }}
+            onCommit={duration => onChange({ duration: duration > 0 ? duration : undefined })}
             w="140px"
           />
           <Text fontSize="xs" color="gray.500" mt="1">0 = 単発</Text>
@@ -224,14 +217,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               <Text as="span" color="yellow.400" ml="2">(混在)</Text>
             )}
           </Text>
-          <NumberInput
+          <CommitNumberInput
             value={displayNum(retriggerCommon, DEFAULT_RETRIGGER_INTERVAL)}
             min={1} step={1} precision={0}
-            onChange={(_str, num) => {
-              if (!Number.isNaN(num)) {
-                onChange({ retriggerInterval: num > 0 ? num : undefined })
-              }
-            }}
+            onCommit={retriggerInterval => onChange({ retriggerInterval })}
             w="180px"
           />
           <Text fontSize="xs" color="gray.500" mt="1">連続モード時のみ有効</Text>

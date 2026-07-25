@@ -1,4 +1,4 @@
-import { Box, Flex, IconButton, Input, NumberInput, Select, SelectItem, Separator, Slider, Spacer, Text, Toggle, Tooltip, useBoolean, useClipboard } from '@yamada-ui/react'
+import { Box, Flex, IconButton, Input, Select, SelectItem, Separator, Slider, Spacer, Text, Toggle, Tooltip, useBoolean, useClipboard } from '@yamada-ui/react'
 import { FaPlay, FaPause, FaArrowRotateLeft } from 'react-icons/fa6'
 import { CheckIcon, CopyIcon, SlashIcon, MegaphoneOffIcon } from '@yamada-ui/lucide'
 import { PiTildeBold, PiCaretUpBold, PiSelectionBold } from 'react-icons/pi'
@@ -9,6 +9,7 @@ import { isAboveVersion, VersionInfoType } from '../../types/VersionInfo'
 import { useAudioPlay } from '../../hooks/useAudioPlay'
 import { useTranslation } from 'react-i18next'
 import { PitchInput } from './PitchInput'
+import { CommitNumberInput } from '../components/CommitNumberInput'
 import { secondsToString } from '../../utils/NumberUtil'
 import { SelectorCheck } from '../../utils/SelectorCheck'
 
@@ -127,8 +128,6 @@ export const Footer = () => {
   // ボリューム(生成)関係
   const [MaxVolume, setMaxVolume] = useState(1)
   const [MinVolume, setMinVolume] = useState(0)
-  const onChangeMaxVolumeInput = (_: string, value: number) => setMaxVolume(value)
-  const onChangeMinVolumeInput = (_: string, value: number) => setMinVolume(value)
 
   const onChangePitch = useCallback((value: string) => {
     setPitch(value)
@@ -304,11 +303,26 @@ export const Footer = () => {
             </Tooltip>
             <Spacer />
             <Tooltip label={t('max_volume')} placement="bottom" animation="top">
-              <NumberInput onChange={onChangeMaxVolumeInput} w={32} defaultValue={1.0} precision={2} min={0.0} step={0.1} />
+              <CommitNumberInput
+                onCommit={setMaxVolume}
+                value={MaxVolume}
+                w={32}
+                precision={2}
+                min={0}
+                step={0.1}
+              />
             </Tooltip>
             <Spacer maxW={1} />
             <Tooltip label={t('min_volume')} placement="bottom" animation="top">
-              <NumberInput onChange={onChangeMinVolumeInput} w={20} defaultValue={0.0} precision={2} min={0.0} max={1.0} step={0.1} />
+              <CommitNumberInput
+                onCommit={setMinVolume}
+                value={MinVolume}
+                w={20}
+                precision={2}
+                min={0}
+                max={1}
+                step={0.1}
+              />
             </Tooltip>
           </Flex>
 

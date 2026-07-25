@@ -11,6 +11,10 @@ export function pxToTick(px: number, pxPerTick: number): Tick {
   return t < 0 ? 0 : t
 }
 
+export function pxDeltaToTick(px: number, pxPerTick: number): Tick {
+  return Math.round(px / pxPerTick)
+}
+
 export function snapPxToTick(px: number, pxPerTick: number): number {
   return tickToPx(pxToTick(px, pxPerTick), pxPerTick)
 }
@@ -32,5 +36,6 @@ export function _selfCheckTickPixel(): void {
     const got = pxToTick(px, ppt)
     if (got !== expected) throw new Error(`pxToTick(${px}, ${ppt}) => ${got}, expected ${expected}`)
   }
+  if (pxDeltaToTick(-12, 8) !== -1) throw new Error('pxDeltaToTick must preserve negative deltas')
   console.log('tickPixel self-check OK')
 }
