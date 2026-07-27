@@ -235,6 +235,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             valueMin={0} valueMax={Math.max(1, marker.volume)}
             fallback={marker.volume}
             curve={marker.volumeCurve}
+            valueTooltip
             onChange={(next: Curve | undefined) => onChange({ volumeCurve: next })}
             onBeginEdit={onBeginEdit}
             onEndEdit={onEndEdit}
