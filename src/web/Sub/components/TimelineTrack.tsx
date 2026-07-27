@@ -2,8 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box } from '@yamada-ui/react'
 import {
   TIMELINE_MARKER_HEIGHT,
+  TIMELINE_LANE_STEP_PX,
   TRACK_HEIGHT,
   TRACK_HEIGHT_COLLAPSED,
+  laneYToMarkerCenterY,
+  markerCenterYToLaneY,
   snapTick,
   type Marker,
   type TimelineSettings,
@@ -77,15 +80,18 @@ export const TimelineTrack: React.FC<Props> = ({
     const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
     const center = height / 2
     const half = TIMELINE_MARKER_HEIGHT / 2
+    const laneSpan = Math.max(1, height - TIMELINE_MARKER_HEIGHT)
     const candidates = Array.from(
-      { length: Math.max(1, Math.floor(height - TIMELINE_MARKER_HEIGHT + 1)) },
-      (_, index) => half + index,
-    ).sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b)
+      { length: Math.max(1, Math.floor(laneSpan / TIMELINE_LANE_STEP_PX) + 1) },
+      (_, index) => half + index * TIMELINE_LANE_STEP_PX,
+    )
+    if (candidates.at(-1) !== height - half) candidates.push(height - half)
+    candidates.sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b)
     for (const group of groups.values()) {
       const assigned: number[] = []
       for (const marker of group) {
         if (marker.laneY === undefined) continue
-        const y = half + marker.laneY * Math.max(1, height - TIMELINE_MARKER_HEIGHT)
+        const y = laneYToMarkerCenterY(marker.laneY, height)
         result.set(marker.id, y)
         assigned.push(y)
       }
@@ -143,13 +149,11 @@ export const TimelineTrack: React.FC<Props> = ({
     }
     const dragIds = selectedIds.has(marker.id) ? selectedIds : new Set([marker.id])
     const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
-    const half = TIMELINE_MARKER_HEIGHT / 2
-    const laneSpan = Math.max(1, height - TIMELINE_MARKER_HEIGHT)
     const originLaneYs = new Map<string, number>()
     for (const item of markers) {
       if (!dragIds.has(item.id)) continue
       const y = markerYById.get(item.id) ?? height / 2
-      originLaneYs.set(item.id, Math.max(0, Math.min(1, (y - half) / laneSpan)))
+      originLaneYs.set(item.id, markerCenterYToLaneY(y, height))
     }
     ignoreClickRef.current = true
     dragRef.current = {
@@ -205,10 +209,9 @@ export const TimelineTrack: React.FC<Props> = ({
         let laneYs: Map<string, number> | undefined
         if (Math.abs(deltaY) >= 3) {
           const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
-          const laneDelta = deltaY / Math.max(1, height - TIMELINE_MARKER_HEIGHT)
           laneYs = new Map(Array.from(drag.originLaneYs, ([id, origin]) => [
             id,
-            Math.max(0, Math.min(1, origin + laneDelta)),
+            markerCenterYToLaneY(laneYToMarkerCenterY(origin, height) + deltaY, height),
           ]))
         }
         onMoveSelection(drag.primaryId, tick, targetTrackId, laneYs)
@@ -275,8 +278,8 @@ export const TimelineTrack: React.FC<Props> = ({
       borderBottom="1px solid"
       borderColor="gray.700"
       bg={track.locked ? 'rgba(51,65,85,.5)' : 'gray.900'}
-      backgroundImage="linear-gradient(to right, rgba(148,163,184,.08) 1px, transparent 1px)"
-      backgroundSize={`${Math.max(1, tickToPx(settings.snap.tickStep, pxPerTick))}px 100%`}
+      backgroundImage="linear-gradient(to right, rgba(148,163,184,.08) 1px, transparent 1px), linear-gradient(to bottom, transparent 7px, rgba(148,163,184,.07) 7px, rgba(148,163,184,.07) 8px)"
+      backgroundSize={`${Math.max(1, tickToPx(settings.snap.tickStep, pxPerTick))}px 100%, 100% ${TIMELINE_LANE_STEP_PX}px`}
       onPointerDown={handleBackgroundPointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={finishPointer}

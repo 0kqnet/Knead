@@ -10,6 +10,7 @@ import {
   TRACK_COLORS,
   createDefaultTrack,
   getTimelineLengthTicks,
+  snapLaneY,
   type Curve,
   type Marker,
   type MasterBus,
@@ -145,6 +146,7 @@ export function useTimeline(initial?: TimelineState) {
         pitch: partial.pitch ?? 1,
         duration: partial.duration,
         retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
+        laneY: partial.laneY === undefined ? undefined : snapLaneY(partial.laneY),
         volumeCurve: partial.volumeCurve,
         pitchCurve: partial.pitchCurve,
       })
@@ -170,6 +172,7 @@ export function useTimeline(initial?: TimelineState) {
           pitch: partial.pitch ?? 1,
           duration: partial.duration,
           retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
+          laneY: partial.laneY === undefined ? undefined : snapLaneY(partial.laneY),
           volumeCurve: partial.volumeCurve,
           pitchCurve: partial.pitchCurve,
         })
@@ -194,6 +197,7 @@ export function useTimeline(initial?: TimelineState) {
       if (changesDuration(patch, marker)) resizeMarkerCurves(marker, patch.duration ?? 0)
       Object.assign(marker, patch)
       marker.tick = Math.max(0, Math.trunc(marker.tick))
+      if (marker.laneY !== undefined) marker.laneY = snapLaneY(marker.laneY)
       if (!draft.tracks.some(track => track.id === marker.trackId)) marker.trackId = draft.tracks[0].id
       extendTimeline(draft)
     })
@@ -207,6 +211,7 @@ export function useTimeline(initial?: TimelineState) {
         if (changesDuration(patch, marker)) resizeMarkerCurves(marker, patch.duration ?? 0)
         Object.assign(marker, patch)
         marker.tick = Math.max(0, Math.trunc(marker.tick))
+        if (marker.laneY !== undefined) marker.laneY = snapLaneY(marker.laneY)
         if (!draft.tracks.some(track => track.id === marker.trackId)) marker.trackId = draft.tracks[0].id
       }
       extendTimeline(draft)
@@ -233,7 +238,7 @@ export function useTimeline(initial?: TimelineState) {
         if (!next) continue
         marker.tick = Math.max(0, Math.trunc(next.tick))
         if (draft.tracks.some(track => track.id === next.trackId)) marker.trackId = next.trackId
-        if (next.laneY !== undefined) marker.laneY = Math.max(0, Math.min(1, next.laneY))
+        if (next.laneY !== undefined) marker.laneY = snapLaneY(next.laneY)
       }
       extendTimeline(draft)
     })

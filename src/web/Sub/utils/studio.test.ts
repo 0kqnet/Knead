@@ -27,7 +27,7 @@ describe('Knead Studio project v2', () => {
     if (!parsed.ok) return
     expect(parsed.state.tracks).toHaveLength(1)
     expect(parsed.state.markers[0].trackId).toBe(parsed.state.tracks[0].id)
-    expect(parsed.state.markers[0].laneY).toBeCloseTo(0.15)
+    expect(parsed.state.markers[0].laneY).toBeCloseTo(0.2)
     expect(JSON.parse(serialize(parsed.state)).version).toBe(2)
   })
 
@@ -56,7 +56,7 @@ describe('Knead Studio project v2', () => {
     expect(parsed.state.settings.bpm).toBe(128)
     expect(parsed.state.tracks[0].pan).toBe(0.4)
     expect(parsed.state.master.gainDb).toBe(-3)
-    expect(parsed.state.markers[0].laneY).toBe(0.25)
+    expect(parsed.state.markers[0].laneY).toBe(0.3)
   })
 })
 

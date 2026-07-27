@@ -96,9 +96,36 @@ export const TRACK_HEIGHT = 96
 export const TRACK_HEIGHT_COLLAPSED = 36
 export const TRACK_HEADER_WIDTH = 248
 export const TIMELINE_MARKER_HEIGHT = 16
+export const TIMELINE_LANE_STEP_PX = TIMELINE_MARKER_HEIGHT / 2
 export const TRACK_COLORS: TrackColor[] = [
   'blue', 'cyan', 'green', 'yellow', 'orange', 'red', 'pink', 'purple',
 ]
+
+export function snapMarkerCenterY(centerY: number, trackHeight = TRACK_HEIGHT): number {
+  const half = TIMELINE_MARKER_HEIGHT / 2
+  const min = half
+  const max = Math.max(min, trackHeight - half)
+  const clamped = Math.max(min, Math.min(max, centerY))
+  const snapped = min + Math.round((clamped - min) / TIMELINE_LANE_STEP_PX) * TIMELINE_LANE_STEP_PX
+  return Math.max(min, Math.min(max, snapped))
+}
+
+export function laneYToMarkerCenterY(laneY: number, trackHeight = TRACK_HEIGHT): number {
+  const half = TIMELINE_MARKER_HEIGHT / 2
+  const span = Math.max(1, trackHeight - TIMELINE_MARKER_HEIGHT)
+  const clamped = Math.max(0, Math.min(1, laneY))
+  return snapMarkerCenterY(half + clamped * span, trackHeight)
+}
+
+export function markerCenterYToLaneY(centerY: number, trackHeight = TRACK_HEIGHT): number {
+  const half = TIMELINE_MARKER_HEIGHT / 2
+  const span = Math.max(1, trackHeight - TIMELINE_MARKER_HEIGHT)
+  return Math.max(0, Math.min(1, (snapMarkerCenterY(centerY, trackHeight) - half) / span))
+}
+
+export function snapLaneY(laneY: number): number {
+  return markerCenterYToLaneY(laneYToMarkerCenterY(laneY))
+}
 
 export const DEFAULT_SETTINGS: TimelineSettings = {
   bpm: 120,

@@ -7,6 +7,7 @@ import {
   TRACK_COLORS,
   createDefaultTrack,
   getTimelineLengthTicks,
+  snapLaneY,
   type Keyframe,
   type Marker,
   type TimelineFile,
@@ -147,7 +148,7 @@ function normalizeMarker(marker: Marker): Marker {
     : SINGLE_SHOT_CURVE_PREVIEW_TICKS
   return {
     ...marker,
-    laneY: marker.laneY === undefined ? undefined : Math.max(0, Math.min(1, marker.laneY)),
+    laneY: marker.laneY === undefined ? undefined : snapLaneY(marker.laneY),
     volumeCurve: constrainCurveHandles(marker.volumeCurve, duration),
     pitchCurve: constrainCurveHandles(marker.pitchCurve, duration),
   }
@@ -171,7 +172,7 @@ function migrateV1(raw: LegacyFile): TimelineState {
       ...marker,
       trackId: track.id,
       laneY: typeof trackY === 'number'
-        ? Math.max(0, Math.min(1, trackY / 320))
+        ? snapLaneY(trackY / 320)
         : undefined,
     })
   })

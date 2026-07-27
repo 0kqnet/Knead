@@ -119,7 +119,42 @@ describe('TimelineTrack legacy editing gestures', () => {
 
     const laneYs = callbacks.onMoveSelection.mock.lastCall?.[3] as Map<string, number>
     expect(callbacks.onMoveSelection).toHaveBeenCalled()
-    expect(laneYs.get('marker')).toBeCloseTo(0.75)
+    expect(laneYs.get('marker')).toBeCloseTo(0.8)
+  })
+
+  it('snaps vertical movement to half the marker height', () => {
+    const { container, row, callbacks } = renderTrack()
+    const markerElement = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+    if (!markerElement) throw new Error('Marker was not rendered')
+
+    fireEvent.pointerDown(markerElement, {
+      button: 0,
+      pointerId: 5,
+      clientX: 160,
+      clientY: 48,
+    })
+    fireEvent.pointerMove(row, {
+      pointerId: 5,
+      clientX: 160,
+      clientY: 52,
+    })
+    const firstLaneYs = callbacks.onMoveSelection.mock.lastCall?.[3] as Map<string, number>
+    fireEvent.pointerMove(row, {
+      pointerId: 5,
+      clientX: 160,
+      clientY: 55,
+    })
+    const secondLaneYs = callbacks.onMoveSelection.mock.lastCall?.[3] as Map<string, number>
+
+    expect(firstLaneYs.get('marker')).toBeCloseTo(0.6)
+    expect(secondLaneYs.get('marker')).toBeCloseTo(0.6)
+  })
+
+  it('renders saved lane positions on the vertical grid', () => {
+    const { container } = renderTrack({ markers: [{ ...marker, laneY: 0.54 }] })
+    const markerElement = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+
+    expect(markerElement?.dataset.markerTop).toBe('48')
   })
 
   it('does not clear a marker selection on its following click', () => {
