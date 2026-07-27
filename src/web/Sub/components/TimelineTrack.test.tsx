@@ -3,7 +3,13 @@
 import React from 'react'
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_SETTINGS, createDefaultTrack, type Marker } from '../types/timeline'
+import {
+  DEFAULT_SETTINGS,
+  TIMELINE_LEADING_PADDING_PX,
+  TIMELINE_MARKER_HEIGHT,
+  createDefaultTrack,
+  type Marker,
+} from '../types/timeline'
 import { TimelineTrack } from './TimelineTrack'
 
 const marker: Marker = {
@@ -54,6 +60,24 @@ function renderTrack(overrides: Partial<React.ComponentProps<typeof TimelineTrac
 }
 
 describe('TimelineTrack legacy editing gestures', () => {
+  it('keeps a tick-zero marker inside the visible timeline padding', () => {
+    const { container, row, callbacks } = renderTrack({
+      markers: [{ ...marker, tick: 0 }],
+    })
+    const markerElement = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+
+    expect(Number(markerElement?.dataset.markerLeft)).toBe(
+      TIMELINE_LEADING_PADDING_PX - TIMELINE_MARKER_HEIGHT / 2,
+    )
+
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 100 }),
+    })
+    fireEvent.doubleClick(row, { clientX: 100 + TIMELINE_LEADING_PADDING_PX })
+    expect(callbacks.onAddMarker).toHaveBeenCalledWith(0, 'track')
+  })
+
   it('moves a marker to a tick before its original placement', () => {
     const { container, row, callbacks } = renderTrack()
     const markerElement = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
@@ -155,6 +179,40 @@ describe('TimelineTrack legacy editing gestures', () => {
     const markerElement = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
 
     expect(markerElement?.dataset.markerTop).toBe('48')
+  })
+
+  it('uses an optional visual icon without changing the default marker', () => {
+    const icon = {
+      dataUrl: 'data:image/png;base64,AA==',
+      kind: 'item' as const,
+      cropX: 0,
+      cropY: 0,
+      cropWidth: 16,
+      cropHeight: 16,
+      imageWidth: 16,
+      imageHeight: 16,
+    }
+    const defaultView = renderTrack()
+    expect(
+      defaultView.container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+        ?.dataset.markerVisual,
+    ).toBe('default')
+    defaultView.unmount()
+
+    const iconView = renderTrack({ markerIcons: { test: icon } })
+    expect(
+      iconView.container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+        ?.dataset.markerVisual,
+    ).toBe('item')
+    const viewport = iconView.container.querySelector<HTMLElement>('[data-marker-icon-viewport]')
+    const image = iconView.container.querySelector<HTMLImageElement>('[data-marker-icon-image]')
+    expect(image?.src).toBe(icon.dataUrl)
+    expect(image?.style.width).toBe('16px')
+    expect(image?.style.height).toBe('16px')
+    expect(image?.style.left).toBe('0px')
+    expect(image?.style.top).toBe('0px')
+    expect(viewport?.style.borderWidth).toBe('')
+    expect(viewport?.style.outlineWidth).toBe('1px')
   })
 
   it('does not clear a marker selection on its following click', () => {

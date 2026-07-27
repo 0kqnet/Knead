@@ -1,7 +1,13 @@
 import React from 'react'
 import { Box, Text } from '@yamada-ui/react'
-import { TIMELINE_MARKER_HEIGHT, type Marker, type Track } from '../types/timeline'
+import {
+  TIMELINE_LEADING_PADDING_PX,
+  TIMELINE_MARKER_HEIGHT,
+  type Marker,
+  type Track,
+} from '../types/timeline'
 import { tickToPx } from '../utils/tickPixel'
+import type { MarkerVisualIcon } from '../../../../@types/global'
 
 export type ResizeEdge = 'start' | 'end'
 
@@ -11,6 +17,7 @@ interface Props {
   pxPerTick: number
   selected: boolean
   invalidSound: boolean
+  markerIcon?: MarkerVisualIcon
   resizeCursor: boolean
   topPx: number
   onPointerDown: (edge: ResizeEdge | null, event: React.PointerEvent) => void
@@ -29,15 +36,27 @@ const COLOR_MAP: Record<Track['color'], string> = {
 
 export const TimelineMarker: React.FC<Props> = ({
   marker, track, pxPerTick, selected, invalidSound, resizeCursor, topPx, onPointerDown,
+  markerIcon,
 }) => {
   const size = TIMELINE_MARKER_HEIGHT
   const durationPx = marker.duration && marker.duration > 0
     ? tickToPx(marker.duration, pxPerTick)
     : 0
-  const left = tickToPx(marker.tick, pxPerTick) - size / 2
+  const left = TIMELINE_LEADING_PADDING_PX + tickToPx(marker.tick, pxPerTick) - size / 2
   const color = invalidSound ? '#dc2626' : COLOR_MAP[track.color]
   const endpointBorder = selected ? '#f8fafc' : 'rgba(255,255,255,.45)'
   const lineColor = invalidSound ? '#7f1d1d' : selected ? '#93c5fd' : color
+  const iconScale = markerIcon && markerIcon.cropWidth > 0 && markerIcon.cropHeight > 0
+    ? Math.min(size / markerIcon.cropWidth, size / markerIcon.cropHeight)
+    : 0
+  const iconLayout = markerIcon && iconScale > 0
+    ? {
+        width: markerIcon.imageWidth * iconScale,
+        height: markerIcon.imageHeight * iconScale,
+        left: (size - markerIcon.cropWidth * iconScale) / 2 - markerIcon.cropX * iconScale,
+        top: (size - markerIcon.cropHeight * iconScale) / 2 - markerIcon.cropY * iconScale,
+      }
+    : null
 
   const endpoint = (edge: ResizeEdge, offset: number) => (
     <Box
@@ -51,24 +70,63 @@ export const TimelineMarker: React.FC<Props> = ({
       _active={{ cursor: resizeCursor ? 'ew-resize' : 'grabbing' }}
       onPointerDown={event => onPointerDown(edge, event)}
     >
-      <Box
-        position="absolute"
-        inset="0"
-        transform="rotate(45deg) scale(.68)"
-        borderRadius="3px"
-        bg={color}
-        border="2px solid"
-        borderColor={endpointBorder}
-        boxShadow={selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)'}
-        pointerEvents="none"
-      />
+      {iconLayout && markerIcon
+        ? (
+            <div
+              data-marker-icon-viewport
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '2px',
+                background: '#030712',
+                outlineWidth: '1px',
+                outlineStyle: 'solid',
+                outlineColor: endpointBorder,
+                boxShadow: selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)',
+                overflow: 'hidden',
+                pointerEvents: 'none',
+              }}
+            >
+              <img
+                data-marker-icon-image
+                src={markerIcon.dataUrl}
+                alt=""
+                draggable={false}
+                style={{
+                  position: 'absolute',
+                  width: `${iconLayout.width}px`,
+                  height: `${iconLayout.height}px`,
+                  maxWidth: 'none',
+                  left: `${iconLayout.left}px`,
+                  top: `${iconLayout.top}px`,
+                  imageRendering: 'pixelated',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+          )
+        : (
+            <Box
+              position="absolute"
+              inset="0"
+              transform="rotate(45deg) scale(.68)"
+              borderRadius="3px"
+              bg={color}
+              border="2px solid"
+              borderColor={endpointBorder}
+              boxShadow={selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)'}
+              pointerEvents="none"
+            />
+          )}
     </Box>
   )
 
   return (
     <Box
       data-marker-id={marker.id}
+      data-marker-left={left}
       data-marker-top={topPx}
+      data-marker-visual={markerIcon?.kind ?? 'default'}
       position="absolute"
       left={`${left}px`}
       top={`${topPx}px`}

@@ -36,6 +36,9 @@ interface Props {
   canFitSelection: boolean
   mixerOpen: boolean
   onToggleMixer: () => void
+  markerIconsEnabled: boolean
+  markerIconsLoading: boolean
+  onToggleMarkerIcons: () => void
 }
 
 const snapItems: SelectItem[] = [
@@ -50,6 +53,7 @@ export const TimelineToolbar: React.FC<Props> = ({
   isPlaying, isPaused, currentTick, preloading, onUndo, onRedo, canUndo, canRedo,
   settings, onSettingsChange, onReroll, pxPerTick, onZoom,
   onFitProject, onFitSelection, canFitSelection, mixerOpen, onToggleMixer,
+  markerIconsEnabled, markerIconsLoading, onToggleMarkerIcons,
 }) => {
   const { t } = useTranslation()
   const snapValue = settings.snap.mode === 'off'
@@ -181,6 +185,14 @@ export const TimelineToolbar: React.FC<Props> = ({
         <Button size="xs" onClick={onFitProject}>{t('studio.fit_all')}</Button>
         <Button size="xs" onClick={onFitSelection} isDisabled={!canFitSelection}>
           {t('studio.fit_selection')}
+        </Button>
+        <Button
+          size="xs"
+          colorScheme={markerIconsEnabled ? 'purple' : 'gray'}
+          onClick={onToggleMarkerIcons}
+          title={t('studio.marker_icons_hint')}
+        >
+          {markerIconsLoading ? t('studio.marker_icons_loading') : t('studio.marker_icons')}
         </Button>
         <Button size="xs" colorScheme={mixerOpen ? 'blue' : 'gray'} onClick={onToggleMixer}>{t('studio.mixer')}</Button>
       </Flex>

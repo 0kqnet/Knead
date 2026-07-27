@@ -4,6 +4,7 @@ import {
   TRACK_HEADER_WIDTH,
   TRACK_HEIGHT,
   TRACK_HEIGHT_COLLAPSED,
+  TIMELINE_LEADING_PADDING_PX,
   snapTick,
   type Marker,
 } from '../types/timeline'
@@ -24,6 +25,7 @@ import { TimelinePropertyPanel } from './TimelinePropertyPanel'
 import type { TimelineOpenResult } from '../../../../@types/global'
 import { findKneadProjectPath } from '../utils/projectFiles'
 import { useTranslation } from 'react-i18next'
+import { useMarkerIcons } from '../hooks/useMarkerIcons'
 
 interface Props {
   defaultSoundId?: string
@@ -63,6 +65,7 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
   const [dirty, setDirty] = useState(false)
   const [pxPerTick, setPxPerTick] = useState(DEFAULT_PX_PER_TICK)
   const [mixerOpen, setMixerOpen] = useState(false)
+  const [markerIconsEnabled, setMarkerIconsEnabled] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [soundFocusRequest, setSoundFocusRequest] = useState(0)
   const [isProjectDragOver, setIsProjectDragOver] = useState(false)
@@ -136,6 +139,30 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
     || a.tick - b.tick
   )), [timeline.state.markers, trackOrder])
   const validSoundIds = useMemo(() => new Set(soundIdList), [soundIdList])
+  const markerIconVersion = timeline.state.targetVersion || currentTargetVersion
+  const markerIconSoundIds = useMemo(
+    () => timeline.state.markers.map(marker => marker.soundId),
+    [timeline.state.markers],
+  )
+  const markerIcons = useMarkerIcons(
+    markerIconsEnabled,
+    markerIconVersion,
+    markerIconSoundIds,
+  )
+
+  useEffect(() => {
+    window.myAPI.getSetting('studioMarkerIcons')
+      .then(value => setMarkerIconsEnabled(value === true))
+      .catch(error => console.warn('marker icon setting load failed', error))
+  }, [])
+
+  const toggleMarkerIcons = useCallback(() => {
+    setMarkerIconsEnabled((enabled) => {
+      const next = !enabled
+      window.myAPI.setSetting('studioMarkerIcons', next)
+      return next
+    })
+  }, [])
 
   const addAtTick = useCallback((tick: number, trackId = selectedTrackId) => {
     const track = stateRef.current.tracks.find(item => item.id === trackId)
@@ -468,11 +495,17 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
   const fitRange = useCallback((startTick: number, endTick: number) => {
     const viewport = scrollRef.current
     if (!viewport) return
-    const availableWidth = Math.max(160, viewport.clientWidth - TRACK_HEADER_WIDTH - 32)
+    const availableWidth = Math.max(
+      160,
+      viewport.clientWidth - TRACK_HEADER_WIDTH - TIMELINE_LEADING_PADDING_PX - 32,
+    )
     const nextZoom = Math.max(1.5, Math.min(64, availableWidth / Math.max(1, endTick - startTick)))
     setPxPerTick(nextZoom)
     requestAnimationFrame(() => {
-      viewport.scrollLeft = Math.max(0, TRACK_HEADER_WIDTH + tickToPx(startTick, nextZoom) - 16)
+      viewport.scrollLeft = Math.max(
+        0,
+        TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX + tickToPx(startTick, nextZoom) - 16,
+      )
     })
   }, [])
 
@@ -563,7 +596,8 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
 
   useEffect(() => {
     if (!playback.isPlaying || !scrollRef.current) return
-    const x = TRACK_HEADER_WIDTH + tickToPx(playback.currentTick, pxPerTick)
+    const x = TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX
+      + tickToPx(playback.currentTick, pxPerTick)
     const element = scrollRef.current
     const margin = 80
     if (x < element.scrollLeft + TRACK_HEADER_WIDTH + margin) {
@@ -587,7 +621,8 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
     (sum, track) => sum + (track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT),
     0,
   )
-  const contentWidth = tickToPx(timeline.state.lengthTicks, pxPerTick)
+  const contentWidth = TIMELINE_LEADING_PADDING_PX
+    + tickToPx(timeline.state.lengthTicks, pxPerTick)
   const exportName = (filePath?.replace(/^.*[\\/]/, '').replace(/\.kp$/i, '') || 'knead-mix')
 
   return (
@@ -629,6 +664,9 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
         canFitSelection={selectedIds.size > 0}
         mixerOpen={mixerOpen}
         onToggleMixer={() => setMixerOpen(value => !value)}
+        markerIconsEnabled={markerIconsEnabled}
+        markerIconsLoading={markerIcons.loading}
+        onToggleMarkerIcons={toggleMarkerIcons}
       />
 
       <Box
@@ -685,6 +723,7 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
                 settings={timeline.state.settings}
                 selectedIds={selectedIds}
                 validSoundIds={validSoundIds}
+                markerIcons={markerIcons.icons}
                 onSelectMarker={handleMarkerSelect}
                 onClearSelection={clearSelection}
                 onRectangleSelect={rectangleSelect}
@@ -701,7 +740,7 @@ export const TimelineEditor: React.FC<Props> = ({ defaultSoundId, currentTargetV
             {timeline.state.settings.loop.enabled && (
               <Box
                 position="absolute"
-                left={`${tickToPx(timeline.state.settings.loop.startTick, pxPerTick)}px`}
+                left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(timeline.state.settings.loop.startTick, pxPerTick)}px`}
                 top="32px"
                 h={`${totalTrackHeight}px`}
                 w={`${tickToPx(timeline.state.settings.loop.endTick - timeline.state.settings.loop.startTick, pxPerTick)}px`}

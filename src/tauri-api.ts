@@ -20,6 +20,7 @@ const api: Sandbox = {
     if (data instanceof ArrayBuffer) return data
     return Uint8Array.from(data).buffer
   },
+  get_mcMarkerIcons: (version, soundIds) => invoke('get_mc_marker_icons', { version, soundIds }),
   make_sub_window: () => {
     void invokeVoid('make_sub_window')
   },

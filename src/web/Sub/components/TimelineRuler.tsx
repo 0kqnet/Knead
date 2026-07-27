@@ -1,6 +1,12 @@
 import React, { useMemo, useRef } from 'react'
 import { Box, Text } from '@yamada-ui/react'
-import { snapTick, ticksPerBar, ticksPerBeat, type TimelineSettings } from '../types/timeline'
+import {
+  TIMELINE_LEADING_PADDING_PX,
+  snapTick,
+  ticksPerBar,
+  ticksPerBeat,
+  type TimelineSettings,
+} from '../types/timeline'
 import { pxToTick, tickToPx } from '../utils/tickPixel'
 
 interface Props {
@@ -47,7 +53,11 @@ export const TimelineRuler: React.FC<Props> = ({
     const onMove = (move: PointerEvent) => {
       const rect = rulerRef.current?.getBoundingClientRect()
       if (!rect) return
-      const tick = snapTick(pxToTick(move.clientX - rect.left, pxPerTick), settings, move.altKey)
+      const tick = snapTick(
+        pxToTick(move.clientX - rect.left - TIMELINE_LEADING_PADDING_PX, pxPerTick),
+        settings,
+        move.altKey,
+      )
       const loop = settings.loop
       if (edge === 'start') onLoopChange(Math.min(tick, loop.endTick - 1), loop.endTick)
       else onLoopChange(loop.startTick, Math.max(loop.startTick + 1, Math.min(lengthTicks, tick)))
@@ -66,21 +76,24 @@ export const TimelineRuler: React.FC<Props> = ({
       position="relative"
       h="32px"
       minW="100%"
-      w={`${tickToPx(lengthTicks, pxPerTick)}px`}
+      w={`${TIMELINE_LEADING_PADDING_PX + tickToPx(lengthTicks, pxPerTick)}px`}
       bg="gray.800"
       borderBottom="1px solid"
       borderColor="gray.600"
       userSelect="none"
       onClick={(event) => {
         const rect = event.currentTarget.getBoundingClientRect()
-        onSeek(Math.max(0, Math.min(lengthTicks, pxToTick(event.clientX - rect.left, pxPerTick))))
+        onSeek(Math.max(0, Math.min(
+          lengthTicks,
+          pxToTick(event.clientX - rect.left - TIMELINE_LEADING_PADDING_PX, pxPerTick),
+        )))
       }}
     >
       {marks.map(mark => (
         <Box
           key={mark.tick}
           position="absolute"
-          left={`${tickToPx(mark.tick, pxPerTick)}px`}
+          left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(mark.tick, pxPerTick)}px`}
           top={mark.major ? '0' : '15px'}
           bottom="0"
           borderLeft="1px solid"
@@ -104,7 +117,7 @@ export const TimelineRuler: React.FC<Props> = ({
         <>
           <Box
             position="absolute"
-            left={`${tickToPx(settings.loop.startTick, pxPerTick)}px`}
+            left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(settings.loop.startTick, pxPerTick)}px`}
             top="0"
             bottom="0"
             w={`${tickToPx(settings.loop.endTick - settings.loop.startTick, pxPerTick)}px`}
@@ -116,7 +129,7 @@ export const TimelineRuler: React.FC<Props> = ({
             <Box
               key={edge}
               position="absolute"
-              left={`${tickToPx(edge === 'start' ? settings.loop.startTick : settings.loop.endTick, pxPerTick) - 5}px`}
+              left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(edge === 'start' ? settings.loop.startTick : settings.loop.endTick, pxPerTick) - 5}px`}
               top="0"
               w="10px"
               h="18px"

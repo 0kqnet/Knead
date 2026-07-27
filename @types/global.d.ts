@@ -50,6 +50,17 @@ export interface AudioExportProgress {
   outputPaths?: string[]
 }
 
+export interface MarkerVisualIcon {
+  dataUrl: string
+  kind: 'block' | 'entity' | 'item'
+  cropX: number
+  cropY: number
+  cropWidth: number
+  cropHeight: number
+  imageWidth: number
+  imageHeight: number
+}
+
 declare global {
   interface Window {
     myAPI: Sandbox
@@ -67,6 +78,10 @@ export interface Sandbox {
   get_mcSounds: (version: string) => Promise<Sound[]>
   get_mcSoundHash: (hash: string) => Promise<string>
   get_mcSoundData: (hash: string) => Promise<ArrayBuffer>
+  get_mcMarkerIcons: (
+    version: string,
+    soundIds: string[],
+  ) => Promise<Record<string, MarkerVisualIcon>>
   make_sub_window: () => void
   loadSettings: () => Promise<SettingType>
   updateSettings: (partial: Record<string, SettingType>) => void

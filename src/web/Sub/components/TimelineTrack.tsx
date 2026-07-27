@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box } from '@yamada-ui/react'
 import {
   TIMELINE_MARKER_HEIGHT,
+  TIMELINE_LEADING_PADDING_PX,
   TIMELINE_LANE_STEP_PX,
   TRACK_HEIGHT,
   TRACK_HEIGHT_COLLAPSED,
@@ -14,6 +15,7 @@ import {
 } from '../types/timeline'
 import { pxDeltaToTick, pxToTick, tickToPx } from '../utils/tickPixel'
 import { ResizeEdge, TimelineMarker } from './TimelineMarker'
+import type { MarkerVisualIcon } from '../../../../@types/global'
 
 export interface SelectModifiers {
   ctrl: boolean
@@ -28,6 +30,7 @@ interface Props {
   settings: TimelineSettings
   selectedIds: Set<string>
   validSoundIds: Set<string>
+  markerIcons?: Record<string, MarkerVisualIcon>
   onSelectMarker: (id: string, modifiers: SelectModifiers) => void
   onClearSelection: () => void
   onRectangleSelect: (ids: string[], additive: boolean) => void
@@ -59,6 +62,7 @@ interface DragState {
 
 export const TimelineTrack: React.FC<Props> = ({
   track, markers, lengthTicks, pxPerTick, settings, selectedIds, validSoundIds,
+  markerIcons = {},
   onSelectMarker, onClearSelection, onRectangleSelect, onBeginEdit, onEndEdit,
   onMoveSelection, onResizeMarker, onDuplicateForDrag, onAddMarker,
 }) => {
@@ -248,7 +252,7 @@ export const TimelineTrack: React.FC<Props> = ({
         const right = Math.max(selectionRect.start, selectionRect.end)
         const ids = markers
           .filter((marker) => {
-            const x = tickToPx(marker.tick, pxPerTick)
+            const x = TIMELINE_LEADING_PADDING_PX + tickToPx(marker.tick, pxPerTick)
             return x >= left && x <= right
           })
           .map(marker => marker.id)
@@ -273,13 +277,14 @@ export const TimelineTrack: React.FC<Props> = ({
       data-track-id={track.id}
       position="relative"
       h={`${height}px`}
-      w={`${tickToPx(lengthTicks, pxPerTick)}px`}
+      w={`${TIMELINE_LEADING_PADDING_PX + tickToPx(lengthTicks, pxPerTick)}px`}
       minW="100%"
       borderBottom="1px solid"
       borderColor="gray.700"
       bg={track.locked ? 'rgba(51,65,85,.5)' : 'gray.900'}
       backgroundImage="linear-gradient(to right, rgba(148,163,184,.08) 1px, transparent 1px), linear-gradient(to bottom, transparent 7px, rgba(148,163,184,.07) 7px, rgba(148,163,184,.07) 8px)"
       backgroundSize={`${Math.max(1, tickToPx(settings.snap.tickStep, pxPerTick))}px 100%, 100% ${TIMELINE_LANE_STEP_PX}px`}
+      backgroundPosition={`${TIMELINE_LEADING_PADDING_PX}px 0, 0 0`}
       onPointerDown={handleBackgroundPointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={finishPointer}
@@ -294,7 +299,11 @@ export const TimelineTrack: React.FC<Props> = ({
       onDoubleClick={(event) => {
         if (track.locked || event.target !== event.currentTarget) return
         const rect = event.currentTarget.getBoundingClientRect()
-        onAddMarker(snapTick(pxToTick(event.clientX - rect.left, pxPerTick), settings, event.altKey), track.id)
+        onAddMarker(snapTick(
+          pxToTick(event.clientX - rect.left - TIMELINE_LEADING_PADDING_PX, pxPerTick),
+          settings,
+          event.altKey,
+        ), track.id)
       }}
     >
       {!track.collapsed && markers.map(marker => (
@@ -305,6 +314,7 @@ export const TimelineTrack: React.FC<Props> = ({
           pxPerTick={pxPerTick}
           selected={selectedIds.has(marker.id)}
           invalidSound={!marker.soundId || !validSoundIds.has(marker.soundId)}
+          markerIcon={validSoundIds.has(marker.soundId) ? markerIcons[marker.soundId] : undefined}
           resizeCursor={ctrlPressed}
           topPx={markerYById.get(marker.id) ?? height / 2}
           onPointerDown={(edge, event) => handleMarkerPointerDown(marker, edge, event)}

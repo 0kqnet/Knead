@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box } from '@yamada-ui/react'
 import { tickToPx } from '../utils/tickPixel'
+import { TIMELINE_LEADING_PADDING_PX } from '../types/timeline'
 
 interface Props {
   currentTick: number
@@ -11,7 +12,7 @@ interface Props {
 const HEAD_SIZE = 10
 
 export const TimelinePlayhead: React.FC<Props> = ({ currentTick, pxPerTick, heightPx }) => {
-  const left = tickToPx(currentTick, pxPerTick)
+  const left = TIMELINE_LEADING_PADDING_PX + tickToPx(currentTick, pxPerTick)
   return (
     <Box
       position="absolute"

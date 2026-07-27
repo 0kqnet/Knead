@@ -96,6 +96,7 @@ export const TRACK_HEIGHT = 96
 export const TRACK_HEIGHT_COLLAPSED = 36
 export const TRACK_HEADER_WIDTH = 248
 export const TIMELINE_MARKER_HEIGHT = 16
+export const TIMELINE_LEADING_PADDING_PX = TIMELINE_MARKER_HEIGHT / 2 + 4
 export const TIMELINE_LANE_STEP_PX = TIMELINE_MARKER_HEIGHT / 2
 export const TRACK_COLORS: TrackColor[] = [
   'blue', 'cyan', 'green', 'yellow', 'orange', 'red', 'pink', 'purple',

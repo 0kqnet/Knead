@@ -1,5 +1,6 @@
 mod audio_export;
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use futures_util::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -7,6 +8,7 @@ use sha1::{Digest, Sha1};
 use std::{
     collections::{HashMap, HashSet},
     env, fs,
+    io::Read,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -81,6 +83,19 @@ struct AssetIndexReference {
 #[serde(rename_all = "camelCase")]
 struct VersionMetadata {
     asset_index: AssetIndexReference,
+    downloads: Option<VersionDownloads>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct VersionDownloads {
+    client: DownloadArtifact,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct DownloadArtifact {
+    url: String,
+    sha1: String,
+    size: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -116,6 +131,32 @@ struct AssetDownloadProgress {
 struct MinecraftVersion {
     id: String,
     downloaded: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MarkerVisualKind {
+    Block,
+    Entity,
+    Item,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MarkerVisualSubject {
+    kind: MarkerVisualKind,
+    id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkerVisualIcon {
+    data_url: String,
+    kind: String,
+    crop_x: u32,
+    crop_y: u32,
+    crop_width: u32,
+    crop_height: u32,
+    image_width: u32,
+    image_height: u32,
 }
 
 const VERSION_MANIFEST_URL: &str =
@@ -528,6 +569,324 @@ async fn download_sound_object(
     Ok(true)
 }
 
+fn marker_visual_subject(sound_id: &str) -> Option<MarkerVisualSubject> {
+    let id = sound_id.rsplit(':').next().unwrap_or(sound_id);
+    let mut parts = id.split('.');
+    let kind = match parts.next()? {
+        "block" => MarkerVisualKind::Block,
+        "entity" => MarkerVisualKind::Entity,
+        "item" => MarkerVisualKind::Item,
+        _ => return None,
+    };
+    let subject = parts.next()?.trim();
+    let event = parts.next();
+    if subject.is_empty()
+        || (kind != MarkerVisualKind::Item && event.is_none())
+        || event.is_some_and(str::is_empty)
+    {
+        return None;
+    }
+    if matches!(
+        subject,
+        "generic" | "hostile" | "neutral" | "friendly" | "aquatic" | "weather" | "item"
+    ) {
+        return None;
+    }
+    let id = if kind == MarkerVisualKind::Item && subject == "armor" {
+        let material = event.unwrap_or_default();
+        match material
+            .strip_prefix("equip_")
+            .or_else(|| material.strip_prefix("unequip_"))
+            .unwrap_or(material)
+        {
+            "chain" => "chainmail_chestplate",
+            "copper" => "copper_chestplate",
+            "diamond" => "diamond_chestplate",
+            "elytra" => "elytra",
+            "gold" => "golden_chestplate",
+            "leather" => "leather_chestplate",
+            "nautilus" => "iron_nautilus_armor",
+            "netherite" => "netherite_chestplate",
+            "turtle" => "turtle_helmet",
+            "wolf" => "wolf_armor",
+            _ => "iron_chestplate",
+        }
+        .to_string()
+    } else {
+        subject.to_string()
+    };
+    Some(MarkerVisualSubject { kind, id })
+}
+
+fn block_texture_alias(subject: &str) -> &str {
+    match subject {
+        "ancient_debris" => "ancient_debris_side",
+        "bamboo_wood" => "bamboo_planks",
+        "basalt" => "basalt_side",
+        "cave_vines" => "cave_vines_plant",
+        "cherry_wood" => "cherry_planks",
+        "crop" => "wheat_stage7",
+        "fungus" => "warped_fungus",
+        "grass" => "grass_block_top",
+        "hanging_roots" => "hanging_roots",
+        "ladder" => "ladder",
+        "metal" => "iron_block",
+        "moss" => "moss_block",
+        "nether_wood" => "crimson_planks",
+        "nylium" => "warped_nylium",
+        "roots" => "rooted_dirt",
+        "sculk_sensor" => "sculk_sensor_top",
+        "stem" => "warped_stem_top",
+        "vine" => "vine",
+        "wet_grass" => "grass_block_top",
+        "wood" => "oak_planks",
+        "wool" => "white_wool",
+        other => other,
+    }
+}
+
+fn entity_texture_alias(subject: &str) -> &str {
+    match subject {
+        "ender_dragon" => "enderdragon",
+        "mooshroom" => "cow",
+        "snow_golem" => "snow_golem",
+        "zombie_villager" => "zombie_villager",
+        other => other,
+    }
+}
+
+fn item_texture_alias(subject: &str) -> &str {
+    match subject {
+        "axe" => "iron_axe",
+        "bottle" => "glass_bottle",
+        "crop" => "wheat_seeds",
+        "crossbow" => "crossbow_standby",
+        "dye" => "white_dye",
+        "firecharge" => "fire_charge",
+        "flintandsteel" => "flint_and_steel",
+        "hoe" => "iron_hoe",
+        "horse_armor" => "iron_horse_armor",
+        "lodestone_compass" => "compass_00",
+        "nautilus_saddle_equip" | "nautilus_saddle_underwater_equip" => "nautilus_saddle",
+        "shield" => "shield",
+        "shovel" => "iron_shovel",
+        "spear" | "spear_wood" => "wooden_spear",
+        "totem" => "totem_of_undying",
+        other => other,
+    }
+}
+
+fn marker_texture_path(names: &[String], subject: &MarkerVisualSubject) -> Option<String> {
+    match subject.kind {
+        MarkerVisualKind::Block => {
+            let texture = block_texture_alias(&subject.id);
+            let exact = format!("assets/minecraft/textures/block/{texture}.png");
+            names.iter().any(|name| name == &exact).then_some(exact)
+        }
+        MarkerVisualKind::Entity => {
+            let entity = entity_texture_alias(&subject.id);
+            let exact_candidates = [
+                format!("assets/minecraft/textures/entity/{entity}/{entity}.png"),
+                format!("assets/minecraft/textures/entity/{entity}.png"),
+                format!("assets/minecraft/textures/entity/{entity}/temperate_{entity}.png"),
+                format!("assets/minecraft/textures/entity/{entity}/wide/{entity}.png"),
+            ];
+            if let Some(exact) = exact_candidates
+                .iter()
+                .find(|candidate| names.iter().any(|name| name == *candidate))
+            {
+                return Some(exact.clone());
+            }
+
+            let prefix = format!("assets/minecraft/textures/entity/{entity}/");
+            let mut candidates = names
+                .iter()
+                .filter(|name| name.starts_with(&prefix) && name.ends_with(".png"))
+                .filter(|name| {
+                    ![
+                        "armor", "eyes", "emissive", "overlay", "saddle", "collar", "angry",
+                        "tame", "baby",
+                    ]
+                    .iter()
+                    .any(|excluded| name.contains(excluded))
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            candidates.sort_by_key(|name| {
+                let file_name = name.rsplit('/').next().unwrap_or(name);
+                (
+                    !file_name.contains(entity),
+                    !file_name.starts_with("temperate_"),
+                    name.len(),
+                    name.clone(),
+                )
+            });
+            candidates.into_iter().next()
+        }
+        MarkerVisualKind::Item => {
+            let item = item_texture_alias(&subject.id);
+            let exact_candidates = match item {
+                "shield" => vec![
+                    "assets/minecraft/textures/entity/shield/shield_base_nopattern.png".to_string(),
+                    "assets/minecraft/textures/entity/shield/shield_base.png".to_string(),
+                ],
+                "llama_carpet" => {
+                    vec!["assets/minecraft/textures/block/white_wool.png".to_string()]
+                }
+                "golden_dandelion" => {
+                    vec!["assets/minecraft/textures/block/golden_dandelion.png".to_string()]
+                }
+                "nautilus_saddle" => vec![
+                    "assets/minecraft/textures/entity/equipment/nautilus_saddle/saddle.png"
+                        .to_string(),
+                ],
+                _ => vec![format!("assets/minecraft/textures/item/{item}.png")],
+            };
+            exact_candidates
+                .into_iter()
+                .find(|candidate| names.iter().any(|name| name == candidate))
+        }
+    }
+}
+
+fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 24 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" {
+        return None;
+    }
+    Some((
+        u32::from_be_bytes(bytes[16..20].try_into().ok()?),
+        u32::from_be_bytes(bytes[20..24].try_into().ok()?),
+    ))
+}
+
+fn entity_head_crop(subject: &str, width: u32, height: u32) -> Option<(u32, u32, u32, u32)> {
+    let (x, y, size) = match subject {
+        "ender_dragon" => (8, 8, 8),
+        "ghast" => (16, 16, 16),
+        "guardian" | "elder_guardian" => (16, 16, 12),
+        _ => (8, 8, 8),
+    };
+    let scale = (width / 64).max(1);
+    let crop = (x * scale, y * scale, size * scale, size * scale);
+    (crop.0 + crop.2 <= width && crop.1 + crop.3 <= height).then_some(crop)
+}
+
+fn load_marker_icons(
+    jar_path: &Path,
+    sound_ids: &[String],
+) -> Result<HashMap<String, MarkerVisualIcon>, String> {
+    let file =
+        fs::File::open(jar_path).map_err(|error| format!("{}: {error}", jar_path.display()))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let names = archive.file_names().map(str::to_string).collect::<Vec<_>>();
+    let mut icons = HashMap::new();
+
+    for sound_id in sound_ids {
+        let Some(subject) = marker_visual_subject(sound_id) else {
+            continue;
+        };
+        let Some(path) = marker_texture_path(&names, &subject) else {
+            continue;
+        };
+        let mut entry = archive.by_name(&path).map_err(|error| error.to_string())?;
+        let mut bytes = Vec::with_capacity(entry.size() as usize);
+        entry
+            .read_to_end(&mut bytes)
+            .map_err(|error| error.to_string())?;
+        let Some((image_width, image_height)) = png_dimensions(&bytes) else {
+            continue;
+        };
+        let crop = match subject.kind {
+            MarkerVisualKind::Block => {
+                let size = image_width.min(image_height);
+                Some((0, 0, size, size))
+            }
+            MarkerVisualKind::Entity => entity_head_crop(&subject.id, image_width, image_height),
+            MarkerVisualKind::Item => Some((0, 0, image_width, image_height)),
+        };
+        let Some((crop_x, crop_y, crop_width, crop_height)) = crop else {
+            continue;
+        };
+        icons.insert(
+            sound_id.clone(),
+            MarkerVisualIcon {
+                data_url: format!("data:image/png;base64,{}", BASE64_STANDARD.encode(bytes)),
+                kind: match subject.kind {
+                    MarkerVisualKind::Block => "block",
+                    MarkerVisualKind::Entity => "entity",
+                    MarkerVisualKind::Item => "item",
+                }
+                .to_string(),
+                crop_x,
+                crop_y,
+                crop_width,
+                crop_height,
+                image_width,
+                image_height,
+            },
+        );
+    }
+    Ok(icons)
+}
+
+async fn ensure_client_jar(version: &str) -> Result<PathBuf, String> {
+    validate_version(version)?;
+    let root = minecraft_dir()?;
+    let client = reqwest::Client::new();
+    let metadata = ensure_version_metadata(&client, &root, version).await?;
+    let artifact = metadata
+        .downloads
+        .ok_or_else(|| format!("Minecraft {version} metadata has no client download"))?
+        .client;
+    if artifact.sha1.len() != 40
+        || !artifact
+            .sha1
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+    {
+        return Err("Client download has an invalid hash".to_string());
+    }
+    let installed_path = root
+        .join("versions")
+        .join(version)
+        .join(format!("{version}.jar"));
+    if installed_path
+        .metadata()
+        .map(|metadata| metadata.is_file() && metadata.len() == artifact.size)
+        .unwrap_or(false)
+    {
+        return Ok(installed_path);
+    }
+    let path = root
+        .join("assets/knead/clients")
+        .join(format!("{version}.jar"));
+    if path
+        .metadata()
+        .map(|metadata| metadata.is_file() && metadata.len() == artifact.size)
+        .unwrap_or(false)
+    {
+        return Ok(path);
+    }
+    let bytes = download_bytes(
+        &client,
+        &artifact.url,
+        &format!("Minecraft {version} client"),
+    )
+    .await?;
+    if bytes.len() as u64 != artifact.size {
+        return Err(format!(
+            "Minecraft {version} client size verification failed"
+        ));
+    }
+    verify_download(
+        &bytes,
+        &artifact.sha1,
+        &format!("Minecraft {version} client"),
+    )?;
+    write_download(&path, &bytes)?;
+    Ok(path)
+}
+
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let target = app
         .path()
@@ -556,6 +915,7 @@ fn default_settings() -> Value {
         "language": "en",
         "theme": "system",
         "selectedVersion": null,
+        "studioMarkerIcons": false,
         "playbackCategory": "player",
         "holdSoundsSort": false,
         "holdRatingFilter": false,
@@ -833,6 +1193,17 @@ fn get_mc_sound_data(hash: String) -> Result<tauri::ipc::Response, String> {
         .join(hash);
     let bytes = fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+async fn get_mc_marker_icons(
+    version: String,
+    sound_ids: Vec<String>,
+) -> Result<HashMap<String, MarkerVisualIcon>, String> {
+    let jar_path = ensure_client_jar(&version).await?;
+    tauri::async_runtime::spawn_blocking(move || load_marker_icons(&jar_path, &sound_ids))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -1506,6 +1877,7 @@ pub fn run() {
             get_mc_sounds,
             get_mc_sound_hash,
             get_mc_sound_data,
+            get_mc_marker_icons,
             make_sub_window,
             load_settings,
             update_settings,
@@ -1551,6 +1923,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write as _;
 
     fn object(hash_character: char, size: u64) -> AssetObject {
         AssetObject {
@@ -1592,6 +1965,178 @@ mod tests {
             )]),
         };
         assert!(sound_asset_objects(&index).is_err());
+    }
+
+    #[test]
+    fn marker_visuals_parse_specific_block_entity_and_item_events() {
+        assert_eq!(
+            marker_visual_subject("block.stone.break"),
+            Some(MarkerVisualSubject {
+                kind: MarkerVisualKind::Block,
+                id: "stone".to_string(),
+            })
+        );
+        assert_eq!(
+            marker_visual_subject("minecraft:entity.zombie.death"),
+            Some(MarkerVisualSubject {
+                kind: MarkerVisualKind::Entity,
+                id: "zombie".to_string(),
+            })
+        );
+        assert_eq!(
+            marker_visual_subject("item.crossbow.shoot"),
+            Some(MarkerVisualSubject {
+                kind: MarkerVisualKind::Item,
+                id: "crossbow".to_string(),
+            })
+        );
+        assert_eq!(
+            marker_visual_subject("item.armor.equip_diamond"),
+            Some(MarkerVisualSubject {
+                kind: MarkerVisualKind::Item,
+                id: "diamond_chestplate".to_string(),
+            })
+        );
+        assert_eq!(
+            marker_visual_subject("item.nautilus_saddle_equip"),
+            Some(MarkerVisualSubject {
+                kind: MarkerVisualKind::Item,
+                id: "nautilus_saddle_equip".to_string(),
+            })
+        );
+        assert_eq!(marker_visual_subject("entity.generic.hurt"), None);
+        assert_eq!(marker_visual_subject("music.overworld.jungle"), None);
+    }
+
+    #[test]
+    fn marker_visuals_resolve_aliases_and_fallbacks() {
+        let names = vec![
+            "assets/minecraft/textures/block/grass_block_top.png".to_string(),
+            "assets/minecraft/textures/entity/zombie/zombie.png".to_string(),
+            "assets/minecraft/textures/item/crossbow_standby.png".to_string(),
+            "assets/minecraft/textures/entity/shield/shield_base_nopattern.png".to_string(),
+            "assets/minecraft/textures/entity/equipment/nautilus_saddle/saddle.png".to_string(),
+        ];
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Block,
+                    id: "grass".to_string(),
+                }
+            ),
+            Some("assets/minecraft/textures/block/grass_block_top.png".to_string())
+        );
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Entity,
+                    id: "zombie".to_string(),
+                }
+            ),
+            Some("assets/minecraft/textures/entity/zombie/zombie.png".to_string())
+        );
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Item,
+                    id: "crossbow".to_string(),
+                }
+            ),
+            Some("assets/minecraft/textures/item/crossbow_standby.png".to_string())
+        );
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Item,
+                    id: "shield".to_string(),
+                }
+            ),
+            Some("assets/minecraft/textures/entity/shield/shield_base_nopattern.png".to_string())
+        );
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Item,
+                    id: "nautilus_saddle_equip".to_string(),
+                }
+            ),
+            Some(
+                "assets/minecraft/textures/entity/equipment/nautilus_saddle/saddle.png".to_string()
+            )
+        );
+        assert_eq!(
+            marker_texture_path(
+                &names,
+                &MarkerVisualSubject {
+                    kind: MarkerVisualKind::Block,
+                    id: "missing".to_string(),
+                }
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn marker_visuals_are_loaded_from_client_archive() {
+        let archive_path = std::env::temp_dir().join(format!(
+            "knead-marker-icons-{}-{}.jar",
+            std::process::id(),
+            DOWNLOAD_TEMP_COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let file = fs::File::create(&archive_path).expect("archive should be created");
+        let mut archive = zip::ZipWriter::new(file);
+        archive
+            .start_file(
+                "assets/minecraft/textures/block/stone.png",
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored),
+            )
+            .expect("texture entry should start");
+        let mut png_header = vec![0; 24];
+        png_header[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
+        png_header[16..20].copy_from_slice(&16_u32.to_be_bytes());
+        png_header[20..24].copy_from_slice(&16_u32.to_be_bytes());
+        archive
+            .write_all(&png_header)
+            .expect("texture should be written");
+        archive
+            .start_file(
+                "assets/minecraft/textures/item/bucket.png",
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored),
+            )
+            .expect("item texture entry should start");
+        archive
+            .write_all(&png_header)
+            .expect("item texture should be written");
+        archive.finish().expect("archive should finish");
+
+        let icons = load_marker_icons(
+            &archive_path,
+            &[
+                "block.stone.break".to_string(),
+                "item.bucket.fill".to_string(),
+            ],
+        )
+        .expect("icons should load");
+        let icon = icons
+            .get("block.stone.break")
+            .expect("stone icon should resolve");
+        assert_eq!(icon.kind, "block");
+        assert_eq!((icon.crop_width, icon.crop_height), (16, 16));
+        assert!(icon.data_url.starts_with("data:image/png;base64,"));
+        let item_icon = icons
+            .get("item.bucket.fill")
+            .expect("bucket icon should resolve");
+        assert_eq!(item_icon.kind, "item");
+        assert_eq!((item_icon.crop_width, item_icon.crop_height), (16, 16));
+
+        fs::remove_file(archive_path).expect("archive should be removed");
     }
 
     #[test]
