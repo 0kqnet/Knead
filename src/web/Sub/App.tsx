@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
 import { updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
-import { TimelineEditor } from './components/TimelineEditor'
+import { StudioWorkspace } from './components/StudioWorkspace'
 import { VersionInfoType } from '../../types/VersionInfo'
 
 export const SubApp = () => {
@@ -12,22 +12,16 @@ export const SubApp = () => {
     ;(async () => {
       const version = await window.myAPI.getSetting('selectedVersion')
       if (version) dispatch(updateTargetVersion({ targetVersion: version as VersionInfoType }))
+      else {
+        const list = await window.myAPI.getCurrentSounds()
+        if (Array.isArray(list)) dispatch(updateSoundList({ sounds: list }))
+      }
     })()
   }, [dispatch])
 
-  useEffect(() => {
-    if (!targetVersion) return
-    ;(async () => {
-      const list = await window.myAPI.get_mcSounds(targetVersion.raw)
-      dispatch(updateSoundList({ sounds: list }))
-    })()
-  }, [dispatch, targetVersion])
-
-  useEffect(() => {
-    ;(async () => {
-      const list = await window.myAPI.getCurrentSounds()
-      if (Array.isArray(list)) dispatch(updateSoundList({ sounds: list }))
-    })()
+  const activateTargetVersion = useCallback(async (version: string) => {
+    const list = await window.myAPI.get_mcSounds(version)
+    dispatch(updateSoundList({ sounds: list }))
   }, [dispatch])
 
   const [mainSelectedId, setMainSelectedId] = useState<string>('')
@@ -42,9 +36,10 @@ export const SubApp = () => {
   }, [])
 
   return (
-    <TimelineEditor
+    <StudioWorkspace
       defaultSoundId={mainSelectedId}
-      currentTargetVersion={targetVersion?.raw}
+      defaultTargetVersion={targetVersion?.raw}
+      activateTargetVersion={activateTargetVersion}
     />
   )
 }

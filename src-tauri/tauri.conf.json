@@ -69,6 +69,17 @@
           "identifier": "com.neac.knead.project",
           "conformsTo": ["public.json"]
         }
+      },
+      {
+        "ext": ["nbs"],
+        "name": "Note Block Studio Song",
+        "description": "Note Block Studio Song",
+        "role": "Editor",
+        "mimeType": "application/x-minecraft-note-block-studio",
+        "exportedType": {
+          "identifier": "com.neac.knead.nbs-song",
+          "conformsTo": ["public.data"]
+        }
       }
     ],
     "windows": {

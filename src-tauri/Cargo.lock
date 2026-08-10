@@ -18,6 +18,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aifc"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00259ade1408f212e06fbf52b31677526eb81d91ff3f71d1ac8c7fa6f4eaf31f"
+dependencies = [
+ "audio-codec-algorithms",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,6 +234,12 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
+name = "audio-codec-algorithms"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3befb328a44333ff731148d7f4acb322e57748d48fee4e424ae1fa786d765501"
 
 [[package]]
 name = "autocfg"
@@ -1919,9 +1934,12 @@ dependencies = [
 name = "knead"
 version = "0.3.5"
 dependencies = [
+ "aifc",
  "base64 0.22.1",
+ "flate2",
  "futures-util",
  "hound",
+ "libflac-rs",
  "reqwest 0.12.28",
  "semver",
  "serde",
@@ -1981,6 +1999,12 @@ checksum = "328c4789d42200f1eeec05bd86c9c13c7f091d2ba9a6ea35acdf51f31bc0f043"
 dependencies = [
  "pkg-config",
 ]
+
+[[package]]
+name = "libflac-rs"
+version = "0.143.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "103950d4bbd33a11347d4442989989dd5b89a36248267690feb9cef4b3a51ab3"
 
 [[package]]
 name = "libloading"
@@ -3521,12 +3545,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1758d6c853020a7244de03cc3e0185eaea3f58715122422dd3cc7452e6d4c16a"
 dependencies = [
  "lazy_static",
+ "symphonia-bundle-flac",
  "symphonia-bundle-mp3",
  "symphonia-codec-pcm",
  "symphonia-codec-vorbis",
  "symphonia-core",
  "symphonia-format-ogg",
  "symphonia-format-riff",
+ "symphonia-metadata",
+]
+
+[[package]]
+name = "symphonia-bundle-flac"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee69ad01236a67260b82fd1ff9790dd75ead29f2f46af145e63b7e72273e0e03"
+dependencies = [
+ "log",
+ "symphonia-common",
+ "symphonia-core",
  "symphonia-metadata",
 ]
 

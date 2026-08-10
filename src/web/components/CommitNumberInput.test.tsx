@@ -48,4 +48,16 @@ describe('CommitNumberInput', () => {
     expect(onCommit).toHaveBeenLastCalledWith(300)
     expect(input.value).toBe('300')
   })
+
+  it('forwards its ref to the underlying number input', () => {
+    const ref = React.createRef<HTMLInputElement>()
+    render(
+      <UIProvider>
+        <CommitNumberInput ref={ref} value={120} onCommit={() => undefined} />
+      </UIProvider>,
+    )
+
+    expect(ref.current?.tagName).toBe('INPUT')
+    expect(ref.current?.getAttribute('role')).toBe('spinbutton')
+  })
 })

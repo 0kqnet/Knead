@@ -7,11 +7,37 @@ import { CommitNumberInput } from '../../components/CommitNumberInput'
 interface Props {
   onNew: () => void
   onOpen: () => void
+  onCommandPalette: () => void
+  commandPaletteOpen: boolean
   onSave: () => void
   onSaveAs: () => void
-  onExport: () => void
+  onAudioExport: () => void
+  onCommandExport: () => void
+  onNoteBlockBuild: () => void
+  onNbs: () => void
+  onNbp: () => void
+  onNbsMacros: () => void
+  onResourcePack: () => void
+  onRecovery: () => void
+  recoverySaving: boolean
+  recoveryError: string | null
+  onPlayerMode: () => void
+  playerModeOpen: boolean
+  onPianoRoll: () => void
+  pianoRollOpen: boolean
+  onTempoMap: () => void
+  tempoMapOpen: boolean
+  onSongMetadata: () => void
+  songMetadataOpen: boolean
+  onCustomInstruments: () => void
+  customInstrumentsOpen: boolean
+  onMidi: () => void
+  onExtensions: () => void
   onAddMarker: () => void
+  onAddSoundStopper: () => void
+  canAddMarker: boolean
   onAddTrack: () => void
+  onAddReferenceAudio: () => void
   onDeleteSelected: () => void
   canDelete: boolean
   dirty: boolean
@@ -39,6 +65,9 @@ interface Props {
   markerIconsEnabled: boolean
   markerIconsLoading: boolean
   onToggleMarkerIcons: () => void
+  navigatorOpen: boolean
+  onToggleNavigator: () => void
+  extensionsOpen: boolean
 }
 
 const snapItems: SelectItem[] = [
@@ -48,12 +77,13 @@ const snapItems: SelectItem[] = [
 ]
 
 export const TimelineToolbar: React.FC<Props> = ({
-  onNew, onOpen, onSave, onSaveAs, onExport, onAddMarker, onAddTrack,
-  onDeleteSelected, canDelete, dirty, filePath, onTogglePlay, onStop,
+  onNew, onOpen, onCommandPalette, commandPaletteOpen, onSave, onSaveAs, onAudioExport, onCommandExport, onNoteBlockBuild, onNbs, onNbp, onNbsMacros, onResourcePack, onRecovery, recoverySaving, recoveryError, onPlayerMode, playerModeOpen, onPianoRoll, pianoRollOpen, onTempoMap, tempoMapOpen, onSongMetadata, songMetadataOpen, onCustomInstruments, customInstrumentsOpen, onMidi, onExtensions, onAddMarker, onAddSoundStopper, onAddTrack, onAddReferenceAudio,
+  canAddMarker, onDeleteSelected, canDelete, dirty, filePath, onTogglePlay, onStop,
   isPlaying, isPaused, currentTick, preloading, onUndo, onRedo, canUndo, canRedo,
   settings, onSettingsChange, onReroll, pxPerTick, onZoom,
   onFitProject, onFitSelection, canFitSelection, mixerOpen, onToggleMixer,
   markerIconsEnabled, markerIconsLoading, onToggleMarkerIcons,
+  navigatorOpen, onToggleNavigator, extensionsOpen,
 }) => {
   const { t } = useTranslation()
   const snapValue = settings.snap.mode === 'off'
@@ -63,13 +93,30 @@ export const TimelineToolbar: React.FC<Props> = ({
       : `beat:${settings.snap.beatDivision}`
   const fileName = filePath ? filePath.replace(/^.*[\\/]/, '') : `(${t('studio.unsaved')})`
   return (
-    <Box bg="gray.900" borderBottom="1px solid" borderColor="gray.700" px="2" py="1">
+    <Box
+      bg="gray.900" borderBottom="1px solid" borderColor="gray.700"
+      px="2" py="1" overflowX="auto" overflowY="hidden"
+    >
       <Flex align="center" gap="1" minW="max-content">
         <Button size="xs" onClick={onNew} title="Ctrl+N">{t('studio.new')}</Button>
         <Button size="xs" onClick={onOpen} title="Ctrl+O">{t('studio.open')}</Button>
+        <Button
+          size="xs"
+          colorScheme={commandPaletteOpen ? 'cyan' : 'gray'}
+          onClick={onCommandPalette}
+          title="Ctrl/Cmd+K"
+        >
+          ⌘
+          {t('studio.command_palette_short')}
+        </Button>
         <Button size="xs" onClick={onSave} title="Ctrl+S">{t('studio.save')}</Button>
         <Button size="xs" onClick={onSaveAs} title="Ctrl+Shift+S">{t('studio.save_as')}</Button>
-        <Button size="xs" colorScheme="purple" onClick={onExport}>{t('studio.export')}</Button>
+        <Button size="xs" colorScheme="purple" onClick={onAudioExport}>{t('studio.audio_export_short')}</Button>
+        <Button size="xs" colorScheme="green" onClick={onCommandExport} title="Ctrl+E">{t('studio.command_export_short')}</Button>
+        <Button size="xs" colorScheme="orange" onClick={onNoteBlockBuild}>{t('studio.note_block_build_short')}</Button>
+        <Button size="xs" colorScheme="cyan" onClick={onNbs}>{t('studio.nbs_short')}</Button>
+        <Button size="xs" colorScheme="cyan" onClick={onNbp}>{t('studio.nbp_short')}</Button>
+        <Button size="xs" colorScheme="purple" onClick={onMidi}>{t('studio.midi_short')}</Button>
         <Box w="1px" h="22px" bg="gray.600" mx="1" />
         <Button size="xs" onClick={onUndo} isDisabled={!canUndo}>↺</Button>
         <Button size="xs" onClick={onRedo} isDisabled={!canRedo}>↻</Button>
@@ -93,8 +140,16 @@ export const TimelineToolbar: React.FC<Props> = ({
           s
         </Text>
         <Box w="1px" h="22px" bg="gray.600" mx="1" />
-        <Button size="xs" colorScheme="blue" onClick={onAddMarker}>{t('studio.add_marker')}</Button>
+        <Button size="xs" colorScheme="blue" onClick={onAddMarker} isDisabled={!canAddMarker}>{t('studio.add_marker')}</Button>
+        <Button size="xs" colorScheme="red" onClick={onAddSoundStopper} isDisabled={!canAddMarker}>
+          ■
+          {t('studio.add_sound_stopper')}
+        </Button>
         <Button size="xs" colorScheme="cyan" onClick={onAddTrack}>{t('studio.add_track')}</Button>
+        <Button size="xs" colorScheme="teal" onClick={onAddReferenceAudio}>
+          ＋
+          {t('studio.reference_audio_short')}
+        </Button>
         <Button size="xs" colorScheme="red" onClick={onDeleteSelected} isDisabled={!canDelete}>{t('studio.delete')}</Button>
         <Box flex="1" />
         <Text fontSize="xs" color={dirty ? 'yellow.300' : 'gray.400'} maxW="160px" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
@@ -193,6 +248,43 @@ export const TimelineToolbar: React.FC<Props> = ({
           title={t('studio.marker_icons_hint')}
         >
           {markerIconsLoading ? t('studio.marker_icons_loading') : t('studio.marker_icons')}
+        </Button>
+        <Button size="xs" colorScheme={navigatorOpen ? 'cyan' : 'gray'} onClick={onToggleNavigator} title="N">
+          {t('studio.navigator')}
+        </Button>
+        <Button size="xs" colorScheme="purple" onClick={onNbsMacros} isDisabled={!canDelete}>
+          {t('studio.nbs_macros_short')}
+        </Button>
+        <Button size="xs" colorScheme="green" onClick={onResourcePack}>
+          {t('studio.resource_pack_short')}
+        </Button>
+        <Button
+          size="xs"
+          colorScheme={recoveryError ? 'red' : recoverySaving ? 'orange' : 'gray'}
+          onClick={onRecovery}
+          title={recoveryError ?? undefined}
+        >
+          {recoverySaving ? '… ' : ''}
+          {t('studio.recovery_short')}
+        </Button>
+        <Button size="xs" colorScheme={playerModeOpen ? 'green' : 'gray'} onClick={onPlayerMode}>
+          {t('studio.player_mode_short')}
+        </Button>
+        <Button size="xs" colorScheme={pianoRollOpen ? 'purple' : 'gray'} onClick={onPianoRoll}>
+          {t('studio.piano_roll_short')}
+        </Button>
+        <Button size="xs" colorScheme={tempoMapOpen ? 'orange' : 'gray'} onClick={onTempoMap}>
+          {t('studio.tempo_map_short')}
+        </Button>
+        <Button size="xs" colorScheme={songMetadataOpen ? 'cyan' : 'gray'} onClick={onSongMetadata}>
+          {t('studio.song_metadata_short')}
+        </Button>
+        <Button size="xs" colorScheme={customInstrumentsOpen ? 'pink' : 'gray'} onClick={onCustomInstruments}>
+          {t('studio.custom_instrument_short')}
+        </Button>
+        <Button size="xs" colorScheme={extensionsOpen ? 'purple' : 'gray'} onClick={onExtensions}>
+          ⚙
+          {t('studio.extensions_short')}
         </Button>
         <Button size="xs" colorScheme={mixerOpen ? 'blue' : 'gray'} onClick={onToggleMixer}>{t('studio.mixer')}</Button>
       </Flex>

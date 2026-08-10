@@ -10,12 +10,6 @@ import { useTranslation } from 'react-i18next'
 import { GoStarFill } from 'react-icons/go'
 import { SoundSort } from '../../types/Settings'
 
-declare interface Window {
-  myAPI: {
-    setSelectedSound: (id: string) => void
-  }
-}
-
 export const SoundSelector = () => {
   const dispatch = useAddDispatch()
   const { t } = useTranslation()

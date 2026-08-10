@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box } from '@yamada-ui/react'
+import { useTranslation } from 'react-i18next'
 import {
   TIMELINE_MARKER_HEIGHT,
   TIMELINE_LEADING_PADDING_PX,
   TIMELINE_LANE_STEP_PX,
   TRACK_HEIGHT,
   TRACK_HEIGHT_COLLAPSED,
+  isSoundStopMarker,
   laneYToMarkerCenterY,
   markerCenterYToLaneY,
-  snapTick,
   type Marker,
+  type TempoMapEvent,
   type TimelineSettings,
   type Track,
 } from '../types/timeline'
 import { pxDeltaToTick, pxToTick, tickToPx } from '../utils/tickPixel'
+import { buildTempoMap, snapTickToTempoMap } from '../utils/tempoMap'
 import { ResizeEdge, TimelineMarker } from './TimelineMarker'
 import type { MarkerVisualIcon } from '../../../../@types/global'
 
@@ -28,6 +31,7 @@ interface Props {
   lengthTicks: number
   pxPerTick: number
   settings: TimelineSettings
+  tempoMap?: readonly TempoMapEvent[]
   selectedIds: Set<string>
   validSoundIds: Set<string>
   markerIcons?: Record<string, MarkerVisualIcon>
@@ -61,17 +65,31 @@ interface DragState {
 }
 
 export const TimelineTrack: React.FC<Props> = ({
-  track, markers, lengthTicks, pxPerTick, settings, selectedIds, validSoundIds,
+  track, markers, lengthTicks, pxPerTick, settings, tempoMap, selectedIds, validSoundIds,
   markerIcons = {},
   onSelectMarker, onClearSelection, onRectangleSelect, onBeginEdit, onEndEdit,
   onMoveSelection, onResizeMarker, onDuplicateForDrag, onAddMarker,
 }) => {
+  const { t } = useTranslation()
   const rowRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<DragState | null>(null)
   const ignoreClickRef = useRef(false)
   const [selectionRect, setSelectionRect] = useState<{ start: number, end: number } | null>(null)
   const selectionPointerRef = useRef<number | null>(null)
   const [ctrlPressed, setCtrlPressed] = useState(false)
+  const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
+    bpm: settings.bpm,
+    timeSignature: {
+      numerator: settings.timeSignature.numerator,
+      denominator: settings.timeSignature.denominator,
+    },
+  }, Math.max(0, lengthTicks - 1)), [
+    lengthTicks,
+    settings.bpm,
+    settings.timeSignature.denominator,
+    settings.timeSignature.numerator,
+    tempoMap,
+  ])
 
   const markerYById = useMemo(() => {
     const result = new Map<string, number>()
@@ -133,7 +151,7 @@ export const TimelineTrack: React.FC<Props> = ({
     if (track.locked || event.button !== 0) return
     event.stopPropagation()
     const control = event.ctrlKey || event.metaKey
-    const resizing = control && edge !== null
+    const resizing = control && edge !== null && !isSoundStopMarker(marker)
     if (!resizing && (control || event.shiftKey)) {
       onSelectMarker(marker.id, { ctrl: control, shift: event.shiftKey })
       return
@@ -193,15 +211,21 @@ export const TimelineTrack: React.FC<Props> = ({
       if (drag.edge) {
         const originEnd = drag.originTick + drag.originDuration
         if (drag.edge === 'start') {
-          const tick = snapTick(
+          const tick = snapTickToTempoMap(
             Math.max(0, Math.min(originEnd, drag.originTick + deltaTick)),
             settings,
+            tempoModel,
             event.altKey,
           )
           onResizeMarker(drag.primaryId, tick, Math.max(0, originEnd - tick))
         }
         else {
-          const end = snapTick(Math.max(drag.originTick, originEnd + deltaTick), settings, event.altKey)
+          const end = snapTickToTempoMap(
+            Math.max(drag.originTick, originEnd + deltaTick),
+            settings,
+            tempoModel,
+            event.altKey,
+          )
           onResizeMarker(drag.primaryId, drag.originTick, Math.max(0, end - drag.originTick))
         }
       }
@@ -209,7 +233,12 @@ export const TimelineTrack: React.FC<Props> = ({
         const target = document.elementFromPoint(event.clientX, event.clientY)
           ?.closest<HTMLElement>('[data-track-id]')
         const targetTrackId = target?.dataset.trackId ?? track.id
-        const tick = snapTick(drag.originTick + deltaTick, settings, event.altKey)
+        const tick = snapTickToTempoMap(
+          drag.originTick + deltaTick,
+          settings,
+          tempoModel,
+          event.altKey,
+        )
         let laneYs: Map<string, number> | undefined
         if (Math.abs(deltaY) >= 3) {
           const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
@@ -228,7 +257,7 @@ export const TimelineTrack: React.FC<Props> = ({
       setSelectionRect(current => current ? { ...current, end: event.clientX - rect.left } : null)
     }
   }, [
-    onBeginEdit, onMoveSelection, onResizeMarker, pxPerTick, selectionRect, settings,
+    onBeginEdit, onMoveSelection, onResizeMarker, pxPerTick, selectionRect, settings, tempoModel,
     track.collapsed, track.id,
   ])
 
@@ -299,27 +328,39 @@ export const TimelineTrack: React.FC<Props> = ({
       onDoubleClick={(event) => {
         if (track.locked || event.target !== event.currentTarget) return
         const rect = event.currentTarget.getBoundingClientRect()
-        onAddMarker(snapTick(
+        onAddMarker(snapTickToTempoMap(
           pxToTick(event.clientX - rect.left - TIMELINE_LEADING_PADDING_PX, pxPerTick),
           settings,
+          tempoModel,
           event.altKey,
         ), track.id)
       }}
     >
-      {!track.collapsed && markers.map(marker => (
-        <TimelineMarker
-          key={marker.id}
-          marker={marker}
-          track={track}
-          pxPerTick={pxPerTick}
-          selected={selectedIds.has(marker.id)}
-          invalidSound={!marker.soundId || !validSoundIds.has(marker.soundId)}
-          markerIcon={validSoundIds.has(marker.soundId) ? markerIcons[marker.soundId] : undefined}
-          resizeCursor={ctrlPressed}
-          topPx={markerYById.get(marker.id) ?? height / 2}
-          onPointerDown={(edge, event) => handleMarkerPointerDown(marker, edge, event)}
-        />
-      ))}
+      {!track.collapsed && markers.map((marker) => {
+        const soundStop = isSoundStopMarker(marker)
+        return (
+          <TimelineMarker
+            key={marker.id}
+            marker={marker}
+            track={track}
+            pxPerTick={pxPerTick}
+            selected={selectedIds.has(marker.id)}
+            invalidSound={!soundStop && (!marker.soundId || !validSoundIds.has(marker.soundId))}
+            markerIcon={!soundStop && validSoundIds.has(marker.soundId) ? markerIcons[marker.soundId] : undefined}
+            soundStopTitle={soundStop
+              ? marker.action.scope === 'all'
+                ? t('studio.sound_stopper_marker_all')
+                : t('studio.sound_stopper_marker_range', {
+                    start: marker.action.startTrack,
+                    end: marker.action.endTrack,
+                  })
+              : undefined}
+            resizeCursor={ctrlPressed && !soundStop}
+            topPx={markerYById.get(marker.id) ?? height / 2}
+            onPointerDown={(edge, event) => handleMarkerPointerDown(marker, edge, event)}
+          />
+        )
+      })}
       {selectionRect && (
         <Box
           position="absolute"

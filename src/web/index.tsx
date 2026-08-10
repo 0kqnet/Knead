@@ -2,7 +2,6 @@ import React from 'react'
 import './Style.css'
 import { App } from './Main/App'
 import { AppInitialize } from './AppInitialize'
-import { SubApp } from './Sub/App'
 import { createRoot } from 'react-dom/client'
 import { extendConfig, extendTheme, ThemeConfig, UIProvider, getColorModeScript } from '@yamada-ui/react'
 import { HashRouter, Routes, Route } from 'react-router'
@@ -10,6 +9,17 @@ import { store } from '../store/_store'
 import { Provider } from 'react-redux'
 import './i18n/configs'
 import '../tauri-api'
+
+const SubApp = React.lazy(async () => {
+  const module = await import('./Sub/App')
+  return { default: module.SubApp }
+})
+
+const studio = (
+  <React.Suspense fallback={<div role="status" aria-live="polite">Loading Studio…</div>}>
+    <SubApp />
+  </React.Suspense>
+)
 
 export const config: ThemeConfig = {
   initialColorMode: 'system',
@@ -48,12 +58,12 @@ createRoot(document.getElementById('root') as Element).render(
     <UIProvider config={customConfig} theme={customTheme}>
       <AppInitialize />
       {isSubWindow
-        ? <SubApp />
+        ? studio
         : (
             <HashRouter>
               <Routes>
                 <Route index element={<App />} />
-                <Route path="sub" element={<SubApp />} />
+                <Route path="sub" element={studio} />
               </Routes>
             </HashRouter>
           )}

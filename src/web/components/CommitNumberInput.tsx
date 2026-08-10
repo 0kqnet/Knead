@@ -25,7 +25,7 @@ export function clampCommittedNumber(
   return Math.round(clamped * factor) / factor
 }
 
-export const CommitNumberInput: React.FC<CommitNumberInputProps> = ({
+export const CommitNumberInput = React.forwardRef<HTMLInputElement, CommitNumberInputProps>(function CommitNumberInput({
   value,
   onCommit,
   min = Number.MIN_SAFE_INTEGER,
@@ -35,7 +35,7 @@ export const CommitNumberInput: React.FC<CommitNumberInputProps> = ({
   onFocus,
   onKeyDown,
   ...props
-}) => {
+}, ref) {
   const [draft, setDraft] = useState(String(value))
   const focusedRef = useRef(false)
   const externalRef = useRef(value)
@@ -60,6 +60,7 @@ export const CommitNumberInput: React.FC<CommitNumberInputProps> = ({
 
   return (
     <NumberInput
+      ref={ref}
       {...props}
       value={draft}
       min={min}
@@ -92,4 +93,4 @@ export const CommitNumberInput: React.FC<CommitNumberInputProps> = ({
       }}
     />
   )
-}
+})

@@ -40,36 +40,12 @@ export const Footer = () => {
     { kind: 'snapshot', raw: '', year: 24, releaseNumber: 9, letter: '' },
   ] satisfies VersionInfoType[]).some(v => isAboveVersion(targetVersion, v))
 
-  // 1.13(17w45a)以降は<selector>の記述方式が変更された
-  const isTargetVersion17w45aOrHigher = ([
-    { kind: 'release', raw: '', major: 1, minor: 13, patch: 0 },
-    { kind: 'release-candidate', raw: '', major: 1, minor: 13, patch: 0, releaseNumber: 0 },
-    { kind: 'pre-release', raw: '', major: 1, minor: 13, patch: 0, releaseNumber: 0 },
-    { kind: 'snapshot', raw: '', year: 17, releaseNumber: 45, letter: '' },
-  ] satisfies VersionInfoType[]).some(v => isAboveVersion(targetVersion, v))
-
-  // 1.12(17w16b)以降は@sが追加された
-  const isTargetVersion17w16bOrHigher = ([
-    { kind: 'release', raw: '', major: 1, minor: 12, patch: 0 },
-    { kind: 'release-candidate', raw: '', major: 1, minor: 12, patch: 0, releaseNumber: 0 },
-    { kind: 'pre-release', raw: '', major: 1, minor: 12, patch: 0, releaseNumber: 0 },
-    { kind: 'snapshot', raw: '', year: 17, releaseNumber: 16, letter: 'b' },
-  ] satisfies VersionInfoType[]).some(v => isAboveVersion(targetVersion, v))
-
   // 1.9(15w49a)以降は<source>が必要になった
   const isTargetVersion15w49aOrHigher = ([
     { kind: 'release', raw: '', major: 1, minor: 9, patch: 0 },
     { kind: 'release-candidate', raw: '', major: 1, minor: 9, patch: 0, releaseNumber: 0 },
     { kind: 'pre-release', raw: '', major: 1, minor: 9, patch: 0, releaseNumber: 0 },
     { kind: 'snapshot', raw: '', year: 15, releaseNumber: 49, letter: '' },
-  ] satisfies VersionInfoType[]).some(v => isAboveVersion(targetVersion, v))
-
-  // 1.8(14w02a)以降は@eが追加された
-  const isTargetVersion14w02aOrHigher = ([
-    { kind: 'release', raw: '', major: 1, minor: 8, patch: 0 },
-    { kind: 'release-candidate', raw: '', major: 1, minor: 8, patch: 0, releaseNumber: 0 },
-    { kind: 'pre-release', raw: '', major: 1, minor: 8, patch: 0, releaseNumber: 0 },
-    { kind: 'snapshot', raw: '', year: 14, releaseNumber: 2, letter: '' },
   ] satisfies VersionInfoType[]).some(v => isAboveVersion(targetVersion, v))
 
   const PlaySourceItems: SelectItem[] = [
@@ -118,7 +94,7 @@ export const Footer = () => {
   // 座標指定関系
   const coordinateChars = ['~', '^']
   const [Coordinate, setCoordinate] = useState('')
-  const [CoordinateError, { on: onCoordinateError, off: offCoordinateError }] = useBoolean(false)
+  const CoordinateError = false
 
   // セレクター関系
   const [Selector, setSelector] = useState('@a')
@@ -148,12 +124,6 @@ export const Footer = () => {
   }
 
   const onChangeCoordinate = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const str = e.target.value
-
-    // 条件に応じてエラー表示を行う
-    // if (/([\^\~]?[\d]{1,})*/g.test(str) || str === "") offCoordinateError()
-    // else onCoordinateError()
-
     setCoordinate(e.target.value)
   }, [setCoordinate])
   const onChangeCoordinateChar = (newCoordinateChar: string) => {
@@ -181,7 +151,7 @@ export const Footer = () => {
   const onClickRemoveSymbol = () => onChangeCoordinateChar('')
 
   const onChangeSelector = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const [valid, _] = SelectorCheck(e.target.value, SelectorX0)
+    const [valid] = SelectorCheck(e.target.value, SelectorX0)
 
     // セレクターが有効でないならエラーON
     if (!valid) return onSelectorError()
@@ -203,7 +173,7 @@ export const Footer = () => {
     }
     const CorrectedCoordinate = Coordinate.includes('~') ? Coordinate : Coordinate.includes('^') ? Coordinate : returnCoordinate.join('')
 
-    const [_, CorrectedSelector] = SelectorCheck(Selector, SelectorX0)
+    const [, CorrectedSelector] = SelectorCheck(Selector, SelectorX0)
 
     return selectedSound != ''
       ? ([

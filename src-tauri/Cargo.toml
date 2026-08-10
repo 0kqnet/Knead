@@ -24,8 +24,11 @@ tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
 hound = "3.5"
-symphonia = { version = "0.6", default-features = false, features = ["ogg", "vorbis", "wav", "pcm", "mp3"] }
+symphonia = { version = "0.6", default-features = false, features = ["aiff", "flac", "ogg", "vorbis", "wav", "pcm", "mp3"] }
 vorbis_rs = "0.5"
 shine-rs = "0.1"
+aifc = "0.7"
+libflac-rs = "=0.143.1"
 base64 = "0.22"
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 zip = { version = "4", default-features = false, features = ["deflate-flate2-zlib-rs"] }

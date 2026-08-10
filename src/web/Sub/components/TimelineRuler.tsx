@@ -2,49 +2,64 @@ import React, { useMemo, useRef } from 'react'
 import { Box, Text } from '@yamada-ui/react'
 import {
   TIMELINE_LEADING_PADDING_PX,
-  snapTick,
-  ticksPerBar,
-  ticksPerBeat,
+  type TempoMapEvent,
   type TimelineSettings,
 } from '../types/timeline'
 import { pxToTick, tickToPx } from '../utils/tickPixel'
+import {
+  buildTempoMap,
+  enumerateTempoGridLines,
+  formatMusicalPosition,
+  snapTickToTempoMap,
+  type TempoMapModel,
+} from '../utils/tempoMap'
 
 interface Props {
   lengthTicks: number
   pxPerTick: number
   settings: TimelineSettings
+  tempoMap?: readonly TempoMapEvent[]
   onSeek: (tick: number) => void
   onLoopChange: (startTick: number, endTick: number) => void
 }
 
-function formatLabel(tick: number, settings: TimelineSettings): string {
+function formatLabel(tick: number, settings: TimelineSettings, tempoModel: TempoMapModel): string {
   if (settings.timeDisplay === 'seconds') return `${(tick / 20).toFixed(1)}s`
-  if (settings.timeDisplay === 'bars') {
-    const beat = ticksPerBeat(settings)
-    const bar = Math.floor(tick / (beat * settings.timeSignature.numerator)) + 1
-    const beatInBar = Math.floor((tick / beat) % settings.timeSignature.numerator) + 1
-    return `${bar}.${beatInBar}`
-  }
+  if (settings.timeDisplay === 'bars') return formatMusicalPosition(tick, tempoModel)
   return `${Math.round(tick)}`
 }
 
 export const TimelineRuler: React.FC<Props> = ({
-  lengthTicks, pxPerTick, settings, onSeek, onLoopChange,
+  lengthTicks, pxPerTick, settings, tempoMap, onSeek, onLoopChange,
 }) => {
   const rulerRef = useRef<HTMLDivElement | null>(null)
-  const beatTicks = ticksPerBeat(settings)
-  const barTicks = ticksPerBar(settings)
+  const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
+    bpm: settings.bpm,
+    timeSignature: {
+      numerator: settings.timeSignature.numerator,
+      denominator: settings.timeSignature.denominator,
+    },
+  }, Math.max(0, lengthTicks - 1)), [
+    lengthTicks,
+    settings.bpm,
+    settings.timeSignature.denominator,
+    settings.timeSignature.numerator,
+    tempoMap,
+  ])
   const marks = useMemo(() => {
-    const values: { tick: number, major: boolean }[] = []
-    const step = settings.timeDisplay === 'bars'
-      ? beatTicks
-      : Math.max(1, pxPerTick < 3 ? 20 : pxPerTick < 6 ? 10 : 5)
+    const musical = enumerateTempoGridLines(0, lengthTicks, tempoModel, 5_000)
+    if (settings.timeDisplay === 'bars') return musical
+    const byTick = new Map<number, { tick: number, major: boolean }>()
+    const step = Math.max(1, pxPerTick < 3 ? 20 : pxPerTick < 6 ? 10 : 5)
     for (let tick = 0; tick <= lengthTicks + 0.001; tick += step) {
-      const barRatio = tick / barTicks
-      values.push({ tick, major: Math.abs(barRatio - Math.round(barRatio)) < 0.001 })
+      byTick.set(Math.round(tick * 1_000_000), { tick, major: false })
     }
-    return values
-  }, [barTicks, beatTicks, lengthTicks, pxPerTick, settings.timeDisplay])
+    for (const line of musical) {
+      if (!line.major) continue
+      byTick.set(Math.round(line.tick * 1_000_000), { tick: line.tick, major: true })
+    }
+    return [...byTick.values()].sort((left, right) => left.tick - right.tick)
+  }, [lengthTicks, pxPerTick, settings.timeDisplay, tempoModel])
 
   const startHandleDrag = (edge: 'start' | 'end', event: React.PointerEvent) => {
     event.stopPropagation()
@@ -53,9 +68,10 @@ export const TimelineRuler: React.FC<Props> = ({
     const onMove = (move: PointerEvent) => {
       const rect = rulerRef.current?.getBoundingClientRect()
       if (!rect) return
-      const tick = snapTick(
+      const tick = snapTickToTempoMap(
         pxToTick(move.clientX - rect.left - TIMELINE_LEADING_PADDING_PX, pxPerTick),
         settings,
+        tempoModel,
         move.altKey,
       )
       const loop = settings.loop
@@ -108,7 +124,7 @@ export const TimelineRuler: React.FC<Props> = ({
               color={mark.major ? 'gray.100' : 'gray.400'}
               whiteSpace="nowrap"
             >
-              {formatLabel(mark.tick, settings)}
+              {formatLabel(mark.tick, settings, tempoModel)}
             </Text>
           )}
         </Box>

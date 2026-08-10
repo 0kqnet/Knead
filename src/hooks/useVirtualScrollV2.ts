@@ -17,8 +17,6 @@ interface UseVirtualScrollV2Options {
 
 export function useVirtualScrollV2({
   itemCount,
-  _getItemKey,
-  _getItemHeight,
   containerHeight,
   overscan = 3,
   initialScrollTop = 0,
@@ -42,7 +40,7 @@ export function useVirtualScrollV2({
   }, [])
 
   // ループの中でHooksを呼んだと誤検知されないように、全計算をuseMemoにまとめる
-  const { positions, totalHeight, visibleItems } = useMemo(() => {
+  const { totalHeight, visibleItems } = useMemo(() => {
     const pos: VirtualScrollItem[] = []
     let acc = 0
 
@@ -64,7 +62,6 @@ export function useVirtualScrollV2({
     const visible = pos.slice(startIdx, endIdx > startIdx ? endIdx : undefined)
 
     return {
-      positions: pos,
       totalHeight: tot,
       visibleItems: visible,
     }

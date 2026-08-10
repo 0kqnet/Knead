@@ -24,5 +24,8 @@ export default [
       'react-hooks/exhaustive-deps': 'error',
       '@stylistic/jsx-max-props-per-line': 'off',
     },
+    settings: {
+      react: { version: 'detect' },
+    },
   },
 ]

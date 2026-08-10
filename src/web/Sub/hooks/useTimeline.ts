@@ -1,38 +1,56 @@
-import { useCallback, useMemo, useReducer } from 'react'
-import { produce, Draft } from 'immer'
+import { useCallback, useMemo, useReducer, type Dispatch } from 'react'
+import { castDraft, produce, Draft } from 'immer'
 import { v4 as uuidv4 } from 'uuid'
 import {
   DEFAULT_MASTER,
   DEFAULT_RETRIGGER_INTERVAL,
   DEFAULT_SETTINGS,
+  DEFAULT_SONG_METADATA,
   DEFAULT_TIMELINE_LENGTH_TICKS,
+  MAX_LOOP_COUNT,
+  MAX_GATE_TICKS,
+  MAX_MARKER_PITCH,
+  MAX_SOUND_STOP_TRACK,
+  MIN_MARKER_PITCH,
   SINGLE_SHOT_CURVE_PREVIEW_TICKS,
   TRACK_COLORS,
   createDefaultTrack,
   getTimelineLengthTicks,
   snapLaneY,
   type Curve,
+  type EmbeddedCustomAudioAsset,
   type Marker,
   type MasterBus,
+  type ProjectCustomInstrument,
+  type ReferenceAudioTrack,
+  type SongMetadata,
+  type TempoMapEvent,
   type Tick,
   type TimelineSettings,
   type TimelineState,
   type Track,
 } from '../types/timeline'
 import { scaleCurveDuration } from '../utils/curveScaling'
+import { deriveProjectCustomInstruments } from '../utils/customInstruments'
+import { normalizeTempoMap } from '../utils/tempoMap'
 
-const MAX_HISTORY = 100
+export const MAX_TIMELINE_HISTORY = 100
 
-function defaultState(): TimelineState {
+export function createDefaultTimelineState(targetVersion = ''): TimelineState {
   return {
     projectId: uuidv4(),
     randomSeed: Math.floor(Math.random() * 0x1_0000_0000),
-    targetVersion: '',
+    targetVersion,
     lengthTicks: DEFAULT_TIMELINE_LENGTH_TICKS,
     settings: structuredClone(DEFAULT_SETTINGS),
     master: { ...DEFAULT_MASTER },
     tracks: [createDefaultTrack(uuidv4())],
     markers: [],
+    referenceAudio: [],
+    customAudio: [],
+    customInstruments: [],
+    tempoMap: normalizeTempoMap([], DEFAULT_SETTINGS),
+    metadata: { ...DEFAULT_SONG_METADATA },
   }
 }
 
@@ -49,38 +67,198 @@ function changesDuration(patch: Partial<Marker>, marker: Draft<Marker>): boolean
   return Object.prototype.hasOwnProperty.call(patch, 'duration') && patch.duration !== marker.duration
 }
 
+function clampMarkerPitch(value: number): number {
+  if (!Number.isFinite(value)) return 1
+  return Math.max(MIN_MARKER_PITCH, Math.min(MAX_MARKER_PITCH, value))
+}
+
+function normalizePitchCurve(marker: Draft<Marker>): void {
+  if (!marker.pitchCurve) return
+  for (const keyframe of marker.pitchCurve.keyframes) {
+    keyframe.value = clampMarkerPitch(keyframe.value)
+    for (const handle of [keyframe.handleL, keyframe.handleR]) {
+      if (!handle) continue
+      const controlValue = clampMarkerPitch(keyframe.value + handle.dv)
+      handle.dv = controlValue - keyframe.value
+    }
+  }
+}
+
+function normalizeMarkerFields(marker: Draft<Marker>): void {
+  marker.tick = Math.max(0, Math.trunc(marker.tick))
+  marker.pan = Math.max(-1, Math.min(1, marker.pan ?? 0))
+  marker.pitch = clampMarkerPitch(marker.pitch)
+  normalizePitchCurve(marker)
+  const gateTicks = Number.isFinite(marker.gateTicks) ? Math.trunc(marker.gateTicks ?? 0) : 0
+  marker.gateTicks = gateTicks > 0 ? Math.min(MAX_GATE_TICKS, gateTicks) : undefined
+  if (marker.laneY !== undefined) marker.laneY = snapLaneY(marker.laneY)
+  if (marker.action?.type !== 'sound-stop') return
+  if (marker.action.scope === 'track-range') {
+    const startTrack = Math.max(
+      1,
+      Math.min(MAX_SOUND_STOP_TRACK, Math.trunc(marker.action.startTrack ?? 1)),
+    )
+    marker.action.startTrack = startTrack
+    marker.action.endTrack = Math.max(
+      startTrack,
+      Math.min(MAX_SOUND_STOP_TRACK, Math.trunc(marker.action.endTrack ?? startTrack)),
+    )
+  }
+  else {
+    marker.action = { type: 'sound-stop', scope: 'all' }
+  }
+  marker.soundId = ''
+  marker.variantIndex = -1
+  marker.volume = 1
+  marker.pitch = 1
+  marker.pan = 0
+  marker.gateTicks = undefined
+  marker.duration = undefined
+  marker.retriggerInterval = undefined
+  marker.volumeCurve = undefined
+  marker.pitchCurve = undefined
+}
+
 function extendTimeline(draft: Draft<TimelineState>): void {
-  draft.lengthTicks = getTimelineLengthTicks(draft.markers, draft.lengthTicks, draft.settings)
+  draft.lengthTicks = getTimelineLengthTicks(
+    draft.markers,
+    draft.lengthTicks,
+    draft.settings,
+    draft.referenceAudio ?? [],
+    draft.tempoMap ?? [],
+  )
   draft.settings.loop.endTick = Math.min(draft.settings.loop.endTick, draft.lengthTicks)
 }
 
-interface History {
+export interface TimelineHistory {
   past: TimelineState[]
   current: TimelineState
   future: TimelineState[]
   txSnapshot: TimelineState | null
 }
 
-type Action =
+export type TimelinePasteMarker = Partial<Marker> & Pick<Marker, 'tick'>
+
+export interface TimelinePasteInput {
+  markers: readonly TimelinePasteMarker[]
+  assets: readonly EmbeddedCustomAudioAsset[]
+  instruments?: readonly ProjectCustomInstrument[]
+}
+
+export interface PreparedTimelinePaste {
+  ids: string[]
+  action: Extract<TimelineHistoryAction, { type: 'paste' }>
+}
+
+export type TimelineHistoryAction =
   | { type: 'mutate', recipe: (draft: Draft<TimelineState>) => void }
   | { type: 'beginTx' }
   | { type: 'commitTx' }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'replace', state: TimelineState }
+  | {
+    type: 'paste'
+    ids: readonly string[]
+    markers: readonly TimelinePasteMarker[]
+    assets: readonly EmbeddedCustomAudioAsset[]
+    instruments: readonly ProjectCustomInstrument[]
+  }
 
-function reducer(history: History, action: Action): History {
+export function createTimelinePasteAction(input: TimelinePasteInput): PreparedTimelinePaste {
+  const ids = input.markers.map(() => uuidv4())
+  return {
+    ids,
+    action: {
+      type: 'paste',
+      ids,
+      markers: input.markers,
+      assets: input.assets,
+      instruments: input.instruments ?? [],
+    },
+  }
+}
+
+export function createTimelineHistory(initial = createDefaultTimelineState()): TimelineHistory {
+  return {
+    past: [],
+    current: initial,
+    future: [],
+    txSnapshot: null,
+  }
+}
+
+function materializeMarker(
+  draft: Draft<TimelineState>,
+  id: string,
+  partial: TimelinePasteMarker,
+): Marker {
+  const trackId = partial.trackId && draft.tracks.some(track => track.id === partial.trackId)
+    ? partial.trackId
+    : draft.tracks[0].id
+  const marker: Marker = {
+    id,
+    trackId,
+    tick: Math.max(0, Math.trunc(partial.tick)),
+    soundId: partial.soundId ?? '',
+    variantIndex: partial.variantIndex ?? -1,
+    volume: partial.volume ?? 1,
+    pitch: partial.pitch ?? 1,
+    pan: Math.max(-1, Math.min(1, partial.pan ?? 0)),
+    gateTicks: partial.gateTicks,
+    duration: partial.duration,
+    retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
+    laneY: partial.laneY === undefined ? undefined : snapLaneY(partial.laneY),
+    volumeCurve: partial.volumeCurve,
+    pitchCurve: partial.pitchCurve,
+    action: partial.action ? { ...partial.action } : undefined,
+    source: partial.source,
+  }
+  normalizeMarkerFields(castDraft(marker))
+  return marker
+}
+
+function applyMutation(
+  history: TimelineHistory,
+  recipe: (draft: Draft<TimelineState>) => void,
+): TimelineHistory {
+  const next = produce(history.current, recipe)
+  if (next === history.current) return history
+  if (history.txSnapshot !== null) return { ...history, current: next }
+  return {
+    past: [...history.past, history.current].slice(-MAX_TIMELINE_HISTORY),
+    current: next,
+    future: [],
+    txSnapshot: null,
+  }
+}
+
+export function timelineHistoryReducer(
+  history: TimelineHistory,
+  action: TimelineHistoryAction,
+): TimelineHistory {
   switch (action.type) {
-    case 'mutate': {
-      const next = produce(history.current, action.recipe)
-      if (next === history.current) return history
-      if (history.txSnapshot !== null) return { ...history, current: next }
-      return {
-        past: [...history.past, history.current].slice(-MAX_HISTORY),
-        current: next,
-        future: [],
-        txSnapshot: null,
-      }
+    case 'mutate':
+      return applyMutation(history, action.recipe)
+    case 'paste': {
+      const legacyInstruments = history.current.customInstruments === undefined
+        ? deriveProjectCustomInstruments(history.current)
+        : undefined
+      return applyMutation(history, (draft) => {
+        const customAudio = draft.customAudio ?? (draft.customAudio = [])
+        for (const asset of action.assets) customAudio.push(castDraft({ ...asset }))
+        const customInstruments = draft.customInstruments ?? (
+          draft.customInstruments = castDraft(legacyInstruments ?? [])
+        )
+        for (const instrument of action.instruments) {
+          customInstruments.push(castDraft({ ...instrument }))
+        }
+        action.markers.forEach((partial, index) => {
+          const id = action.ids[index]
+          if (id) draft.markers.push(castDraft(materializeMarker(draft, id, partial)))
+        })
+        extendTimeline(draft)
+      })
     }
     case 'beginTx':
       return history.txSnapshot === null ? { ...history, txSnapshot: history.current } : history
@@ -88,7 +266,7 @@ function reducer(history: History, action: Action): History {
       if (history.txSnapshot === null) return history
       if (history.txSnapshot === history.current) return { ...history, txSnapshot: null }
       return {
-        past: [...history.past, history.txSnapshot].slice(-MAX_HISTORY),
+        past: [...history.past, history.txSnapshot].slice(-MAX_TIMELINE_HISTORY),
         current: history.current,
         future: [],
         txSnapshot: null,
@@ -99,7 +277,7 @@ function reducer(history: History, action: Action): History {
       return {
         past: history.past.slice(0, -1),
         current: previous,
-        future: [history.current, ...history.future].slice(0, MAX_HISTORY),
+        future: [history.current, ...history.future].slice(0, MAX_TIMELINE_HISTORY),
         txSnapshot: null,
       }
     }
@@ -107,7 +285,7 @@ function reducer(history: History, action: Action): History {
       const next = history.future[0]
       if (!next) return history
       return {
-        past: [...history.past, history.current].slice(-MAX_HISTORY),
+        past: [...history.past, history.current].slice(-MAX_TIMELINE_HISTORY),
         current: next,
         future: history.future.slice(1),
         txSnapshot: null,
@@ -118,38 +296,18 @@ function reducer(history: History, action: Action): History {
   }
 }
 
-export function useTimeline(initial?: TimelineState) {
-  const [history, dispatch] = useReducer(reducer, undefined, () => ({
-    past: [],
-    current: initial ?? defaultState(),
-    future: [],
-    txSnapshot: null,
-  }))
-
+export function useTimelineController(
+  history: TimelineHistory,
+  dispatch: Dispatch<TimelineHistoryAction>,
+) {
   const mutate = useCallback((recipe: (draft: Draft<TimelineState>) => void) => {
     dispatch({ type: 'mutate', recipe })
-  }, [])
+  }, [dispatch])
 
   const addMarker = useCallback((partial: Partial<Marker> & { tick: Tick }): string => {
     const id = uuidv4()
     mutate((draft) => {
-      const trackId = partial.trackId && draft.tracks.some(track => track.id === partial.trackId)
-        ? partial.trackId
-        : draft.tracks[0].id
-      draft.markers.push({
-        id,
-        trackId,
-        tick: Math.max(0, Math.trunc(partial.tick)),
-        soundId: partial.soundId ?? '',
-        variantIndex: partial.variantIndex ?? -1,
-        volume: partial.volume ?? 1,
-        pitch: partial.pitch ?? 1,
-        duration: partial.duration,
-        retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
-        laneY: partial.laneY === undefined ? undefined : snapLaneY(partial.laneY),
-        volumeCurve: partial.volumeCurve,
-        pitchCurve: partial.pitchCurve,
-      })
+      draft.markers.push(castDraft(materializeMarker(draft, id, partial)))
       extendTimeline(draft)
     })
     return id
@@ -159,28 +317,18 @@ export function useTimeline(initial?: TimelineState) {
     const ids = partials.map(() => uuidv4())
     mutate((draft) => {
       partials.forEach((partial, index) => {
-        const trackId = partial.trackId && draft.tracks.some(track => track.id === partial.trackId)
-          ? partial.trackId
-          : draft.tracks[0].id
-        draft.markers.push({
-          id: ids[index],
-          trackId,
-          tick: Math.max(0, Math.trunc(partial.tick)),
-          soundId: partial.soundId ?? '',
-          variantIndex: partial.variantIndex ?? -1,
-          volume: partial.volume ?? 1,
-          pitch: partial.pitch ?? 1,
-          duration: partial.duration,
-          retriggerInterval: partial.retriggerInterval ?? DEFAULT_RETRIGGER_INTERVAL,
-          laneY: partial.laneY === undefined ? undefined : snapLaneY(partial.laneY),
-          volumeCurve: partial.volumeCurve,
-          pitchCurve: partial.pitchCurve,
-        })
+        draft.markers.push(castDraft(materializeMarker(draft, ids[index], partial)))
       })
       extendTimeline(draft)
     })
     return ids
   }, [mutate])
+
+  const pasteMarkersWithAssets = useCallback((input: TimelinePasteInput): string[] => {
+    const prepared = createTimelinePasteAction(input)
+    dispatch(prepared.action)
+    return prepared.ids
+  }, [dispatch])
 
   const removeMarkers = useCallback((ids: string[]) => {
     const idSet = new Set(ids)
@@ -195,9 +343,8 @@ export function useTimeline(initial?: TimelineState) {
       const marker = draft.markers.find(item => item.id === id)
       if (!marker) return
       if (changesDuration(patch, marker)) resizeMarkerCurves(marker, patch.duration ?? 0)
-      Object.assign(marker, patch)
-      marker.tick = Math.max(0, Math.trunc(marker.tick))
-      if (marker.laneY !== undefined) marker.laneY = snapLaneY(marker.laneY)
+      Object.assign(marker, patch.action ? { ...patch, action: { ...patch.action } } : patch)
+      normalizeMarkerFields(marker)
       if (!draft.tracks.some(track => track.id === marker.trackId)) marker.trackId = draft.tracks[0].id
       extendTimeline(draft)
     })
@@ -209,9 +356,8 @@ export function useTimeline(initial?: TimelineState) {
       for (const marker of draft.markers) {
         if (!idSet.has(marker.id)) continue
         if (changesDuration(patch, marker)) resizeMarkerCurves(marker, patch.duration ?? 0)
-        Object.assign(marker, patch)
-        marker.tick = Math.max(0, Math.trunc(marker.tick))
-        if (marker.laneY !== undefined) marker.laneY = snapLaneY(marker.laneY)
+        Object.assign(marker, patch.action ? { ...patch, action: { ...patch.action } } : patch)
+        normalizeMarkerFields(marker)
         if (!draft.tracks.some(track => track.id === marker.trackId)) marker.trackId = draft.tracks[0].id
       }
       extendTimeline(draft)
@@ -249,8 +395,8 @@ export function useTimeline(initial?: TimelineState) {
     mutate((draft) => {
       const track = createDefaultTrack(id, draft.tracks.length)
       const afterIndex = afterId ? draft.tracks.findIndex(item => item.id === afterId) : -1
-      if (afterIndex >= 0) draft.tracks.splice(afterIndex + 1, 0, track)
-      else draft.tracks.push(track)
+      if (afterIndex >= 0) draft.tracks.splice(afterIndex + 1, 0, castDraft(track))
+      else draft.tracks.push(castDraft(track))
     })
     return id
   }, [mutate])
@@ -289,7 +435,12 @@ export function useTimeline(initial?: TimelineState) {
       })
       const copies = draft.markers
         .filter(marker => marker.trackId === id)
-        .map(marker => ({ ...marker, id: uuidv4(), trackId: newId }))
+        .map(marker => ({
+          ...marker,
+          id: uuidv4(),
+          trackId: newId,
+          action: marker.action ? { ...marker.action } : undefined,
+        }))
       draft.markers.push(...copies)
     })
     return newId
@@ -304,8 +455,46 @@ export function useTimeline(initial?: TimelineState) {
     })
   }, [mutate])
 
+  const addReferenceAudio = useCallback((track: Omit<ReferenceAudioTrack, 'id' | 'color'>): string => {
+    const id = uuidv4()
+    mutate((draft) => {
+      const references = draft.referenceAudio ?? (draft.referenceAudio = [])
+      references.push({
+        ...castDraft(track),
+        id,
+        color: TRACK_COLORS[(draft.tracks.length + references.length) % TRACK_COLORS.length],
+      })
+      extendTimeline(draft)
+    })
+    return id
+  }, [mutate])
+
+  const updateReferenceAudio = useCallback((id: string, patch: Partial<ReferenceAudioTrack>) => {
+    mutate((draft) => {
+      const track = draft.referenceAudio?.find(item => item.id === id)
+      if (!track) return
+      Object.assign(track, patch)
+      track.name = track.name.trim() || track.fileName || 'Reference Audio'
+      track.offsetTicks = Math.max(0, Math.trunc(track.offsetTicks))
+      track.gainDb = Math.max(-60, Math.min(12, track.gainDb))
+      track.pan = Math.max(-1, Math.min(1, track.pan))
+      extendTimeline(draft)
+    })
+  }, [mutate])
+
+  const removeReferenceAudio = useCallback((id: string) => {
+    mutate((draft) => {
+      if (!draft.referenceAudio?.some(track => track.id === id)) return
+      draft.referenceAudio = draft.referenceAudio.filter(track => track.id !== id)
+    })
+  }, [mutate])
+
   const setSettings = useCallback((patch: Partial<TimelineSettings>) => {
     mutate((draft) => {
+      const previousFallback = {
+        bpm: draft.settings.bpm,
+        timeSignature: { ...draft.settings.timeSignature },
+      }
       draft.settings = {
         ...draft.settings,
         ...patch,
@@ -314,12 +503,73 @@ export function useTimeline(initial?: TimelineState) {
         loop: { ...draft.settings.loop, ...patch.loop },
       }
       draft.settings.bpm = Math.max(20, Math.min(300, draft.settings.bpm))
+      draft.settings.panLaw ??= 'cascade'
       draft.settings.loop.startTick = Math.max(0, Math.min(draft.lengthTicks - 1, Math.trunc(draft.settings.loop.startTick)))
       draft.settings.loop.endTick = Math.max(
         draft.settings.loop.startTick + 1,
         Math.min(draft.lengthTicks, Math.trunc(draft.settings.loop.endTick)),
       )
+      if (patch.bpm !== undefined || patch.timeSignature !== undefined) {
+        const tempoMap = normalizeTempoMap(
+          draft.tempoMap as TempoMapEvent[] | undefined,
+          previousFallback,
+        )
+        tempoMap[0] = {
+          ...tempoMap[0],
+          bpm: patch.bpm === undefined ? tempoMap[0].bpm : draft.settings.bpm,
+          meter: patch.timeSignature === undefined
+            ? { ...tempoMap[0].meter! }
+            : { ...draft.settings.timeSignature },
+        }
+        const normalized = normalizeTempoMap(tempoMap, draft.settings)
+        draft.tempoMap = castDraft(normalized)
+        draft.settings.bpm = normalized[0].bpm
+        draft.settings.timeSignature = castDraft({ ...normalized[0].meter! })
+      }
       extendTimeline(draft)
+    })
+  }, [mutate])
+
+  /** Replaces the complete map as one history entry and leaves unrelated project data untouched. */
+  const setTempoMap = useCallback((events: readonly TempoMapEvent[]) => {
+    const input = events.map(event => ({
+      ...event,
+      ...(event.meter === undefined ? {} : { meter: { ...event.meter } }),
+    }))
+    mutate((draft) => {
+      const normalized = normalizeTempoMap(input, draft.settings)
+      draft.tempoMap = castDraft(normalized)
+      draft.settings.bpm = normalized[0].bpm
+      draft.settings.timeSignature = castDraft({ ...normalized[0].meter! })
+      extendTimeline(draft)
+    })
+  }, [mutate])
+
+  /** Applies editable song credits and finite-loop settings as one undoable project edit. */
+  const setSongMetadataAndLoop = useCallback((
+    metadata: SongMetadata,
+    loop: TimelineSettings['loop'],
+  ) => {
+    const nextMetadata = { ...metadata }
+    const nextLoop = { ...loop }
+    mutate((draft) => {
+      draft.metadata = castDraft(nextMetadata)
+      const startTick = Math.max(0, Math.min(
+        draft.lengthTicks - 1,
+        Math.trunc(nextLoop.startTick),
+      ))
+      draft.settings.loop = {
+        enabled: Boolean(nextLoop.enabled),
+        startTick,
+        endTick: Math.max(
+          startTick + 1,
+          Math.min(draft.lengthTicks, Math.trunc(nextLoop.endTick)),
+        ),
+        maxLoopCount: Math.max(
+          0,
+          Math.min(MAX_LOOP_COUNT, Math.trunc(nextLoop.maxLoopCount ?? 0)),
+        ),
+      }
     })
   }, [mutate])
 
@@ -333,7 +583,13 @@ export function useTimeline(initial?: TimelineState) {
 
   const setLength = useCallback((lengthTicks: number) => {
     mutate((draft) => {
-      const required = getTimelineLengthTicks(draft.markers, 1, draft.settings)
+      const required = getTimelineLengthTicks(
+        draft.markers,
+        1,
+        draft.settings,
+        draft.referenceAudio ?? [],
+        draft.tempoMap ?? [],
+      )
       draft.lengthTicks = Math.max(required, Math.trunc(lengthTicks))
       draft.settings.loop.endTick = Math.min(draft.settings.loop.endTick, draft.lengthTicks)
     })
@@ -351,16 +607,22 @@ export function useTimeline(initial?: TimelineState) {
     })
   }, [mutate])
 
-  const replaceAll = useCallback((state: TimelineState) => dispatch({ type: 'replace', state }), [])
+  const applyState = useCallback((state: TimelineState) => {
+    mutate((draft) => {
+      Object.assign(draft, structuredClone(state))
+    })
+  }, [mutate])
+
+  const replaceAll = useCallback((state: TimelineState) => dispatch({ type: 'replace', state }), [dispatch])
   const newProject = useCallback((): TimelineState => {
-    const state = defaultState()
+    const state = createDefaultTimelineState()
     dispatch({ type: 'replace', state })
     return state
-  }, [])
-  const beginTransaction = useCallback(() => dispatch({ type: 'beginTx' }), [])
-  const commitTransaction = useCallback(() => dispatch({ type: 'commitTx' }), [])
-  const undo = useCallback(() => dispatch({ type: 'undo' }), [])
-  const redo = useCallback(() => dispatch({ type: 'redo' }), [])
+  }, [dispatch])
+  const beginTransaction = useCallback(() => dispatch({ type: 'beginTx' }), [dispatch])
+  const commitTransaction = useCallback(() => dispatch({ type: 'commitTx' }), [dispatch])
+  const undo = useCallback(() => dispatch({ type: 'undo' }), [dispatch])
+  const redo = useCallback(() => dispatch({ type: 'redo' }), [dispatch])
 
   return useMemo(() => ({
     state: history.current,
@@ -368,6 +630,7 @@ export function useTimeline(initial?: TimelineState) {
     canRedo: history.future.length > 0,
     addMarker,
     addMarkers,
+    pasteMarkersWithAssets,
     removeMarker,
     removeMarkers,
     moveMarker,
@@ -380,11 +643,17 @@ export function useTimeline(initial?: TimelineState) {
     removeTrack,
     duplicateTrack,
     reorderTrack,
+    addReferenceAudio,
+    updateReferenceAudio,
+    removeReferenceAudio,
     setSettings,
+    setTempoMap,
+    setSongMetadataAndLoop,
     setMaster,
     setLength,
     setTargetVersion,
     rerollRandomSeed,
+    applyState,
     replaceAll,
     newProject,
     beginTransaction,
@@ -393,10 +662,23 @@ export function useTimeline(initial?: TimelineState) {
     redo,
   }), [
     history,
-    addMarker, addMarkers, removeMarker, removeMarkers, moveMarker, moveMarkers,
+    addMarker, addMarkers, pasteMarkersWithAssets, removeMarker, removeMarkers, moveMarker, moveMarkers,
     moveMarkersToTracks, updateMarker, updateMarkers, addTrack, updateTrack,
-    removeTrack, duplicateTrack, reorderTrack, setSettings, setMaster, setLength,
-    setTargetVersion, rerollRandomSeed, replaceAll, newProject, beginTransaction,
+    removeTrack, duplicateTrack, reorderTrack, addReferenceAudio, updateReferenceAudio,
+    removeReferenceAudio, setSettings, setTempoMap, setSongMetadataAndLoop, setMaster, setLength,
+    setTargetVersion, rerollRandomSeed, applyState, replaceAll, newProject, beginTransaction,
     commitTransaction, undo, redo,
   ])
+}
+
+export type TimelineController = ReturnType<typeof useTimelineController>
+
+/** Backward-compatible single-document timeline used by the current editor and focused tests. */
+export function useTimeline(initial?: TimelineState): TimelineController {
+  const [history, dispatch] = useReducer(
+    timelineHistoryReducer,
+    initial,
+    value => createTimelineHistory(value ?? createDefaultTimelineState()),
+  )
+  return useTimelineController(history, dispatch)
 }

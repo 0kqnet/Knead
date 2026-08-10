@@ -12,6 +12,16 @@ import {
 } from '../types/timeline'
 import { TimelineTrack } from './TimelineTrack'
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) => key === 'studio.sound_stopper_marker_all'
+      ? 'Sound Stopper · all tracks'
+      : key === 'studio.sound_stopper_marker_range'
+        ? `Sound Stopper · tracks ${values?.start}-${values?.end}`
+        : key,
+  }),
+}))
+
 const marker: Marker = {
   id: 'marker',
   trackId: 'track',
@@ -76,6 +86,26 @@ describe('TimelineTrack legacy editing gestures', () => {
     })
     fireEvent.doubleClick(row, { clientX: 100 + TIMELINE_LEADING_PADDING_PX })
     expect(callbacks.onAddMarker).toHaveBeenCalledWith(0, 'track')
+  })
+
+  it('adds markers on the active tempo-map beat grid', () => {
+    const settings = structuredClone(DEFAULT_SETTINGS)
+    settings.snap = { mode: 'beat', tickStep: 1, beatDivision: 4 }
+    const { row, callbacks } = renderTrack({
+      settings,
+      tempoMap: [
+        { tick: 0, bpm: 120, meter: { numerator: 4, denominator: 4 } },
+        { tick: 25, bpm: 120, meter: { numerator: 3, denominator: 4 } },
+      ],
+    })
+    Object.defineProperty(row, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 100 }),
+    })
+    fireEvent.doubleClick(row, {
+      clientX: 100 + TIMELINE_LEADING_PADDING_PX + 26 * 8,
+    })
+    expect(callbacks.onAddMarker).toHaveBeenCalledWith(25, 'track')
   })
 
   it('moves a marker to a tick before its original placement', () => {
@@ -213,6 +243,20 @@ describe('TimelineTrack legacy editing gestures', () => {
     expect(image?.style.top).toBe('0px')
     expect(viewport?.style.borderWidth).toBe('')
     expect(viewport?.style.outlineWidth).toBe('1px')
+  })
+
+  it('renders Sound Stopper as a dedicated non-audio event', () => {
+    const soundStop: Marker = {
+      ...marker,
+      soundId: '',
+      action: { type: 'sound-stop', scope: 'track-range', startTrack: 1, endTrack: 2 },
+    }
+    const { container } = renderTrack({ markers: [soundStop], validSoundIds: new Set() })
+    const element = container.querySelector<HTMLElement>('[data-marker-id="marker"]')
+    expect(element?.dataset.markerVisual).toBe('sound-stop')
+    expect(element?.dataset.markerAction).toBe('sound-stop')
+    expect(element?.title).toMatch(/tracks 1-2/i)
+    expect(container.querySelector('[data-marker-duration]')).toBeNull()
   })
 
   it('does not clear a marker selection on its following click', () => {
