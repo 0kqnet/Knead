@@ -26,8 +26,9 @@ const customConfig = extendConfig({ defaultColorMode: 'system' })
 const customTheme = extendTheme({
   semanticTokens: {
     colors: {
-      black: ['#141414', '#1f1f1f'],
-      white: ['#f8f8f8', '#cccccc'],
+      black: { base: ['#141414', '#1f1f1f'] },
+      white: { base: ['#f8f8f8', '#cccccc'] },
+      bg: { panel: 'var(--studio-panel)', float: 'var(--studio-panel)' },
     },
   },
 })
