@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
-import { SegmentedControl, SegmentedControlButton, HStack, Text, CardHeader, CardBody } from '@yamada-ui/react'
-
-import { GlobeIcon } from '@yamada-ui/lucide'
+import {
+  CardBody, CardHeader, GlobeIcon, HStack, SegmentedControl, SegmentedControlItem, Text,
+} from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 
 export const LanguageChange = () => {
@@ -23,10 +23,10 @@ export const LanguageChange = () => {
         </HStack>
       </CardHeader>
       <CardBody>
-        <SegmentedControl value={i18n.language} onChange={onClickLang}>
-          <SegmentedControlButton value="en">English</SegmentedControlButton>
-          <SegmentedControlButton value="ja">日本語</SegmentedControlButton>
-        </SegmentedControl>
+        <SegmentedControl.Root value={i18n.language} onChange={onClickLang}>
+          <SegmentedControlItem value="en">English</SegmentedControlItem>
+          <SegmentedControlItem value="ja">日本語</SegmentedControlItem>
+        </SegmentedControl.Root>
       </CardBody>
     </>
   )

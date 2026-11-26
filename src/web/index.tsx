@@ -3,7 +3,7 @@ import './Style.css'
 import { App } from './Main/App'
 import { AppInitialize } from './AppInitialize'
 import { createRoot } from 'react-dom/client'
-import { extendConfig, extendTheme, ThemeConfig, UIProvider, getColorModeScript } from '@yamada-ui/react'
+import { extendConfig, extendTheme, UIProvider } from '@yamada-ui/react'
 import { HashRouter, Routes, Route } from 'react-router'
 import { store } from '../store/_store'
 import { Provider } from 'react-redux'
@@ -21,34 +21,16 @@ const studio = (
   </React.Suspense>
 )
 
-export const config: ThemeConfig = {
-  initialColorMode: 'system',
-}
-
-const customConfig = extendConfig(config)
+const customConfig = extendConfig({ defaultColorMode: 'system' })
 
 const customTheme = extendTheme({
-  semantics: {
+  semanticTokens: {
     colors: {
       black: ['#141414', '#1f1f1f'],
       white: ['#f8f8f8', '#cccccc'],
     },
   },
-})()
-
-const injectColorModeScript = () => {
-  const scriptContent = getColorModeScript({
-    initialColorMode: customConfig.initialColorMode,
-  })
-
-  const script = document.createElement('script')
-
-  script.textContent = scriptContent
-
-  document.head.appendChild(script)
-}
-
-injectColorModeScript()
+})
 
 const isSubWindow = window.location.pathname.endsWith('/sub.html')
 

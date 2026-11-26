@@ -225,7 +225,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" aria-label={t('studio.close', { defaultValue: 'Close' })} onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" aria-label={t('studio.close', { defaultValue: 'Close' })} onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Box mt="5">
@@ -238,7 +238,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               size="sm"
               aria-pressed={circuit === 'display'}
               colorScheme={circuit === 'display' ? 'orange' : 'gray'}
-              isDisabled={busy}
+              disabled={busy}
               onClick={() => setCircuit('display')}
             >
               {t('studio.note_block_build_circuit_display', { defaultValue: 'Static placement' })}
@@ -247,7 +247,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               size="sm"
               aria-pressed={circuit === 'playable-redstone'}
               colorScheme={circuit === 'playable-redstone' ? 'red' : 'gray'}
-              isDisabled={busy}
+              disabled={busy}
               onClick={() => setCircuit('playable-redstone')}
             >
               {t('studio.note_block_build_circuit_playable', { defaultValue: 'Playable redstone' })}
@@ -257,10 +257,10 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
 
         <Box mt="4">
           <Text fontSize="xs" mb="1">{t('studio.note_block_build_format', { defaultValue: 'Format' })}</Text>
-          <Select
+          <Select.Root
             aria-label={t('studio.note_block_build_format', { defaultValue: 'Format' })}
             value={format} items={visibleFormatItems}
-            isDisabled={busy}
+            disabled={busy}
             onChange={(value) => {
               const next = value as NoteBlockBuildFormat
               setFormat(next)
@@ -281,10 +281,10 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         <Flex mt="4" gap="3" align="end" wrap="wrap">
           <Box flex="1" minW="230px">
             <Text fontSize="xs" mb="1">{t('studio.note_block_build_layout', { defaultValue: 'Layout' })}</Text>
-            <Select
+            <Select.Root
               aria-label={t('studio.note_block_build_layout', { defaultValue: 'Layout' })}
               value={layout}
-              isDisabled={busy}
+              disabled={busy}
               items={[
                 { value: 'fixed-tracks', label: t('studio.note_block_build_layout_fixed', { defaultValue: 'Fixed track lanes' }) },
                 ...(circuit === 'display'
@@ -307,7 +307,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
                   : t('studio.note_block_build_row_ticks', { defaultValue: 'Ticks per row' })}
                 type="number" min={5} max={circuit === 'playable-redstone' && format === 'structure-block-nbt' ? 14 : 100}
                 step={1} value={notesPerRow}
-                isDisabled={busy}
+                disabled={busy}
                 onChange={event => setNotesPerRow(Number(event.target.value))}
               />
             </Box>
@@ -318,7 +318,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
           <Button
             size="sm" aria-pressed={includeLockedTracks}
             colorScheme={includeLockedTracks ? 'orange' : 'gray'}
-            isDisabled={busy}
+            disabled={busy}
             onClick={() => setIncludeLockedTracks(value => !value)}
           >
             {t('studio.note_block_build_include_locked', { defaultValue: 'Include locked tracks' })}
@@ -397,7 +397,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         {message && <Text mt="3" fontSize="sm" color={isError ? 'red.300' : 'green.300'}>{message}</Text>}
 
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close', { defaultValue: 'Close' })}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close', { defaultValue: 'Close' })}</Button>
           {generating
             ? (
                 <Button colorScheme="orange" onClick={cancelGeneration}>
@@ -406,8 +406,8 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               )
             : (
                 <Button
-                  colorScheme="green" onClick={save} isLoading={saving}
-                  isDisabled={Boolean(targetError) || saving}
+                  colorScheme="green" onClick={save} loading={saving}
+                  disabled={Boolean(targetError) || saving}
                 >
                   {t('studio.note_block_build_save', { defaultValue: 'Export build' })}
                 </Button>

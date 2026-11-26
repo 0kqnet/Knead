@@ -183,7 +183,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.resource_pack_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Box mt="5" p="4" bg="var(--studio-frame)" borderRadius="md">
@@ -192,7 +192,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
               <Text fontWeight="bold">{t('studio.resource_pack_layers')}</Text>
               <Text fontSize="xs" color="var(--studio-muted)">{t('studio.resource_pack_priority_hint')}</Text>
             </Box>
-            <Button data-dialog-initial-focus colorScheme="cyan" onClick={addPack} isLoading={busy}>
+            <Button data-dialog-initial-focus colorScheme="cyan" onClick={addPack} loading={busy}>
               {t('studio.resource_pack_add')}
             </Button>
           </Flex>
@@ -227,14 +227,14 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
                 <Button
                   size="xs" aria-label={t('studio.resource_pack_move_lower')}
                   onClick={() => setPacks(previous => move(previous, index, index - 1))}
-                  isDisabled={busy || index === 0}
+                  disabled={busy || index === 0}
                 >
                   ↑
                 </Button>
                 <Button
                   size="xs" aria-label={t('studio.resource_pack_move_higher')}
                   onClick={() => setPacks(previous => move(previous, index, index + 1))}
-                  isDisabled={busy || index === packs.length - 1}
+                  disabled={busy || index === packs.length - 1}
                 >
                   ↓
                 </Button>
@@ -242,7 +242,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
                   size="xs" colorScheme="red" variant="outline"
                   aria-label={t('studio.resource_pack_remove', { name: pack.label })}
                   onClick={() => setPacks(previous => previous.filter(item => item.fingerprint !== pack.fingerprint))}
-                  isDisabled={busy}
+                  disabled={busy}
                 >
                   ×
                 </Button>
@@ -277,8 +277,8 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="3">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close')}</Button>
-          <Button colorScheme="green" onClick={install} isLoading={busy} isDisabled={!packs.length}>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
+          <Button colorScheme="green" onClick={install} loading={busy} disabled={!packs.length}>
             {t('studio.resource_pack_install')}
           </Button>
         </Flex>

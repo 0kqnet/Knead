@@ -196,7 +196,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.command_export_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={saving}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={saving}>×</Button>
         </Flex>
 
         <Flex mt="4" gap="3" wrap="wrap" align="end">
@@ -212,7 +212,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           </Box>
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
-            <Select
+            <Select.Root
               w="160px" value={options.range}
               items={[
                 { label: t('studio.project_range'), value: 'project' },
@@ -223,7 +223,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           </Box>
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_source')}</Text>
-            <Select
+            <Select.Root
               w="130px" value={options.source}
               items={['master', 'music', 'record', 'weather', 'block', 'hostile', 'neutral', 'player', 'ambient', 'voice', 'ui'].map(value => ({ label: value, value }))}
               onChange={source => update({ source })}
@@ -234,7 +234,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         <Flex mt="3" gap="3" wrap="wrap" align="end">
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_audience')}</Text>
-            <Select
+            <Select.Root
               w="170px" value={options.audience}
               items={[
                 { label: t('studio.audience_all'), value: 'all' },
@@ -269,7 +269,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Flex align="end" gap="3" wrap="wrap">
             <Box minW="230px">
               <Text fontSize="xs" mb="1" fontWeight="bold">{t('studio.command_pan_mode')}</Text>
-              <Select
+              <Select.Root
                 aria-label={t('studio.command_pan_mode')}
                 value={options.panMode}
                 items={COMMAND_PAN_MODES.map(value => ({
@@ -308,7 +308,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Flex align="center" gap="3" wrap="wrap">
             <Box minW="190px">
               <Text fontSize="xs" mb="1" fontWeight="bold">{t('studio.command_visualizer')}</Text>
-              <Select
+              <Select.Root
                 aria-label={t('studio.command_visualizer_type')}
                 value={options.visualizerType}
                 items={COMMAND_VISUALIZER_TYPES.map(value => ({
@@ -331,7 +331,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                 </Box>
                 <Box minW="135px">
                   <Text fontSize="xs" mb="1">{t('studio.command_visualizer_placement')}</Text>
-                  <Select
+                  <Select.Root
                     aria-label={t('studio.command_visualizer_placement')}
                     value={options.visualizerPlacement}
                     items={COMMAND_VISUALIZER_PLACEMENTS.map(value => ({
@@ -383,7 +383,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
               </Box>
               <Box minW="150px">
                 <Text fontSize="xs" mb="1">{t('studio.command_visualizer_color')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.command_visualizer_color')}
                   value={options.visualizerColorMapping}
                   items={COMMAND_VISUALIZER_COLOR_MAPPINGS.map(value => ({
@@ -600,23 +600,23 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         {resultMessage && <Text mt="3" fontSize="sm" color={resultMessage.includes('失敗') || resultMessage.includes('Failed') ? 'red.300' : 'green.300'}>{resultMessage}</Text>}
 
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button onClick={copyCommands} isDisabled={!generated || generation.status === 'running'}>
+          <Button onClick={copyCommands} disabled={!generated || generation.status === 'running'}>
             {copied ? t('studio.copied') : t('studio.copy_commands')}
           </Button>
-          <Button onClick={onClose} isDisabled={saving}>{t('studio.close')}</Button>
+          <Button onClick={onClose} disabled={saving}>{t('studio.close')}</Button>
           <Button
             colorScheme="purple"
             onClick={() => void save('resource-pack')}
-            isLoading={savingKind === 'resource-pack'}
-            isDisabled={!generated?.resourcePack || saving || generation.status === 'running'}
+            loading={savingKind === 'resource-pack'}
+            disabled={!generated?.resourcePack || saving || generation.status === 'running'}
           >
             {t('studio.export_companion_resource_pack')}
           </Button>
           <Button
             colorScheme="green"
             onClick={() => void save('data-pack')}
-            isLoading={savingKind === 'data-pack'}
-            isDisabled={!generated || generated.eventCount === 0 || saving || generation.status === 'running'}
+            loading={savingKind === 'data-pack'}
+            disabled={!generated || generated.eventCount === 0 || saving || generation.status === 'running'}
           >
             {t('studio.export_datapack')}
           </Button>

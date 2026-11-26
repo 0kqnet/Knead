@@ -1,4 +1,4 @@
-import { Slider, Spacer, Tooltip, Select, SelectItem, Flex } from '@yamada-ui/react'
+import { Slider, Spacer, Tooltip, Select, Flex } from '@yamada-ui/react'
 import React, { JSX, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../components/CommitNumberInput'
@@ -50,7 +50,7 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
     () => floatPitchScale.find(({ float: v }) => (v - 0.005 < safePitchFloat) && (safePitchFloat < v + 0.005))?.value ?? unsupportedPitch,
     [safePitchFloat, floatPitchScale],
   )
-  const pitchScaleItems: SelectItem[] = useMemo(
+  const pitchScaleItems: Select.Item[] = useMemo(
     () => {
       const rv = selectedPitchScale !== unsupportedPitch
         ? pitchScales.filter(item => item.value !== unsupportedPitch)
@@ -89,14 +89,13 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
 
   return (
     <>
-      <Tooltip label={t('pitch_input')} placement="bottom" animation="top">
+      <Tooltip content={t('pitch_input')} placement="end" animationScheme="block-start">
         <Flex>
-          <Slider
+          <Slider.Root
             onChange={onChangePitchSlider} value={parseFloat(safePitch)}
             w={32} h={10} step={0.01} min={0.5} max={2}
-            filledTrackColor="gray.200" trackColor="gray.200" thumbColor="primary"
-            thumbSize={2.5}
-            focusThumbOnChange={false} readOnly={false}
+            rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
+            thumbSize={2.5} readOnly={false}
             thumbProps={{
               _disabled: { color: 'primary' },
             }}
@@ -109,10 +108,10 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
         </Flex>
       </Tooltip>
       <Spacer maxW={1} />
-      <Tooltip label={t('pitch_scale')} placement="bottom" animation="top">
-        <Select
+      <Tooltip content={t('pitch_scale')} placement="end" animationScheme="block-start">
+        <Select.Root
           onChange={onChangePitchScaleMenu} items={pitchScaleItems} value={selectedPitchScale}
-          placeholderInOptions={false} w={32} animation="bottom" listProps={{ padding: 0, margin: 0 }}
+          includePlaceholder={false} w={32} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }}
           id="pitchScaleItems"
         />
       </Tooltip>

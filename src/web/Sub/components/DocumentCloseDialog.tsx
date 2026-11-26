@@ -46,11 +46,11 @@ export const DocumentCloseDialog: React.FC<DocumentCloseDialogProps> = ({
         <Text mt="2">{t('studio.song_tab_close_message', { name })}</Text>
         {error && <Text role="alert" mt="3" color="var(--studio-error)">{error}</Text>}
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button isDisabled={busy} onClick={onCancel}>{t('studio.cancel')}</Button>
-          <Button colorScheme="red" isDisabled={busy} onClick={onDiscard}>
+          <Button disabled={busy} onClick={onCancel}>{t('studio.cancel')}</Button>
+          <Button colorScheme="red" disabled={busy} onClick={onDiscard}>
             {t('studio.song_tab_discard')}
           </Button>
-          <Button colorScheme="blue" isLoading={busy} onClick={onSave}>
+          <Button colorScheme="blue" loading={busy} onClick={onSave}>
             {t('studio.save')}
           </Button>
         </Flex>

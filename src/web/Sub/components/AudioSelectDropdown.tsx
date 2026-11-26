@@ -1,7 +1,7 @@
 import React, { FC, useState, useRef, useEffect, useId, useMemo, ChangeEvent } from 'react'
 import { Box, Input, Portal, Text, usePopper } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
-import { FixedSizeList as VirtualList, ListChildComponentProps } from 'react-window'
+import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window'
 
 interface Props {
   options: string[]
@@ -10,9 +10,50 @@ interface Props {
   placeholder?: string
   onSelect: (val: string) => void
   height?: number
-  isDisabled?: boolean
+  disabled?: boolean
   focusRequest?: number
   onFocusRequestHandled?: () => void
+}
+
+interface SoundOptionRowProps {
+  options: string[]
+  value: string
+  activeIndex: number
+  listId: string
+  onActivate: (index: number) => void
+  onSelect: (value: string) => void
+}
+
+function SoundOptionRow({
+  index, style, ariaAttributes, options, value, activeIndex, listId, onActivate, onSelect,
+}: RowComponentProps<SoundOptionRowProps>) {
+  const opt = options[index]
+  const selected = opt === value
+  const active = index === activeIndex
+  return (
+    <div
+      {...ariaAttributes}
+      style={{
+        ...style,
+        background: active || selected ? 'var(--studio-accent-soft)' : 'transparent',
+        color: active || selected ? 'var(--studio-accent-text)' : 'inherit',
+        padding: '6px 12px',
+        cursor: 'pointer',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+      id={`${listId}-option-${index}`}
+      role="option"
+      aria-selected={selected}
+      title={opt}
+      onClick={() => onSelect(opt)}
+      onMouseEnter={() => onActivate(index)}
+    >
+      {opt}
+    </div>
+  )
 }
 
 export const AudioSelectDropdown: FC<Props> = ({
@@ -22,7 +63,7 @@ export const AudioSelectDropdown: FC<Props> = ({
   placeholder = '',
   onSelect,
   height = 300,
-  isDisabled = false,
+  disabled = false,
   focusRequest = 0,
   onFocusRequestHandled,
 }) => {
@@ -33,14 +74,14 @@ export const AudioSelectDropdown: FC<Props> = ({
   const [activeIndex, setActiveIndex] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<VirtualList>(null)
+  const listRef = useRef<ListImperativeAPI>(null)
   const handledFocusRequest = useRef(0)
-  const { referenceRef, getPopperProps } = usePopper({
-    enabled: open, placement: 'top-start', strategy: 'fixed', matchWidth: true, gutter: 4,
+  const { getReferenceProps, getPopperProps } = usePopper({
+    open, placement: 'start-start', strategy: 'fixed', matchWidth: true, gutter: 4,
   })
 
   useEffect(() => {
-    if (isDisabled || focusRequest <= 0 || handledFocusRequest.current === focusRequest) return
+    if (disabled || focusRequest <= 0 || handledFocusRequest.current === focusRequest) return
     handledFocusRequest.current = focusRequest
     setInputValue(value)
     setActiveIndex(0)
@@ -51,7 +92,7 @@ export const AudioSelectDropdown: FC<Props> = ({
       onFocusRequestHandled?.()
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusRequest, isDisabled, value, onFocusRequestHandled])
+  }, [focusRequest, disabled, value, onFocusRequestHandled])
 
   const openDropdown = () => {
     setInputValue(value)
@@ -89,7 +130,7 @@ export const AudioSelectDropdown: FC<Props> = ({
     if (!open || filteredOptions.length === 0) return
     const nextIndex = Math.min(activeIndex, filteredOptions.length - 1)
     if (nextIndex !== activeIndex) setActiveIndex(nextIndex)
-    listRef.current?.scrollToItem(nextIndex, 'smart')
+    listRef.current?.scrollToRow({ index: nextIndex, align: 'smart' })
   }, [activeIndex, filteredOptions.length, open])
 
   const selectOption = (opt: string) => {
@@ -98,37 +139,8 @@ export const AudioSelectDropdown: FC<Props> = ({
     setOpen(false)
   }
 
-  const Row: FC<ListChildComponentProps> = ({ index, style }) => {
-    const opt = filteredOptions[index]
-    const selected = opt === value
-    const active = index === activeIndex
-    return (
-      <div
-        style={{
-          ...style,
-          background: active || selected ? 'var(--studio-accent-soft)' : 'transparent',
-          color: active || selected ? 'var(--studio-accent-text)' : 'inherit',
-          padding: '6px 12px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-        id={`${listId}-option-${index}`}
-        role="option"
-        aria-selected={selected}
-        title={opt}
-        onClick={() => selectOption(opt)}
-        onMouseEnter={() => setActiveIndex(index)}
-      >
-        {opt}
-      </div>
-    )
-  }
-
   return (
-    <Box ref={referenceRef} width="100%">
+    <Box {...getReferenceProps()} width="100%">
       <Input
         ref={inputRef}
         role="combobox"
@@ -139,9 +151,9 @@ export const AudioSelectDropdown: FC<Props> = ({
         aria-activedescendant={open && filteredOptions[activeIndex] ? `${listId}-option-${activeIndex}` : undefined}
         value={open ? inputValue : value}
         placeholder={placeholder}
-        readOnly={isDisabled}
+        readOnly={disabled}
         onClick={() => {
-          if (!isDisabled && !open) openDropdown()
+          if (!disabled && !open) openDropdown()
         }}
         onChange={(e: ChangeEvent<HTMLInputElement>) => {
           setInputValue(e.target.value)
@@ -169,12 +181,12 @@ export const AudioSelectDropdown: FC<Props> = ({
           }
         }}
         cursor="pointer"
-        disabled={isDisabled}
+        disabled={disabled}
       />
       {open && (
         <Portal>
           <Box
-            {...getPopperProps({}, ref)}
+            {...getPopperProps({ ref })}
             id={listId}
             role="listbox"
             aria-label={label}
@@ -187,15 +199,14 @@ export const AudioSelectDropdown: FC<Props> = ({
           >
             {filteredOptions.length > 0
               ? (
-                  <VirtualList
-                    ref={listRef}
-                    height={Math.min(filteredOptions.length * ITEM_H, height)}
-                    width="100%"
-                    itemCount={filteredOptions.length}
-                    itemSize={ITEM_H}
-                  >
-                    {Row}
-                  </VirtualList>
+                  <List
+                    listRef={listRef}
+                    style={{ height: Math.min(filteredOptions.length * ITEM_H, height), width: '100%' }}
+                    rowCount={filteredOptions.length}
+                    rowHeight={ITEM_H}
+                    rowComponent={SoundOptionRow}
+                    rowProps={{ options: filteredOptions, value, activeIndex, listId, onSelect: selectOption, onActivate: setActiveIndex }}
+                  />
                 )
               : <Text px="3" py="2" fontSize="sm" role="status">{t('studio.no_matching_sounds')}</Text>}
           </Box>

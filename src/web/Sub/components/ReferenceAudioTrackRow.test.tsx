@@ -2,10 +2,18 @@
 
 import React from 'react'
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type ReferenceAudioTrack } from '../types/timeline'
 import { buildWaveformPeaks } from '../utils/waveformPeaks'
 import { ReferenceAudioTrackRow } from './ReferenceAudioTrackRow'
+
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (media: string) => ({
+    media, matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  }))
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 const track: ReferenceAudioTrack = {
   id: 'reference',

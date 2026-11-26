@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, Dialog, Text } from '@yamada-ui/react'
+import { Box, Button, Modal, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import type { TimelineOpenResult } from '../../../../@types/global'
 import { useStudioDocuments } from '../hooks/useStudioDocuments'
@@ -902,21 +902,21 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
           warnings,
         )}
       />
-      <Dialog
+      <Modal.Root
+        withCloseButton={false}
         open={recentSongsOpen}
         aria-label={t('studio.recent_songs_title')}
-        header={t('studio.recent_songs_title')}
+        title={t('studio.recent_songs_title')}
         cancel={t('studio.close')}
         success={{
           children: t('studio.recent_songs_clear'),
           colorScheme: 'red',
-          isDisabled: recentSongs.length === 0,
+          disabled: recentSongs.length === 0,
         }}
         onClose={() => setRecentSongsOpen(false)}
         onCancel={() => setRecentSongsOpen(false)}
         onSuccess={() => setRecentSongs(clearRecentStudioSongs(window.localStorage))}
-      >
-        {recentSongs.length === 0
+        body={recentSongs.length === 0
           ? <Text color="gray.400">{t('studio.recent_songs_empty')}</Text>
           : (
               <Box maxH="50vh" overflowY="auto">
@@ -942,52 +942,58 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 ))}
               </Box>
             )}
-      </Dialog>
-      <Dialog
+      />
+      <Modal.Root
+        withCloseButton={false}
         open={workspaceWarnings !== null}
         aria-label={t('studio.open_warnings')}
-        header={t('studio.open_warnings')}
+        title={t('studio.open_warnings')}
         cancel={t('studio.close')}
         onClose={() => setWorkspaceWarnings(null)}
         onCancel={() => setWorkspaceWarnings(null)}
-      >
-        <Box maxH="50vh" overflowY="auto">
-          {workspaceWarnings?.items.map(warning => (
-            <Text key={warning} mt="1" fontSize="sm">
-              •
-              {' '}
-              {warning}
-            </Text>
-          ))}
-          {workspaceWarnings && workspaceWarnings.omitted > 0 && (
-            <Text mt="3" color="gray.400" fontSize="sm">
-              {t('studio.open_warnings_more', { count: workspaceWarnings.omitted })}
-            </Text>
-          )}
-        </Box>
-      </Dialog>
-      <Dialog
+        body={(
+          <Box maxH="50vh" overflowY="auto">
+            {workspaceWarnings?.items.map(warning => (
+              <Text key={warning} mt="1" fontSize="sm">
+                •
+                {' '}
+                {warning}
+              </Text>
+            ))}
+            {workspaceWarnings && workspaceWarnings.omitted > 0 && (
+              <Text mt="3" color="gray.400" fontSize="sm">
+                {t('studio.open_warnings_more', { count: workspaceWarnings.omitted })}
+              </Text>
+            )}
+          </Box>
+        )}
+      />
+      <Modal.Root
+        withCloseButton={false}
         open={nbsLossWarnings !== null}
         aria-label={t('studio.nbs_plain_save_loss_title')}
-        header={t('studio.nbs_plain_save_loss_title')}
+        title={t('studio.nbs_plain_save_loss_title')}
         cancel={t('studio.cancel')}
         success={{ children: t('studio.save'), colorScheme: 'orange' }}
         closeOnOverlay={false}
         onClose={() => settleNbsLossConfirmation(false)}
         onCancel={() => settleNbsLossConfirmation(false)}
         onSuccess={() => settleNbsLossConfirmation(true)}
-      >
-        <Text whiteSpace="pre-wrap">{t('studio.nbs_plain_save_loss_confirm')}</Text>
-        <Box mt="3" maxH="40vh" overflowY="auto">
-          {nbsLossWarnings?.map(warning => (
-            <Text key={warning} mt="1" fontSize="sm">
-              •
-              {' '}
-              {warning}
-            </Text>
-          ))}
-        </Box>
-      </Dialog>
+        body={(
+          <>
+            <Text whiteSpace="pre-wrap">{t('studio.nbs_plain_save_loss_confirm')}</Text>
+            <Box mt="3" maxH="40vh" overflowY="auto">
+              {nbsLossWarnings?.map(warning => (
+                <Text key={warning} mt="1" fontSize="sm">
+                  •
+                  {' '}
+                  {warning}
+                </Text>
+              ))}
+            </Box>
+          </>
+        )}
+      />
       <DocumentCloseDialog
         open={Boolean(closingDocument) && nbsLossWarnings === null && workspaceWarnings === null}
         name={closingDocument?.displayName ?? ''}

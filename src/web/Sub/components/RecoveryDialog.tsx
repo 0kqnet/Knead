@@ -131,7 +131,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
             <Text mt="1" fontSize="sm" color="var(--studio-muted)">{t('studio.recovery_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={!!busyId}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={!!busyId}>×</Button>
         </Flex>
 
         {loading && <Text mt="5" color="var(--studio-muted)">{t('studio.recovery_loading')}</Text>}
@@ -167,8 +167,8 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
                   )}
                 </Box>
                 <Button
-                  size="sm" colorScheme="blue" isLoading={busyId === snapshot.id}
-                  isDisabled={!!busyId && busyId !== snapshot.id}
+                  size="sm" colorScheme="blue" loading={busyId === snapshot.id}
+                  disabled={!!busyId && busyId !== snapshot.id}
                   aria-label={t('studio.recovery_restore_named', { name })}
                   onClick={() => { void restore(snapshot) }}
                 >
@@ -176,7 +176,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
                 </Button>
                 <Button
                   size="sm" colorScheme="red" variant="outline"
-                  isDisabled={!!busyId}
+                  disabled={!!busyId}
                   aria-label={t('studio.recovery_discard_named', { name })}
                   onClick={() => { void discard(snapshot) }}
                 >
@@ -193,7 +193,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
           </Text>
         )}
         <Flex mt="5" justify="flex-end">
-          <Button onClick={onClose} isDisabled={!!busyId}>{t('studio.close')}</Button>
+          <Button onClick={onClose} disabled={!!busyId}>{t('studio.close')}</Button>
         </Flex>
       </Box>
     </Box>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Dialog, Flex, Text } from '@yamada-ui/react'
+import { Box, Modal, Flex, Text } from '@yamada-ui/react'
 import {
   TRACK_HEADER_WIDTH,
   TRACK_HEIGHT,
@@ -1833,18 +1833,18 @@ export const TimelineEditor: React.FC<Props> = ({
         onApply={applyExtensionState}
         onClose={() => setExtensionsOpen(false)}
       />
-      <Dialog
+      <Modal.Root
+        withCloseButton={false}
         open={confirmation !== null}
-        header={confirmation?.title}
+        title={confirmation?.title}
         cancel={t('studio.cancel')}
         success={{ children: confirmation?.confirmLabel, colorScheme: 'red' }}
         closeOnOverlay={false}
         onClose={() => settleConfirmation(false)}
         onCancel={() => settleConfirmation(false)}
         onSuccess={() => settleConfirmation(true)}
-      >
-        <Text whiteSpace="pre-wrap">{confirmation?.message}</Text>
-      </Dialog>
+        body={<Text whiteSpace="pre-wrap">{confirmation?.message}</Text>}
+      />
     </Box>
   )
 }

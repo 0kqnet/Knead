@@ -5,14 +5,10 @@
     "esModuleInterop": true,
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "types": ["node"],
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
-  },
-  "ts-node": {
-    "compilerOptions": {
-      "module": "CommonJS"
-    }
   },
   "files": [
     "@types/global.d.ts"

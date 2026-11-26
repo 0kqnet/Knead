@@ -161,7 +161,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 max={Math.max(lengthTicks, track.offsetTicks)}
                 step={1}
                 precision={0}
-                isDisabled={track.locked}
+                disabled={track.locked}
                 onCommit={offsetTicks => onChange({
                   offsetTicks: snapTickToTempoMap(offsetTicks, settings, tempoModel),
                 })}
@@ -176,13 +176,12 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 {' '}
                 {track.gainDb.toFixed(1)}
               </Text>
-              <Slider
+              <Slider.Root
                 aria-label="Reference audio gain"
                 value={track.gainDb}
                 min={-60}
                 max={12}
                 step={0.5}
-                focusThumbOnChange={false}
                 onPointerDown={onBeginEdit}
                 onPointerUp={onEndEdit}
                 onChange={gainDb => onChange({ gainDb })}
@@ -192,13 +191,12 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 {' '}
                 {track.pan.toFixed(1)}
               </Text>
-              <Slider
+              <Slider.Root
                 aria-label="Reference audio pan"
                 value={track.pan}
                 min={-1}
                 max={1}
                 step={0.05}
-                focusThumbOnChange={false}
                 onPointerDown={onBeginEdit}
                 onPointerUp={onEndEdit}
                 onChange={pan => onChange({ pan })}

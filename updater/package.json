@@ -21,11 +21,11 @@
         "start": "node dist/updater-main.js"
     },
     "dependencies": {
-        "adm-zip": "^0.5.18"
+        "adm-zip": "^0.6.1"
     },
     "devDependencies": {
-        "@types/adm-zip": "^0.5.8",
-        "typescript": "^5.7.2"
+        "@types/node": "^24.19.4",
+        "typescript": "^7.0.2"
     },
     "bin": "dist/updater-main.js",
     "pkg": {

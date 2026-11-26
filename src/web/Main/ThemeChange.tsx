@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { useColorMode, HStack, Text, SegmentedControl, SegmentedControlButton, ColorModeWithSystem, CardBody, CardHeader } from '@yamada-ui/react'
-
-import { MoonIcon, PaletteIcon, SunIcon, MonitorCogIcon } from '@yamada-ui/lucide'
+import {
+  CardBody, CardHeader, ColorModeWithSystem, HStack, MonitorCogIcon, MoonIcon, PaletteIcon,
+  SegmentedControl, SegmentedControlItem, SunIcon, Text, useColorMode,
+} from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 
 export const ThemeChange = () => {
@@ -39,26 +40,26 @@ export const ThemeChange = () => {
         </HStack>
       </CardHeader>
       <CardBody>
-        <SegmentedControl value={Theme} onChange={v => changeTheme(getColorModeWithSystem(v))}>
-          <SegmentedControlButton value="system">
+        <SegmentedControl.Root value={Theme} onChange={v => changeTheme(getColorModeWithSystem(v))}>
+          <SegmentedControlItem value="system">
             <HStack>
               <MonitorCogIcon fontSize="xl" />
               <Text>System</Text>
             </HStack>
-          </SegmentedControlButton>
-          <SegmentedControlButton value="light">
+          </SegmentedControlItem>
+          <SegmentedControlItem value="light">
             <HStack>
               <SunIcon fontSize="xl" />
               <Text>Light</Text>
             </HStack>
-          </SegmentedControlButton>
-          <SegmentedControlButton value="dark">
+          </SegmentedControlItem>
+          <SegmentedControlItem value="dark">
             <HStack>
               <MoonIcon fontSize="xl" />
               <Text>Dark</Text>
             </HStack>
-          </SegmentedControlButton>
-        </SegmentedControl>
+          </SegmentedControlItem>
+        </SegmentedControl.Root>
       </CardBody>
     </>
   )

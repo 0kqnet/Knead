@@ -52,7 +52,7 @@ const tabs: SongTabBarProps['tabs'] = [
 
 function provider(node: React.ReactNode) {
   return render(
-    <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>{node}</UIProvider>,
+    <UIProvider>{node}</UIProvider>,
   )
 }
 

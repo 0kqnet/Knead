@@ -316,7 +316,7 @@ export const NbsDialog: React.FC<Props> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.nbs_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         {project.source?.format === 'nbs' && (
@@ -329,17 +329,17 @@ export const NbsDialog: React.FC<Props> = ({
           <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_import')}</Text>
             <Text mt="1" minH="42px" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_import_hint')}</Text>
-            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="cyan" onClick={importNbs} isLoading={busy}>
+            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="cyan" onClick={importNbs} loading={busy}>
               {t('studio.nbs_choose_file')}
             </Button>
-            <Button mt="2" w="full" colorScheme="teal" onClick={importBundle} isLoading={busy}>
+            <Button mt="2" w="full" colorScheme="teal" onClick={importBundle} loading={busy}>
               {t('studio.nbs_choose_bundle')}
             </Button>
           </Box>
           <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_export')}</Text>
             <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_export_hint')}</Text>
-            <Select
+            <Select.Root
               mt="2" value={String(nbsVersion)}
               items={[
                 { label: 'NBS v6 (beta)', value: '6' },
@@ -352,10 +352,10 @@ export const NbsDialog: React.FC<Props> = ({
               ]}
               onChange={value => setNbsVersion(Number(value) as NbsTargetVersion)}
             />
-            <Button mt="2" w="full" colorScheme="purple" onClick={exportNbs} isLoading={busy}>
+            <Button mt="2" w="full" colorScheme="purple" onClick={exportNbs} loading={busy}>
               {t('studio.nbs_export_button')}
             </Button>
-            <Button mt="2" w="full" colorScheme="green" onClick={exportBundle} isLoading={busy}>
+            <Button mt="2" w="full" colorScheme="green" onClick={exportBundle} loading={busy}>
               {t('studio.nbs_export_bundle_button')}
             </Button>
           </Box>
@@ -374,7 +374,7 @@ export const NbsDialog: React.FC<Props> = ({
         )}
         {message && <Text mt="4" fontSize="sm" color={message.includes('Error') || message.includes('エラー') ? 'red.300' : 'green.300'}>{message}</Text>}
         <Flex mt="5" justify="flex-end">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close')}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
         </Flex>
       </Box>
     </Box>

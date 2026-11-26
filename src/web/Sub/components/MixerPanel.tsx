@@ -89,20 +89,18 @@ export const MixerPanel: React.FC<Props> = ({
                 {' '}
                 dB
               </Text>
-              <Slider
+              <Slider.Root
                 value={track.gainDb} min={-60} max={12} step={0.5}
                 onChange={gainDb => onTrackChange(track.id, { gainDb })}
-                focusThumbOnChange={false}
               />
               <Text fontSize="xs" color="var(--studio-muted)">
                 {t('studio.mixer_pan')}
                 {' '}
                 {track.pan.toFixed(2)}
               </Text>
-              <Slider
+              <Slider.Root
                 value={track.pan} min={-1} max={1} step={0.01}
                 onChange={pan => onTrackChange(track.id, { pan })}
-                focusThumbOnChange={false}
               />
             </Box>
           </Flex>
@@ -141,28 +139,26 @@ export const MixerPanel: React.FC<Props> = ({
                 {' '}
                 dB
               </Text>
-              <Slider
+              <Slider.Root
                 aria-label={`${track.name} reference gain`}
                 value={track.gainDb}
                 min={-60}
                 max={12}
                 step={0.5}
                 onChange={gainDb => onReferenceAudioChange?.(track.id, { gainDb })}
-                focusThumbOnChange={false}
               />
               <Text fontSize="xs" color="var(--studio-muted)">
                 {t('studio.mixer_pan')}
                 {' '}
                 {track.pan.toFixed(2)}
               </Text>
-              <Slider
+              <Slider.Root
                 aria-label={`${track.name} reference pan`}
                 value={track.pan}
                 min={-1}
                 max={1}
                 step={0.01}
                 onChange={pan => onReferenceAudioChange?.(track.id, { pan })}
-                focusThumbOnChange={false}
               />
             </Box>
           </Flex>
@@ -184,10 +180,9 @@ export const MixerPanel: React.FC<Props> = ({
               {' '}
               dB
             </Text>
-            <Slider
+            <Slider.Root
               value={master.gainDb} min={-60} max={12} step={0.5}
               onChange={gainDb => onMasterChange({ gainDb })}
-              focusThumbOnChange={false}
             />
             <Button
               mt="2" size="xs"

@@ -117,7 +117,7 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof ExtensionMa
     source,
     props,
     ...render(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <ExtensionManagerDialog {...props} />
       </UIProvider>,
     ),
@@ -204,12 +204,12 @@ describe('ExtensionManagerDialog', () => {
     expect(next.markers[0].pitch).toBe(2)
 
     rendered.rerender(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <ExtensionManagerDialog {...rendered.props} open={false} />
       </UIProvider>,
     )
     rendered.rerender(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <ExtensionManagerDialog {...rendered.props} open />
       </UIProvider>,
     )

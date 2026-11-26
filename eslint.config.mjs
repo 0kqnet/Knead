@@ -1,7 +1,7 @@
 import globals from 'globals'
 import pluginJs from '@eslint/js'
 import tseslint from 'typescript-eslint'
-import pluginReact from 'eslint-plugin-react'
+import pluginReact from '@eslint-react/eslint-plugin'
 import stylistic from '@stylistic/eslint-plugin'
 import pluginReactHooks from 'eslint-plugin-react-hooks'
 
@@ -11,8 +11,8 @@ export default [
   { languageOptions: { globals: globals.browser } },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
-  stylistic.configs['recommended-flat'],
+  { files: ['**/*.{jsx,tsx}'], ...pluginReact.configs['recommended-typescript'] },
+  stylistic.configs.recommended,
   {
     plugins: { 'react-hooks': pluginReactHooks },
     rules: { ...pluginReactHooks.configs.recommended.rules },
@@ -23,9 +23,6 @@ export default [
       '@typescript-eslint/no-unused-vars': 'warn',
       'react-hooks/exhaustive-deps': 'error',
       '@stylistic/jsx-max-props-per-line': 'off',
-    },
-    settings: {
-      react: { version: 'detect' },
     },
   },
 ]

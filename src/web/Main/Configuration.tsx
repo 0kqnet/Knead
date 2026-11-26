@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { SettingsIcon, ArrowDownAZIcon, FilterIcon } from '@yamada-ui/lucide'
-import { Drawer, DrawerHeader, DrawerBody, useDisclosure, IconButton, Switch, Text, HStack, Card, CardHeader, CardBody, VStack, Spacer, ScrollArea } from '@yamada-ui/react'
+import {
+  ArrowDownAZIcon, Card, CardBody, CardHeader, Drawer, DrawerBody, DrawerHeader, FunnelIcon, HStack,
+  IconButton, ScrollArea, SettingsIcon, Spacer, Switch, Text, useDisclosure, VStack,
+} from '@yamada-ui/react'
 import { ThemeChange } from './ThemeChange'
 import { useTranslation } from 'react-i18next'
 import { LanguageChange } from './LanguageChange'
@@ -39,59 +41,61 @@ export const Configuration = () => {
     <>
       <IconButton onClick={onOpen} icon={<SettingsIcon fontSize="xl" />} aria-label={t('settings')} />
 
-      <Drawer open={open} onClose={onClose} size="lg" placement="right" style={{ userSelect: 'none' }}>
-        <DrawerHeader>
-          <Text>{t('settings')}</Text>
-        </DrawerHeader>
+      <Drawer.Root open={open} onClose={onClose} size="lg" placement="inline-end">
+        <Drawer.Content userSelect="none">
+          <DrawerHeader>
+            <Text>{t('settings')}</Text>
+          </DrawerHeader>
 
-        <DrawerBody>
+          <DrawerBody>
 
-          <ScrollArea w="full" overflowY="scroll">
-            <VStack gap={2}>
-              <Card w="full" variant="outline">
-                <LanguageChange />
-              </Card>
+            <ScrollArea w="full" overflowY="scroll">
+              <VStack gap={2}>
+                <Card.Root w="full" variant="outline">
+                  <LanguageChange />
+                </Card.Root>
 
-              <Card w="full" variant="outline">
-                <ThemeChange />
-              </Card>
+                <Card.Root w="full" variant="outline">
+                  <ThemeChange />
+                </Card.Root>
 
-              <Card w="full" variant="outline">
-                <CardHeader>
-                  <HStack>
-                    <ArrowDownAZIcon fontSize="xl" />
-                    <Text>{t('sort')}</Text>
-                  </HStack>
-                </CardHeader>
-                <CardBody>
-                  <Switch checked={holdSoundsSort} onChange={() => changesetHoldSoundsSort(!holdSoundsSort)}>{t('hold_sounds_sort')}</Switch>
-                </CardBody>
-              </Card>
+                <Card.Root w="full" variant="outline">
+                  <CardHeader>
+                    <HStack>
+                      <ArrowDownAZIcon fontSize="xl" />
+                      <Text>{t('sort')}</Text>
+                    </HStack>
+                  </CardHeader>
+                  <CardBody>
+                    <Switch checked={holdSoundsSort} onChange={() => changesetHoldSoundsSort(!holdSoundsSort)}>{t('hold_sounds_sort')}</Switch>
+                  </CardBody>
+                </Card.Root>
 
-              <Card w="full" variant="outline">
-                <CardHeader>
-                  <HStack>
-                    <FilterIcon fontSize="xl" />
-                    <Text>{t('rating_filter')}</Text>
-                  </HStack>
-                </CardHeader>
-                <CardBody>
-                  <Switch checked={holdRatingFilter} onChange={() => changeHoldRatingFilter(!holdRatingFilter)}>{t('hold_rating_filter')}</Switch>
-                </CardBody>
-              </Card>
+                <Card.Root w="full" variant="outline">
+                  <CardHeader>
+                    <HStack>
+                      <FunnelIcon fontSize="xl" />
+                      <Text>{t('rating_filter')}</Text>
+                    </HStack>
+                  </CardHeader>
+                  <CardBody>
+                    <Switch checked={holdRatingFilter} onChange={() => changeHoldRatingFilter(!holdRatingFilter)}>{t('hold_rating_filter')}</Switch>
+                  </CardBody>
+                </Card.Root>
 
-            </VStack>
-          </ScrollArea>
+              </VStack>
+            </ScrollArea>
 
-          <Spacer h="full" />
-          <HStack w="full">
-            <Spacer />
-            <Text>{appVersion}</Text>
-          </HStack>
+            <Spacer h="full" />
+            <HStack w="full">
+              <Spacer />
+              <Text>{appVersion}</Text>
+            </HStack>
 
-        </DrawerBody>
+          </DrawerBody>
 
-      </Drawer>
+        </Drawer.Content>
+      </Drawer.Root>
     </>
   )
 }

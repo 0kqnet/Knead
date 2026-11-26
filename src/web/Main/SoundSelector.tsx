@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
-import { Box, Flex, IconButton, Input, InputGroup, InputLeftElement, InputRightElement, Menu, MenuButton, MenuGroup, MenuItem, MenuList, MenuOptionGroup, MenuOptionItem, MenuSeparator, Spacer, Text, Toggle, useColorModeValue } from '@yamada-ui/react'
-import { ArrowDownAZIcon, FilterIcon, SearchIcon, SquareCheckBigIcon, XIcon } from '@yamada-ui/lucide'
+import {
+  ArrowDownAZIcon, Box, Flex, FunnelIcon, IconButton, Input, InputElement, InputGroup, Menu, MenuContent,
+  MenuGroup, MenuItem, MenuOptionGroup, MenuOptionItem, MenuSeparator, SearchIcon, Spacer,
+  SquareCheckBigIcon, Text, useColorModeValue, XIcon,
+} from '@yamada-ui/react'
 import { useVirtualScroll } from '../../hooks/useVirtualScroll'
 import { RatingStars } from './RatingStars'
 import { updateSelectedSound } from '../../store/fetchSlice'
@@ -189,13 +192,13 @@ export const SoundSelector = () => {
   return (
     <>
       <Flex w="full" className="knead-sound-search" gap="2">
-        <InputGroup>
-          <InputLeftElement>
+        <InputGroup.Root>
+          <InputElement placement="start">
             <SearchIcon color="gray.500" fontSize="lg" />
-          </InputLeftElement>
+          </InputElement>
 
           <Input value={searchTxt} onChange={onChangeSearchWord} placeholder={t('search_sound_id')} />
-          <InputRightElement
+          <InputElement placement="end"
             clickable
             onClick={() => {
               setTxtFilters([])
@@ -203,15 +206,17 @@ export const SoundSelector = () => {
             }}
           >
             <XIcon color="gray.500" fontSize="lg" />
-          </InputRightElement>
-        </InputGroup>
+          </InputElement>
+        </InputGroup.Root>
 
         <Spacer minW={2} />
 
-        <Menu animation="top" gutter={0}>
-          <MenuButton as={IconButton} icon={<ArrowDownAZIcon fontSize="xl" />} variant="outline" borderColor="inherit" />
+        <Menu.Root animationScheme="block-start" gutter={0}>
+          <Menu.Trigger>
+            <IconButton aria-label={t('sort')} icon={<ArrowDownAZIcon fontSize="xl" />} variant="outline" borderColor="inherit" />
+          </Menu.Trigger>
 
-          <MenuList className="menu-list-no-style">
+          <MenuContent className="menu-list-no-style">
             <MenuOptionGroup label={t('id_sort')} type="radio" value={SoundsSort?.id} onChange={value => changeSoundSorts({ id: value })}>
               <MenuOptionItem value="ascending">{t('ascending')}</MenuOptionItem>
               <MenuOptionItem value="descending">{t('descending')}</MenuOptionItem>
@@ -222,23 +227,25 @@ export const SoundSelector = () => {
               <MenuOptionItem value="ascending">{t('ascending')}</MenuOptionItem>
               <MenuOptionItem value="descending">{t('descending')}</MenuOptionItem>
             </MenuOptionGroup>
-          </MenuList>
-        </Menu>
+          </MenuContent>
+        </Menu.Root>
         <Spacer minW={2} />
 
-        <Menu animation="top" gutter={0} closeOnSelect={false}>
-          <MenuButton
-            as={Toggle}
-            selected={ratingFilter?.some(v => v >= 0 ? true : false)}
-            icon={<FilterIcon fontSize="xl" />}
-            variant="outline"
-            colorScheme="primary"
-          />
+        <Menu.Root animationScheme="block-start" gutter={0} closeOnSelect={false}>
+          <Menu.Trigger>
+            <IconButton
+              aria-label={t('rating_filter')}
+              aria-pressed={ratingFilter?.some(v => v >= 0)}
+              icon={<FunnelIcon fontSize="xl" />}
+              variant="outline"
+              colorScheme="primary"
+            />
+          </Menu.Trigger>
 
-          <MenuList className="menu-list-no-style">
+          <MenuContent className="menu-list-no-style">
             <MenuGroup label={t('rating_filter')}>
-              <MenuItem onClick={() => clearRatingFilters()} icon={<XIcon fontSize="lg" />}>{t('clear_filter')}</MenuItem>
-              <MenuItem onClick={() => allOnRatingFilters()} icon={<SquareCheckBigIcon fontSize="lg" />}>{t('all_on_filter')}</MenuItem>
+              <MenuItem onSelect={() => clearRatingFilters()}><XIcon fontSize="lg" />{t('clear_filter')}</MenuItem>
+              <MenuItem onSelect={() => allOnRatingFilters()}><SquareCheckBigIcon fontSize="lg" />{t('all_on_filter')}</MenuItem>
               <MenuSeparator />
 
               <MenuOptionGroup
@@ -254,8 +261,8 @@ export const SoundSelector = () => {
                 <MenuOptionItem value="0">{labelRatingStar(18, 0, -2, 1)}</MenuOptionItem>
               </MenuOptionGroup>
             </MenuGroup>
-          </MenuList>
-        </Menu>
+          </MenuContent>
+        </Menu.Root>
       </Flex>
 
       <Box className="sound-list-pane">

@@ -162,7 +162,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Text mt="3" fontSize="xs" color="cyan.300">
@@ -186,7 +186,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
                 aria-label={t('studio.tempo_map_tick_index', { index: index + 1 })}
                 type="number" w="110px" min={0} max={Math.max(0, lengthTicks - 1)} step={1}
                 value={event.tick}
-                isDisabled={index === 0}
+                disabled={index === 0}
                 onChange={change => update(index, { tick: Number(change.target.value) })}
               />
               <Input
@@ -195,7 +195,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
                 value={event.bpm}
                 onChange={change => update(index, { bpm: Number(change.target.value) })}
               />
-              <Select
+              <Select.Root
                 aria-label={t('studio.tempo_map_meter_index', { index: index + 1 })}
                 w="130px"
                 value={meterMode}
@@ -223,7 +223,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
                 aria-label={t('studio.tempo_map_numerator_index', { index: index + 1 })}
                 type="number" w="110px" min={1} max={16} step={1}
                 value={event.meter?.numerator ?? ''}
-                isDisabled={!event.meter}
+                disabled={!event.meter}
                 onChange={change => update(index, {
                   meter: event.meter
                     ? {
@@ -237,7 +237,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
               <Button
                 size="sm" colorScheme="red" variant="outline"
                 aria-label={t('studio.tempo_map_delete_index', { index: index + 1 })}
-                isDisabled={index === 0 || busy}
+                disabled={index === 0 || busy}
                 onClick={() => setDraft(current => current.filter((_, eventIndex) => eventIndex !== index))}
               >
                 {t('studio.tempo_map_delete')}
@@ -248,7 +248,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
 
         <Button
           mt="3" size="sm" onClick={add}
-          isDisabled={busy || draft.length >= MAX_TEMPO_MAP_EVENTS}
+          disabled={busy || draft.length >= MAX_TEMPO_MAP_EVENTS}
         >
           {t('studio.tempo_map_add')}
         </Button>
@@ -262,9 +262,9 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close')}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
           <Button
-            colorScheme="blue" isLoading={busy} isDisabled={Boolean(validationError)}
+            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.tempo_map_apply')}

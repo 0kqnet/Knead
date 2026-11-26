@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Box, Button, Flex, Select, SelectItem, Slider, Text } from '@yamada-ui/react'
+import { Box, Button, Flex, Select, Slider, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import {
   DEFAULT_RETRIGGER_INTERVAL,
@@ -57,7 +57,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
   const { t } = useTranslation()
   const [tickShift, setTickShift] = useState<number>(0)
 
-  const variantItems: SelectItem[] = useMemo(() => [
+  const variantItems: Select.Item[] = useMemo(() => [
     { label: t('studio.marker_random'), value: '-1' },
     ...variants.map((v, i) => ({ label: v.path, value: `${i}` })),
   ], [t, variants])
@@ -150,7 +150,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
                 onShiftTick(tickShift)
                 setTickShift(0)
               }}
-              isDisabled={tickShift === 0 || selectedMarkers.length === 0}
+              disabled={tickShift === 0 || selectedMarkers.length === 0}
             >
               {t('studio.apply')}
             </Button>
@@ -190,7 +190,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             <>
               <Box w="190px">
                 <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_scope')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.sound_stopper_scope')}
                   value={scopeCommon === MIXED ? '' : scopeCommon ?? 'all'}
                   items={[
@@ -198,7 +198,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
                     { label: t('studio.sound_stopper_scope_range'), value: 'track-range' },
                   ]}
                   placeholder={scopeCommon === MIXED ? t('studio.sound_stopper_mixed') : undefined}
-                  placeholderInOptions={false}
+                  includePlaceholder={false}
                   onChange={(scope) => {
                     if (scope === 'all') onChange({ action: { type: 'sound-stop', scope: 'all' } })
                     else {
@@ -290,14 +290,14 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
-          <Select
+          <Select.Root
             value={isMixed(variantCommon) ? '' : String(variantCommon ?? -1)}
             items={variantItems}
             onChange={v => onChange({ variantIndex: parseInt(v, 10) })}
             disabled={variants.length === 0 || isMixed(soundIdCommon)}
             w="320px"
             placeholder={isMixed(variantCommon) ? mixedLabel : undefined}
-            placeholderInOptions={false}
+            includePlaceholder={false}
           />
         </Box>
 
@@ -331,14 +331,13 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             w="220px"
           />
           <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_pitch_range')}</Text>
-          <Slider
+          <Slider.Root
             aria-label="Minecraft pitch quick slider"
             value={Math.max(0.5, Math.min(2, displayNum(pitchCommon, 1)))}
             onChange={value => onChange({ pitch: value })}
             w="220px" h={8} step={0.01} min={0.5} max={2}
-            filledTrackColor="gray.200" trackColor="gray.200" thumbColor="primary"
-            thumbSize={2.5}
-            focusThumbOnChange={false} readOnly={false}
+            rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
+            thumbSize={2.5} readOnly={false}
             thumbProps={{
               _disabled: { color: 'primary' },
             }}
@@ -351,14 +350,13 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             {' '}
             {isMixed(panCommon) ? mixedLabel : (panCommon as number ?? 0).toFixed(2)}
           </Text>
-          <Slider
+          <Slider.Root
             aria-label="Marker pan"
             value={displayNum(panCommon, 0)}
             onChange={value => onChange({ pan: value })}
             w="220px" h={10} step={0.01} min={-1} max={1}
-            filledTrackColor="cyan.300" trackColor="gray.600" thumbColor="cyan.300"
-            thumbSize={2.5}
-            focusThumbOnChange={false} readOnly={false}
+            rangeFill="cyan.300" trackFill="gray.600" thumbFill="cyan.300"
+            thumbSize={2.5} readOnly={false}
             thumbProps={{
               _disabled: { color: 'cyan.300' },
             }}

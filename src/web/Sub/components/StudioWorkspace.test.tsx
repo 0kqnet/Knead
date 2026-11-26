@@ -167,7 +167,7 @@ afterEach(cleanup)
 
 function renderWorkspace() {
   return render(
-    <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+    <UIProvider>
       <StudioWorkspace defaultTargetVersion="1.21.4" />
     </UIProvider>,
   )

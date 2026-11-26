@@ -63,7 +63,7 @@ describe('TimelinePropertyPanel Sound Stopper inspector', () => {
     }
     const onChange = vi.fn()
     render(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <TimelinePropertyPanel
           marker={marker}
           selectionCount={1}
@@ -106,7 +106,7 @@ describe('TimelinePropertyPanel Sound Stopper inspector', () => {
     }
     const onChange = vi.fn()
     render(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <TimelinePropertyPanel
           marker={marker} selectionCount={1} selectedMarkers={[marker]} tracks={[track]}
           soundIdList={['block.note_block.harp']} variants={[]} onChange={onChange}
@@ -132,7 +132,7 @@ describe('TimelinePropertyPanel Sound Stopper inspector', () => {
     const second: Marker = { ...first, id: 'second', tick: 2, gateTicks: 8 }
     const onChange = vi.fn()
     render(
-      <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+      <UIProvider>
         <TimelinePropertyPanel
           marker={first}
           selectionCount={2}

@@ -171,13 +171,13 @@ export const NbpDialog: React.FC<Props> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Flex mt="5" gap="3" align="stretch">
           <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md">
             <Text fontWeight="bold">{t('studio.nbp_import')}</Text>
-            <Select
+            <Select.Root
               data-dialog-initial-focus
               mt="3"
               value={mode}
@@ -198,7 +198,7 @@ export const NbpDialog: React.FC<Props> = ({
                 </Flex>
                 <Flex align="center" gap="2">
                   <Text minW="82px" fontSize="xs">{t('studio.nbp_first_track')}</Text>
-                  <Select
+                  <Select.Root
                     value={startTrack}
                     items={[
                       { label: t('studio.nbp_append_tracks'), value: 'append' },
@@ -209,7 +209,7 @@ export const NbpDialog: React.FC<Props> = ({
                 </Flex>
               </Flex>
             )}
-            <Button mt="3" w="full" colorScheme="cyan" onClick={importPattern} isLoading={busy}>
+            <Button mt="3" w="full" colorScheme="cyan" onClick={importPattern} loading={busy}>
               {t('studio.nbp_choose_file')}
             </Button>
           </Box>
@@ -219,7 +219,7 @@ export const NbpDialog: React.FC<Props> = ({
             <Text mt="2" fontSize="xs" color="var(--studio-muted)">
               {t('studio.nbp_selected_hint', { count: selectionCount })}
             </Text>
-            <Select
+            <Select.Root
               mt="3"
               value={String(version)}
               items={[
@@ -230,7 +230,7 @@ export const NbpDialog: React.FC<Props> = ({
             />
             <Button
               mt="3" w="full" colorScheme="purple" onClick={exportPattern}
-              isLoading={busy} isDisabled={!selectionCount}
+              loading={busy} disabled={!selectionCount}
             >
               {t('studio.nbp_save_selection')}
             </Button>
@@ -252,7 +252,7 @@ export const NbpDialog: React.FC<Props> = ({
           <Text mt="4" fontSize="sm" color={message.startsWith('Error:') || message.startsWith('エラー:') ? 'red.300' : 'green.300'}>{message}</Text>
         )}
         <Flex mt="5" justify="flex-end">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close')}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
         </Flex>
       </Box>
     </Box>

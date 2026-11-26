@@ -260,13 +260,13 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Flex mt="4" gap="4" minH="440px" maxH="calc(100vh - 230px)">
           <Box w="310px" minW="260px" display="flex" flexDir="column">
             <Flex gap="2">
-              <Button data-dialog-initial-focus size="sm" colorScheme="blue" onClick={add} isDisabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
+              <Button data-dialog-initial-focus size="sm" colorScheme="blue" onClick={add} disabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
                 {t('studio.custom_instrument_add')}
               </Button>
               <Text alignSelf="center" fontSize="xs" color="var(--studio-muted)">
@@ -323,7 +323,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         <Input
                           aria-label={t('studio.custom_instrument_name')}
                           value={selected.name} maxLength={EDITOR_TEXT_LIMIT}
-                          isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                          disabled={isProtectedProjectCustomInstrument(selected) || busy}
                           onChange={event => updateSelected({ name: event.target.value })}
                         />
                       </Box>
@@ -332,7 +332,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         <Input
                           aria-label={t('studio.custom_instrument_sound_id')}
                           value={selected.soundId} maxLength={1024}
-                          isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                          disabled={isProtectedProjectCustomInstrument(selected) || busy}
                           onChange={event => updateSelected({ soundId: event.target.value })}
                         />
                       </Box>
@@ -342,7 +342,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                       <Input
                         aria-label={t('studio.custom_instrument_file')}
                         value={selected.file} maxLength={EDITOR_TEXT_LIMIT}
-                        isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                        disabled={isProtectedProjectCustomInstrument(selected) || busy}
                         onChange={event => updateSelected({ file: event.target.value })}
                       />
                     </Box>
@@ -352,7 +352,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         <Input
                           aria-label={t('studio.custom_instrument_source_key')}
                           type="number" min={0} max={87} step={1} value={selected.key}
-                          isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                          disabled={isProtectedProjectCustomInstrument(selected) || busy}
                           onChange={event => updateSelected({ key: Number(event.target.value) })}
                         />
                       </Box>
@@ -361,13 +361,13 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         <Input
                           aria-label={t('studio.custom_instrument_default_pitch')}
                           type="number" min={0.01} max={100} step={0.01} value={selected.defaultPitch}
-                          isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                          disabled={isProtectedProjectCustomInstrument(selected) || busy}
                           onChange={event => updateSelected({ defaultPitch: Number(event.target.value) })}
                         />
                       </Box>
                       <Checkbox
                         checked={selected.pressKey}
-                        isDisabled={isProtectedProjectCustomInstrument(selected) || busy}
+                        disabled={isProtectedProjectCustomInstrument(selected) || busy}
                         onChange={event => updateSelected({ pressKey: event.target.checked })}
                       >
                         {t('studio.custom_instrument_press_key')}
@@ -388,7 +388,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                                 : t('studio.custom_instrument_attachment_empty')}
                             </Text>
                           </Box>
-                          <Button size="sm" colorScheme="green" isLoading={busy} onClick={() => { void attach() }}>
+                          <Button size="sm" colorScheme="green" loading={busy} onClick={() => { void attach() }}>
                             {t('studio.custom_instrument_attach_replace')}
                           </Button>
                         </Flex>
@@ -396,11 +396,11 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                     )}
 
                     <Flex mt="4" gap="2">
-                      <Button size="sm" onClick={() => move(-1)} isDisabled={busy || selectedIndex <= 0}>↑</Button>
-                      <Button size="sm" onClick={() => move(1)} isDisabled={busy || selectedIndex >= draft.length - 1}>↓</Button>
+                      <Button size="sm" onClick={() => move(-1)} disabled={busy || selectedIndex <= 0}>↑</Button>
+                      <Button size="sm" onClick={() => move(1)} disabled={busy || selectedIndex >= draft.length - 1}>↓</Button>
                       <Button
                         size="sm" colorScheme="red" variant="outline" onClick={remove}
-                        isDisabled={busy || isProtectedProjectCustomInstrument(selected)}
+                        disabled={busy || isProtectedProjectCustomInstrument(selected)}
                       >
                         {t('studio.custom_instrument_delete')}
                       </Button>
@@ -431,9 +431,9 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
         )}
         {notice && !error && <Text mt="3" color="green.300" role="status">{notice}</Text>}
         <Flex mt="4" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.cancel')}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
           <Button
-            colorScheme="blue" isLoading={busy} isDisabled={Boolean(validationError)}
+            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.custom_instrument_apply')}

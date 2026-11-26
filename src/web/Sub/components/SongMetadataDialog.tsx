@@ -189,7 +189,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Flex mt="4" gap="3" wrap="wrap">
@@ -319,9 +319,9 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.song_metadata_cancel')}</Button>
+          <Button onClick={onClose} disabled={busy}>{t('studio.song_metadata_cancel')}</Button>
           <Button
-            colorScheme="blue" isLoading={busy} isDisabled={Boolean(validationError)}
+            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.song_metadata_apply')}

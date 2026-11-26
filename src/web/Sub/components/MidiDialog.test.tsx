@@ -131,7 +131,7 @@ function installMidiAccess(...inputs: FakeMidiInput[]) {
 
 function dialogTree(props: React.ComponentProps<typeof MidiDialog>) {
   return (
-    <UIProvider disableEnvironment disableGlobalStyle disableResetStyle>
+    <UIProvider>
       <MidiDialog {...props} />
     </UIProvider>
   )

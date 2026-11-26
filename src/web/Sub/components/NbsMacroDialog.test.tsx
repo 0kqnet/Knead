@@ -107,10 +107,12 @@ describe('NbsMacroDialog', () => {
     expect(screen.getByText(/Tremolo applied to 1 marker/)).toBeTruthy()
   })
 
-  it('shows the complete 15-action selector and disables apply without a selection', () => {
+  it('shows the complete 15-action selector and disables apply without a selection', async () => {
     renderDialog({ selectedIds: new Set() })
-    expect(screen.getByText('Reset all properties')).toBeTruthy()
-    expect(screen.getByText('Volume LFO')).toBeTruthy()
+    fireEvent.click(screen.getByRole('combobox', { name: 'Macro' }))
+    expect(await screen.findByRole('option', { name: 'Reset all properties' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Volume LFO' })).toBeTruthy()
+    expect(screen.getAllByRole('option')).toHaveLength(15)
     expect(screen.getByText('Select markers to preview.')).toBeTruthy()
     expect((screen.getByRole('button', { name: 'Apply macro' }) as HTMLButtonElement).disabled).toBe(true)
   })

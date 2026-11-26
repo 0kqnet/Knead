@@ -1,6 +1,5 @@
 import React from 'react'
-import { Volume1Icon, Volume2Icon, VolumeOffIcon, VolumeXIcon } from '@yamada-ui/lucide'
-import { Box, Flex, Slider, Toggle } from '@yamada-ui/react'
+import { Box, Flex, Slider, Toggle, Volume1Icon, Volume2Icon, VolumeOffIcon, VolumeXIcon } from '@yamada-ui/react'
 
 interface Props {
   volume: number
@@ -27,12 +26,11 @@ export const SubVolumeControl: React.FC<Props> = ({ volume, muted, onChangeVolum
         size="sm"
       />
       <Box w="120px" px="2">
-        <Slider
+        <Slider.Root
           value={volume} disabled={muted} onChange={onChangeVolume}
           marginBottom={-2} step={0.01} min={0} max={1}
-          filledTrackColor="primary" trackColor="gray.200" thumbColor="primary"
-          thumbSize={2.5}
-          focusThumbOnChange={false} readOnly={false}
+          rangeFill="primary" trackFill="gray.200" thumbFill="primary"
+          thumbSize={2.5} readOnly={false}
           thumbProps={{
             _disabled: { color: 'primary' },
           }}

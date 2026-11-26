@@ -168,7 +168,7 @@ Litematica互換出力はnative `.litematic`ではありません。
 
 Knead is a Tauri v2 desktop application. Install Node.js, Rust, and the
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform first.
-Windows builds use Microsoft Edge WebView2.
+Windows builds use Microsoft Edge WebView2. CI uses Node.js 24.18.0.
 
 Minecraft本体がインストールされていない環境でも、バージョン選択時にMojangの
 公式配信元から必要な音声アセットを取得して利用できます。ダウンロードした
@@ -179,7 +179,7 @@ version downloads the required sound assets from Mojang's official services
 and stores them in the standard `.minecraft` cache layout.
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 

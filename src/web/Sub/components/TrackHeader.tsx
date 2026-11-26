@@ -1,6 +1,8 @@
 import React from 'react'
-import { Box, Button, Flex, IconButton, Input, Slider, Text } from '@yamada-ui/react'
-import { ChevronDownIcon, ChevronRightIcon, CopyIcon, LockIcon, LockOpenIcon, Trash2Icon } from '@yamada-ui/lucide'
+import {
+  Box, Button, ChevronDownIcon, ChevronRightIcon, CopyIcon, Flex, IconButton, Input, LockIcon,
+  LockOpenIcon, Slider, Text, TrashIcon,
+} from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import {
   TRACK_COLORS,
@@ -149,10 +151,10 @@ export const TrackHeader: React.FC<Props> = ({
           />
           <IconButton
             size="xs" variant="ghost" minW="26px" p="0"
-            icon={<Trash2Icon boxSize="3.5" />}
+            icon={<TrashIcon boxSize="3.5" />}
             aria-label={t('studio.track_delete')}
             title={t('studio.track_delete')}
-            isDisabled={!canDelete}
+            disabled={!canDelete}
             onClick={(event) => {
               event.stopPropagation()
               onDelete()
@@ -186,13 +188,12 @@ export const TrackHeader: React.FC<Props> = ({
             {' '}
             {track.gainDb.toFixed(1)}
           </Text>
-          <Slider
+          <Slider.Root
             aria-label="Track gain"
             value={track.gainDb}
             min={-60}
             max={12}
             step={0.5}
-            focusThumbOnChange={false}
             onClick={event => event.stopPropagation()}
             onChange={gainDb => onChange({ gainDb })}
           />
@@ -201,13 +202,12 @@ export const TrackHeader: React.FC<Props> = ({
             {' '}
             {track.pan.toFixed(1)}
           </Text>
-          <Slider
+          <Slider.Root
             aria-label="Track pan"
             value={track.pan}
             min={-1}
             max={1}
             step={0.05}
-            focusThumbOnChange={false}
             onClick={event => event.stopPropagation()}
             onChange={pan => onChange({ pan })}
           />

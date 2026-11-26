@@ -176,7 +176,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
       <Text minW="140px" fontSize="sm">{label}</Text>
       <CommitNumberInput
         value={primary} min={minimum} max={maximum} step={step} precision={step < 1 ? 1 : 0}
-        onCommit={setPrimary} size="sm" w="130px" isDisabled={busy}
+        onCommit={setPrimary} size="sm" w="130px" disabled={busy}
       />
     </Flex>
   )
@@ -197,16 +197,16 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="center" gap="3">
             <Text minW="140px" fontSize="sm">{t('studio.nbs_macro_label')}</Text>
-            <Select
+            <Select.Root
               value={type}
               aria-label={t('studio.nbs_macro_label')}
-              isDisabled={busy}
+              disabled={busy}
               items={NBS_MACRO_TYPES.map(value => ({ value, label: t(LABEL_KEYS[value]) }))}
               onChange={(value) => {
                 setType(value as NbsMacroRequest['type'])
@@ -227,18 +227,18 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
           <Box mt="4">
             {type === 'tremolo' && (
               <Flex gap="3">
-                <Select
+                <Select.Root
                   value={String(spacing)}
-                  isDisabled={busy}
+                  disabled={busy}
                   items={[
                     { label: t('studio.nbs_macro_spacing', { count: 1 }), value: '1' },
                     { label: t('studio.nbs_macro_spacing', { count: 2 }), value: '2' },
                   ]}
                   onChange={value => setSpacing(Number(value) as 1 | 2)}
                 />
-                <Select
+                <Select.Root
                   value={fade}
-                  isDisabled={busy}
+                  disabled={busy}
                   items={[
                     { label: t('studio.nbs_macro_no_fade'), value: 'none' },
                     { label: t('studio.nbs_macro_fade_in'), value: 'in' },
@@ -257,7 +257,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
                       ? t('studio.nbs_macro_track_offsets')
                       : t('studio.nbs_macro_semitone_pattern')}
                 </Text>
-                <Input value={pattern} isDisabled={busy} onChange={event => setPattern(event.target.value)} fontFamily="mono" />
+                <Input value={pattern} disabled={busy} onChange={event => setPattern(event.target.value)} fontFamily="mono" />
               </Flex>
             )}
             {type === 'stereo' && numberControl(t('studio.nbs_macro_stereo_width'), 0, 100)}
@@ -270,7 +270,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
                   <Text minW="140px" fontSize="sm">{t('studio.nbs_macro_detune')}</Text>
                   <CommitNumberInput
                     value={secondary} min={0} max={1200} step={1} precision={0}
-                    onCommit={setSecondary} size="sm" w="130px" isDisabled={busy}
+                    onCommit={setSecondary} size="sm" w="130px" disabled={busy}
                   />
                 </Flex>
               </Flex>
@@ -279,7 +279,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
             {type === 'set-panning' && numberControl(t('studio.nbs_macro_panning'), -100, 100)}
             {type === 'set-pitch' && numberControl(t('studio.nbs_macro_pitch'), -1200, 1200)}
             {(type === 'stereo' || type === 'portamento' || type === 'set-velocity' || type === 'set-pitch') && (
-              <Button mt="3" size="sm" colorScheme={toggle ? 'purple' : 'gray'} isDisabled={busy} onClick={() => setToggle(value => !value)}>
+              <Button mt="3" size="sm" colorScheme={toggle ? 'purple' : 'gray'} disabled={busy} onClick={() => setToggle(value => !value)}>
                 {type === 'set-velocity'
                   ? t('studio.nbs_macro_percent_mode')
                   : type === 'set-pitch'
@@ -348,8 +348,8 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.close')}</Button>
-          <Button colorScheme="purple" onClick={() => void apply()} isLoading={busy} isDisabled={!hasPreviewChanges || busy}>
+          <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
+          <Button colorScheme="purple" onClick={() => void apply()} loading={busy} disabled={!hasPreviewChanges || busy}>
             {t('studio.nbs_macro_apply')}
           </Button>
         </Flex>

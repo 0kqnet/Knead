@@ -1,6 +1,5 @@
 import React from 'react'
-import { Button, Flex, Spacer } from '@yamada-ui/react'
-import { AudioLinesIcon } from '@yamada-ui/lucide'
+import { AudioLinesIcon, Button, Flex, Spacer } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { VersionSelector } from './VersionSelector'
 import { SoundSelector } from './SoundSelector'
@@ -20,7 +19,7 @@ export const App = () => {
         <Button
           className="knead-studio-button"
           colorScheme="purple"
-          leftIcon={<AudioLinesIcon boxSize="4" />}
+          startIcon={<AudioLinesIcon boxSize="4" />}
           onClick={() => window.myAPI.make_sub_window()}
         >
           {t('studio.title')}

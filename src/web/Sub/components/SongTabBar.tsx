@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, Flex, IconButton, Text } from '@yamada-ui/react'
-import { AudioLinesIcon, PlusIcon, XIcon } from '@yamada-ui/lucide'
+import { AudioLinesIcon, Box, Button, Flex, IconButton, PlusIcon, Text, XIcon } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 
 export type SongTabStatus = 'ready' | 'opening' | 'saving' | 'audio-switching' | 'error'
@@ -105,7 +104,7 @@ export const SongTabBar: React.FC<SongTabBarProps> = ({
               size="xs"
               variant="ghost"
               title={tab.label}
-              isDisabled={disabled || tab.status === 'opening' || tab.status === 'audio-switching'}
+              disabled={disabled || tab.status === 'opening' || tab.status === 'audio-switching'}
               onFocus={() => setFocusedId(tab.id)}
               onKeyDown={event => onTabKeyDown(event, tab.id)}
               onClick={() => onActivate(tab.id)}
@@ -123,7 +122,7 @@ export const SongTabBar: React.FC<SongTabBarProps> = ({
               icon={<XIcon boxSize="3.5" />}
               aria-label={t('studio.song_tab_close_named', { name: tab.label })}
               title={t('studio.song_tab_close_named', { name: tab.label })}
-              isDisabled={disabled || (tab.status !== 'ready' && tab.status !== 'error')}
+              disabled={disabled || (tab.status !== 'ready' && tab.status !== 'error')}
               onClick={() => onClose(tab.id)}
             />
           </Flex>
@@ -135,7 +134,7 @@ export const SongTabBar: React.FC<SongTabBarProps> = ({
             size="xs"
             variant="ghost"
             aria-label={t('studio.recent_songs_open')}
-            isDisabled={disabled}
+            disabled={disabled}
             onClick={onOpenRecent}
           >
             {t('studio.recent_songs_short')}
@@ -147,7 +146,7 @@ export const SongTabBar: React.FC<SongTabBarProps> = ({
           icon={<PlusIcon boxSize="4" />}
           aria-label={t('studio.song_tab_new')}
           title={t('studio.song_tab_new')}
-          isDisabled={disabled || tabs.length >= maxTabs}
+          disabled={disabled || tabs.length >= maxTabs}
           onClick={onNew}
         />
       </Flex>

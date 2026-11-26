@@ -416,7 +416,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
           <Button
             minW="clamp(132px, 20vw, 220px)" h="56px" fontSize="lg"
             colorScheme={isPlaying ? 'yellow' : 'green'}
-            onClick={onTogglePlay} isDisabled={preloading}
+            onClick={onTogglePlay} disabled={preloading}
           >
             {isPlaying ? 'Ⅱ' : '▶'}
             {' '}
@@ -445,7 +445,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
               setWakeLockError('')
               setWakeLockWanted(value => !value)
             }}
-            isDisabled={!wakeLockSupported}
+            disabled={!wakeLockSupported}
           >
             {wakeLockActive ? '☀' : '◌'}
             {' '}

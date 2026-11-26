@@ -405,7 +405,7 @@ async function inflateRawLimited(
 ): Promise<Uint8Array> {
   let stream: ReadableStream<Uint8Array>
   try {
-    stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+    stream = new Blob([data.slice()]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
   }
   catch (error) {
     throw new Error(`Deflate decompression is unavailable: ${String(error)}`)

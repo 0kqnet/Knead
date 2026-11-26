@@ -1,12 +1,9 @@
 import React, { useMemo } from 'react'
 import {
-  Button, Flex, IconButton, Menu, MenuButton, MenuItem, MenuList, MenuOptionGroup,
-  MenuOptionItem, MenuSeparator, Select, Text,
+  Button, ChevronDownIcon, Flex, IconButton, MaximizeIcon, Menu, MenuContent, MenuItem, MenuOptionGroup,
+  MenuOptionItem, MenuSeparator, MinusIcon, PauseIcon, PlayIcon, PlusIcon, Redo2Icon, RepeatIcon,
+  SaveIcon, SearchIcon, Select, SquareIcon, Text, TimerIcon, TrashIcon, Undo2Icon,
 } from '@yamada-ui/react'
-import {
-  ChevronDownIcon, MaximizeIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, Redo2Icon,
-  RepeatIcon, SaveIcon, SearchIcon, SquareIcon, TimerIcon, Trash2Icon, Undo2Icon,
-} from '@yamada-ui/lucide'
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import { DEFAULT_PX_PER_TICK } from '../utils/tickPixel'
@@ -73,14 +70,14 @@ const toolButton = { size: 'xs', variant: 'ghost' } as const
 const timeUnits = ['ticks', 'seconds', 'bars'] as const
 
 const ToolbarMenu = ({ label, children }: { label: string, children: React.ReactNode }) => (
-  <Menu placement="bottom-start">
-    <MenuButton as={Button} {...toolButton} rightIcon={<ChevronDownIcon boxSize="3" />}>
-      {label}
-    </MenuButton>
-    <MenuList className="studio-menu" minW="194px" maxH="60vh" overflowY="auto">
+  <Menu.Root placement="end-start">
+    <Menu.Trigger>
+      <Button {...toolButton} endIcon={<ChevronDownIcon boxSize="3" />}>{label}</Button>
+    </Menu.Trigger>
+    <MenuContent className="studio-menu" minW="194px" maxH="60vh" overflowY="auto">
       {children}
-    </MenuList>
-  </Menu>
+    </MenuContent>
+  </Menu.Root>
 )
 
 export const TimelineToolbar: React.FC<Props> = ({
@@ -114,11 +111,11 @@ export const TimelineToolbar: React.FC<Props> = ({
       <div className="studio-toolbar-primary">
         <Flex className="studio-toolbar-group">
           <ToolbarMenu label={t('studio.file_menu')}>
-            <MenuItem onClick={onNew} title="Ctrl+N">{t('studio.new')}</MenuItem>
-            <MenuItem onClick={onOpen} title="Ctrl+O">{t('studio.open')}</MenuItem>
-            <MenuItem onClick={onSaveAs} title="Ctrl+Shift+S">{t('studio.save_as')}</MenuItem>
+            <MenuItem onSelect={onNew} title="Ctrl+N">{t('studio.new')}</MenuItem>
+            <MenuItem onSelect={onOpen} title="Ctrl+O">{t('studio.open')}</MenuItem>
+            <MenuItem onSelect={onSaveAs} title="Ctrl+Shift+S">{t('studio.save_as')}</MenuItem>
             <MenuSeparator />
-            <MenuItem onClick={onRecovery} title={recoveryError ?? undefined}>
+            <MenuItem onSelect={onRecovery} title={recoveryError ?? undefined}>
               {recoverySaving ? '… ' : ''}
               {t('studio.recovery_short')}
             </MenuItem>
@@ -131,22 +128,22 @@ export const TimelineToolbar: React.FC<Props> = ({
             onClick={onSave}
           />
           <ToolbarMenu label={t('studio.export')}>
-            <MenuItem onClick={onAudioExport}>{t('studio.audio_export')}</MenuItem>
-            <MenuItem onClick={onCommandExport} title="Ctrl+E">{t('studio.command_export_short')}</MenuItem>
-            <MenuItem onClick={onNoteBlockBuild}>{t('studio.note_block_build_short')}</MenuItem>
+            <MenuItem onSelect={onAudioExport}>{t('studio.audio_export')}</MenuItem>
+            <MenuItem onSelect={onCommandExport} title="Ctrl+E">{t('studio.command_export_short')}</MenuItem>
+            <MenuItem onSelect={onNoteBlockBuild}>{t('studio.note_block_build_short')}</MenuItem>
           </ToolbarMenu>
           <ToolbarMenu label={t('studio.tools_menu')}>
-            <MenuItem onClick={onNbs}>{t('studio.nbs_short')}</MenuItem>
-            <MenuItem onClick={onNbp}>{t('studio.nbp_short')}</MenuItem>
-            <MenuItem onClick={onMidi}>{t('studio.midi_short')}</MenuItem>
-            <MenuItem onClick={onResourcePack}>{t('studio.resource_pack_short')}</MenuItem>
+            <MenuItem onSelect={onNbs}>{t('studio.nbs_short')}</MenuItem>
+            <MenuItem onSelect={onNbp}>{t('studio.nbp_short')}</MenuItem>
+            <MenuItem onSelect={onMidi}>{t('studio.midi_short')}</MenuItem>
+            <MenuItem onSelect={onResourcePack}>{t('studio.resource_pack_short')}</MenuItem>
             <MenuSeparator />
-            <MenuItem onClick={onTempoMap}>{t('studio.tempo_map_short')}</MenuItem>
-            <MenuItem onClick={onSongMetadata}>{t('studio.song_metadata_short')}</MenuItem>
-            <MenuItem onClick={onCustomInstruments}>{t('studio.custom_instrument_short')}</MenuItem>
-            <MenuItem onClick={onNbsMacros} isDisabled={!canDelete}>{t('studio.nbs_macros_short')}</MenuItem>
-            <MenuItem onClick={onReroll} title={t('studio.reroll_hint')}>{t('studio.reroll')}</MenuItem>
-            <MenuItem onClick={onExtensions}>{t('studio.extensions_short')}</MenuItem>
+            <MenuItem onSelect={onTempoMap}>{t('studio.tempo_map_short')}</MenuItem>
+            <MenuItem onSelect={onSongMetadata}>{t('studio.song_metadata_short')}</MenuItem>
+            <MenuItem onSelect={onCustomInstruments}>{t('studio.custom_instrument_short')}</MenuItem>
+            <MenuItem onSelect={onNbsMacros} disabled={!canDelete}>{t('studio.nbs_macros_short')}</MenuItem>
+            <MenuItem onSelect={onReroll} title={t('studio.reroll_hint')}>{t('studio.reroll')}</MenuItem>
+            <MenuItem onSelect={onExtensions}>{t('studio.extensions_short')}</MenuItem>
           </ToolbarMenu>
           {recoveryError && (
             <IconButton
@@ -165,9 +162,9 @@ export const TimelineToolbar: React.FC<Props> = ({
             size="xs"
             colorScheme="purple"
             className="studio-play"
-            leftIcon={isPlaying ? <PauseIcon boxSize="3.5" /> : <PlayIcon boxSize="3.5" />}
+            startIcon={isPlaying ? <PauseIcon boxSize="3.5" /> : <PlayIcon boxSize="3.5" />}
             onClick={onTogglePlay}
-            isDisabled={preloading}
+            disabled={preloading}
           >
             {playLabel}
           </Button>
@@ -177,7 +174,7 @@ export const TimelineToolbar: React.FC<Props> = ({
             aria-label={t('studio.stop')}
             title={t('studio.stop')}
             onClick={onStop}
-            isDisabled={!isPlaying && !isPaused && currentTick <= 0}
+            disabled={!isPlaying && !isPaused && currentTick <= 0}
           />
           <Text as="span" className="studio-time-readout">
             <span>
@@ -215,9 +212,9 @@ export const TimelineToolbar: React.FC<Props> = ({
           </Button>
           <Button {...toolButton} aria-pressed={mixerOpen} onClick={onToggleMixer}>{t('studio.mixer')}</Button>
           <ToolbarMenu label={t('studio.view_menu')}>
-            <MenuItem onClick={onPianoRoll}>{t('studio.piano_roll_short')}</MenuItem>
-            <MenuItem onClick={onPlayerMode}>{t('studio.player_mode_short')}</MenuItem>
-            <MenuItem onClick={onFitSelection} isDisabled={!canFitSelection}>{t('studio.fit_selection')}</MenuItem>
+            <MenuItem onSelect={onPianoRoll}>{t('studio.piano_roll_short')}</MenuItem>
+            <MenuItem onSelect={onPlayerMode}>{t('studio.player_mode_short')}</MenuItem>
+            <MenuItem onSelect={onFitSelection} disabled={!canFitSelection}>{t('studio.fit_selection')}</MenuItem>
             <MenuSeparator />
             <MenuOptionGroup type="checkbox" value={markerIconsEnabled ? ['icons'] : []} onChange={onToggleMarkerIcons}>
               <MenuOptionItem value="icons" title={t('studio.marker_icons_hint')}>
@@ -243,7 +240,7 @@ export const TimelineToolbar: React.FC<Props> = ({
             aria-label={t('studio.undo')}
             title={`${t('studio.undo')} (Ctrl+Z)`}
             onClick={onUndo}
-            isDisabled={!canUndo}
+            disabled={!canUndo}
           />
           <IconButton
             {...toolButton}
@@ -251,21 +248,21 @@ export const TimelineToolbar: React.FC<Props> = ({
             aria-label={t('studio.redo')}
             title={`${t('studio.redo')} (Ctrl+Y)`}
             onClick={onRedo}
-            isDisabled={!canRedo}
+            disabled={!canRedo}
           />
           <Button size="xs" variant="outline" borderColor="var(--studio-line)" onClick={onAddTrack}>{t('studio.add_track')}</Button>
-          <Button size="xs" variant="outline" borderColor="var(--studio-line)" onClick={onAddMarker} isDisabled={!canAddMarker}>{t('studio.add_marker')}</Button>
+          <Button size="xs" variant="outline" borderColor="var(--studio-line)" onClick={onAddMarker} disabled={!canAddMarker}>{t('studio.add_marker')}</Button>
           <ToolbarMenu label={t('studio.insert_menu')}>
-            <MenuItem onClick={onAddSoundStopper} isDisabled={!canAddMarker}>{t('studio.add_sound_stopper')}</MenuItem>
-            <MenuItem onClick={onAddReferenceAudio}>{t('studio.reference_audio_short')}</MenuItem>
+            <MenuItem onSelect={onAddSoundStopper} disabled={!canAddMarker}>{t('studio.add_sound_stopper')}</MenuItem>
+            <MenuItem onSelect={onAddReferenceAudio}>{t('studio.reference_audio_short')}</MenuItem>
           </ToolbarMenu>
           <IconButton
             {...toolButton}
-            icon={<Trash2Icon boxSize="4" />}
+            icon={<TrashIcon boxSize="4" />}
             aria-label={t('studio.delete')}
             title={t('studio.delete')}
             onClick={onDeleteSelected}
-            isDisabled={!canDelete}
+            disabled={!canDelete}
           />
         </Flex>
 
@@ -283,7 +280,7 @@ export const TimelineToolbar: React.FC<Props> = ({
                 timeSignature: { ...settings.timeSignature, numerator },
               })}
             />
-            <Select
+            <Select.Root
               aria-label={t('studio.meter_denominator')}
               size="xs" w="55px"
               value={String(settings.timeSignature.denominator)}
@@ -297,7 +294,7 @@ export const TimelineToolbar: React.FC<Props> = ({
             />
           </Flex>
           <Text as="span" className="studio-field-label">{t('studio.snap')}</Text>
-          <Select
+          <Select.Root
             aria-label={t('studio.snap')}
             size="xs" w="82px"
             value={snapValue}

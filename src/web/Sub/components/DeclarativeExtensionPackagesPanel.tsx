@@ -413,10 +413,10 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
           }}
         />
         <Flex direction="column" gap="2">
-          <Button size="sm" onClick={() => validateImport(packageJson)} isDisabled={!packageJson.trim() || busy !== null}>
+          <Button size="sm" onClick={() => validateImport(packageJson)} disabled={!packageJson.trim() || busy !== null}>
             Validate JSON
           </Button>
-          <Button size="sm" variant="outline" onClick={() => fileInput.current?.click()} isDisabled={busy !== null}>
+          <Button size="sm" variant="outline" onClick={() => fileInput.current?.click()} disabled={busy !== null}>
             Import File
           </Button>
           <input
@@ -456,7 +456,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               {pendingPackage.manifest.permissions.required.includes(permission) ? ' (required)' : ' (optional)'}
             </label>
           ))}
-          <Button mt="3" size="sm" colorScheme="purple" onClick={installPending} isLoading={busy === 'install'}>
+          <Button mt="3" size="sm" colorScheme="purple" onClick={installPending} loading={busy === 'install'}>
             Install Package
           </Button>
         </Box>
@@ -488,11 +488,11 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
                 </Text>
               </Box>
               <Text fontSize="xs" color={isActive ? 'green.300' : 'gray.400'}>{info?.status ?? 'inactive'}</Text>
-              <Button size="xs" onClick={() => void togglePackage(record)} isDisabled={busy !== null}>
+              <Button size="xs" onClick={() => void togglePackage(record)} disabled={busy !== null}>
                 {isActive ? 'Disable' : 'Enable'}
               </Button>
               <Button
-                size="xs" variant="outline" isDisabled={busy !== null}
+                size="xs" variant="outline" disabled={busy !== null}
                 onClick={() => {
                   try {
                     downloadPackage(extensionPackage)
@@ -505,7 +505,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               >
                 Export
               </Button>
-              <Button size="xs" colorScheme="red" onClick={() => void removePackage(record)} isDisabled={busy !== null}>
+              <Button size="xs" colorScheme="red" onClick={() => void removePackage(record)} disabled={busy !== null}>
                 {confirmRemoveId === id ? 'Confirm Remove' : 'Remove'}
               </Button>
             </Flex>
@@ -540,7 +540,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               {extensionPackage.contributes.commands?.map(contribution => (
                 <Button
                   key={contribution.id} size="xs" colorScheme="blue"
-                  isDisabled={!isActive || busy !== null}
+                  disabled={!isActive || busy !== null}
                   onClick={() => void runCommand(record, contribution.id)}
                 >
                   Run
@@ -551,7 +551,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               {extensionPackage.contributes.markerTransforms?.map(contribution => (
                 <Button
                   key={contribution.id} size="xs" colorScheme="cyan"
-                  isDisabled={!isActive || busy !== null || selectedMarkerIds.length === 0}
+                  disabled={!isActive || busy !== null || selectedMarkerIds.length === 0}
                   onClick={() => void runMarkerTransform(record, contribution.id)}
                 >
                   Apply
@@ -562,7 +562,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               {extensionPackage.contributes.trackTransforms?.map(contribution => (
                 <Button
                   key={contribution.id} size="xs" colorScheme="green"
-                  isDisabled={!isActive || busy !== null || selectedTrackIds.length === 0}
+                  disabled={!isActive || busy !== null || selectedTrackIds.length === 0}
                   onClick={() => void runTrackTransform(record, contribution.id)}
                 >
                   Apply

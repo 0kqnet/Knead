@@ -155,7 +155,7 @@ export const ExportDialog: React.FC<Props> = ({
         <Flex align="center">
           <Text fontSize="xl" fontWeight="bold">{t('studio.audio_export')}</Text>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} isDisabled={exportBusy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={exportBusy}>×</Button>
         </Flex>
         <Text fontSize="sm" color="var(--studio-muted)" mt="1">{defaultName}</Text>
 
@@ -172,7 +172,7 @@ export const ExportDialog: React.FC<Props> = ({
         <Flex mt="4" gap="3" align="end" wrap="wrap">
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.format')}</Text>
-            <Select
+            <Select.Root
               data-dialog-initial-focus
               aria-label={t('studio.format')}
               w="120px" value={options.format}
@@ -205,7 +205,7 @@ export const ExportDialog: React.FC<Props> = ({
           </Box>
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
-            <Select
+            <Select.Root
               aria-label={t('studio.range')}
               w="165px" value={options.range}
               items={[
@@ -225,7 +225,7 @@ export const ExportDialog: React.FC<Props> = ({
             <Box>
               <Text fontSize="xs">{t('studio.audio_export_sample_rate')}</Text>
               <Flex gap="2" align="center">
-                <Select
+                <Select.Root
                   aria-label={t('studio.audio_export_sample_rate_preset')}
                   w="150px"
                   value={sampleRatePresets.includes(options.sampleRate) ? String(options.sampleRate) : 'custom'}
@@ -254,7 +254,7 @@ export const ExportDialog: React.FC<Props> = ({
             </Box>
             <Box>
               <Text fontSize="xs">{t('studio.audio_export_channels')}</Text>
-              <Select
+              <Select.Root
                 aria-label={t('studio.audio_export_channels')}
                 w="110px" value={String(options.channels)}
                 items={[
@@ -267,7 +267,7 @@ export const ExportDialog: React.FC<Props> = ({
             {isLosslessExportFormat(options.format) && (
               <Box>
                 <Text fontSize="xs">{t('studio.audio_export_bit_depth')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.audio_export_bit_depth')}
                   w="120px" value={String(options.wavBitDepth)}
                   items={[16, 24, 32].map(value => ({
@@ -293,7 +293,7 @@ export const ExportDialog: React.FC<Props> = ({
             {options.format === 'mp3' && (
               <Box>
                 <Text fontSize="xs">{t('studio.audio_export_mp3_bitrate')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.audio_export_mp3_bitrate')}
                   w="120px" value={String(options.mp3Bitrate)}
                   items={MP3_BITRATES.map(value => ({ label: `${value} kbps`, value: String(value) }))}
@@ -362,11 +362,11 @@ export const ExportDialog: React.FC<Props> = ({
               )
             : (
                 <>
-                  <Button onClick={onClose} isDisabled={exportBusy}>{t('studio.close')}</Button>
+                  <Button onClick={onClose} disabled={exportBusy}>{t('studio.close')}</Button>
                   <Button
                     colorScheme="purple"
                     onClick={start}
-                    isDisabled={missingSounds.length > 0 || !!validationError || exportBusy}
+                    disabled={missingSounds.length > 0 || !!validationError || exportBusy}
                   >
                     {t('studio.export_start')}
                   </Button>

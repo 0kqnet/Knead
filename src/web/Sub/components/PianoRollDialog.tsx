@@ -382,7 +382,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
             <Text fontSize="xs" color="var(--studio-muted)">{t('studio.piano_roll_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Select
+          <Select.Root
             w="220px" value={filterMode}
             items={[
               { value: 'selected', label: t('studio.piano_roll_filter_selected') },
@@ -408,7 +408,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           <Button size="sm" onClick={() => setPxPerTick(fitPianoRollPxPerTick(visible.markers, MIN_CANVAS_WIDTH, project.lengthTicks))}>
             {t('studio.piano_roll_fit')}
           </Button>
-          <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
         </Flex>
 
         <Flex mt="3" gap="3" fontSize="xs" color="var(--studio-muted)">
@@ -431,7 +431,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   bg={isBlackKey(note) ? 'gray.700' : 'gray.100'}
                   _hover={{ bg: isBlackKey(note) ? 'gray.600' : 'gray.300' }}
                   aria-label={t('studio.piano_roll_audition_key', { note: formatMidiNote(note) })}
-                  isDisabled={!onAudition || !template}
+                  disabled={!onAudition || !template}
                   onClick={() => audition(template, note)}
                 >
                   {formatMidiNote(note)}
@@ -545,33 +545,33 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           <Text fontSize="xs">{t('studio.piano_roll_velocity')}</Text>
           <CommitNumberInput
             value={Math.round((firstEditable?.volume ?? 0) * 100)} min={0} max={100} step={1} precision={0}
-            size="sm" w="92px" isDisabled={!firstEditable}
+            size="sm" w="92px" disabled={!firstEditable}
             onCommit={value => updateSelected({ volume: value / 100 })}
           />
           <Text fontSize="xs">{t('studio.piano_roll_pan')}</Text>
           <CommitNumberInput
             value={Math.round((firstEditable?.pan ?? 0) * 100)} min={-100} max={100} step={1} precision={0}
-            size="sm" w="92px" isDisabled={!firstEditable}
+            size="sm" w="92px" disabled={!firstEditable}
             onCommit={value => updateSelected({ pan: value / 100 })}
           />
           <Text fontSize="xs">{t('studio.piano_roll_duration')}</Text>
           <CommitNumberInput
             value={firstEditable?.duration ?? 0} min={0} max={1_000_000} step={1} precision={0}
-            size="sm" w="105px" isDisabled={!firstEditable}
+            size="sm" w="105px" disabled={!firstEditable}
             onCommit={value => updateSelected({ duration: value })}
           />
           <Text fontSize="xs">{t('studio.piano_roll_retrigger')}</Text>
           <CommitNumberInput
             value={firstEditable?.retriggerInterval ?? 1} min={1} max={1_000_000} step={1} precision={0}
-            size="sm" w="105px" isDisabled={!firstEditable}
+            size="sm" w="105px" disabled={!firstEditable}
             onCommit={value => updateSelected({ retriggerInterval: value })}
           />
         </Flex>
 
         {error && <Text mt="2" role="alert" color="var(--studio-error)">{t('studio.piano_roll_error', { error })}</Text>}
         <Flex mt="3" justify="flex-end" gap="2">
-          <Button onClick={onClose} isDisabled={busy}>{t('studio.cancel')}</Button>
-          <Button colorScheme="purple" isLoading={busy} isDisabled={changedCount === 0} onClick={() => { void apply() }}>
+          <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
+          <Button colorScheme="purple" loading={busy} disabled={changedCount === 0} onClick={() => { void apply() }}>
             {t('studio.piano_roll_apply', { count: changedCount })}
           </Button>
         </Flex>

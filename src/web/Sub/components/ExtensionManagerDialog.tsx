@@ -272,7 +272,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               {' '}
               selected
             </Text>
-            <Button mt="1" size="sm" onClick={onClose} isDisabled={operationBusy} aria-label="Close extensions">×</Button>
+            <Button mt="1" size="sm" onClick={onClose} disabled={operationBusy} aria-label="Close extensions">×</Button>
           </Box>
         </Flex>
 
@@ -294,8 +294,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
             <Button
               size="sm" variant="outline"
               onClick={() => toggleExtension(humanizeExtension.manifest.id)}
-              isLoading={busy === `toggle:${humanizeExtension.manifest.id}`}
-              isDisabled={operationBusy && busy !== `toggle:${humanizeExtension.manifest.id}`}
+              loading={busy === `toggle:${humanizeExtension.manifest.id}`}
+              disabled={operationBusy && busy !== `toggle:${humanizeExtension.manifest.id}`}
             >
               {humanizeInfo?.status === 'active' ? 'Disable Humanize' : 'Enable Humanize'}
             </Button>
@@ -344,8 +344,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
             </Box>
             <Button
               colorScheme="cyan" ml="auto" onClick={applyHumanize}
-              isLoading={busy === 'run:humanize'}
-              isDisabled={noSelection || humanizeInfo?.status !== 'active' || operationBusy}
+              loading={busy === 'run:humanize'}
+              disabled={noSelection || humanizeInfo?.status !== 'active' || operationBusy}
             >
               Apply Humanize
             </Button>
@@ -364,8 +364,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
             <Button
               size="sm" variant="outline"
               onClick={() => toggleExtension(noteBlockComposerExtension.manifest.id)}
-              isLoading={busy === `toggle:${noteBlockComposerExtension.manifest.id}`}
-              isDisabled={operationBusy && busy !== `toggle:${noteBlockComposerExtension.manifest.id}`}
+              loading={busy === `toggle:${noteBlockComposerExtension.manifest.id}`}
+              disabled={operationBusy && busy !== `toggle:${noteBlockComposerExtension.manifest.id}`}
             >
               {composerInfo?.status === 'active' ? 'Disable Composer' : 'Enable Composer'}
             </Button>
@@ -374,7 +374,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
           <Flex mt="4" gap="3" wrap="wrap" align="end" opacity={composerInfo?.status === 'active' ? 1 : 0.55}>
             <Box minW="220px" flex="1">
               <Text fontSize="xs" mb="1">Preset</Text>
-              <Select
+              <Select.Root
                 aria-label="Note block preset" value={notePreset}
                 items={NOTE_BLOCK_PRESETS}
                 onChange={value => setNotePreset(value as NoteBlockPreset)}
@@ -382,7 +382,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
             </Box>
             <Box minW="145px">
               <Text fontSize="xs" mb="1">Pattern</Text>
-              <Select
+              <Select.Root
                 aria-label="Note block pattern" value={notePattern}
                 items={[{ label: 'Chord', value: 'chord' }, { label: 'Arpeggio', value: 'arpeggio' }]}
                 onChange={value => setNotePattern(value as NoteBlockPattern)}
@@ -392,7 +392,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               <Text fontSize="xs" mb="1">Step ticks</Text>
               <CommitNumberInput
                 aria-label="Arpeggio step ticks" w="100px" value={arpeggioStep}
-                min={1} max={100} step={1} precision={0} isDisabled={notePattern !== 'arpeggio'}
+                min={1} max={100} step={1} precision={0} disabled={notePattern !== 'arpeggio'}
                 onCommit={setArpeggioStep}
               />
             </Box>
@@ -414,8 +414,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
             </Box>
             <Button
               colorScheme="purple" ml="auto" onClick={applyNoteBlockComposer}
-              isLoading={busy === 'run:composer'}
-              isDisabled={noSelection || composerInfo?.status !== 'active' || operationBusy}
+              loading={busy === 'run:composer'}
+              disabled={noSelection || composerInfo?.status !== 'active' || operationBusy}
             >
               Create Notes
             </Button>
@@ -444,7 +444,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
         )}
 
         <Flex mt="5" justify="flex-end">
-          <Button onClick={onClose} isDisabled={operationBusy}>Close</Button>
+          <Button onClick={onClose} disabled={operationBusy}>Close</Button>
         </Flex>
       </Box>
     </Box>

@@ -56,8 +56,6 @@ const common: Configuration = {
       },
     ],
   },
-  // 開発時には watch モードでファイルの変化を監視する
-  watch: isDev,
   /**
    * development モードではソースマップを付ける
    *
@@ -110,5 +108,5 @@ const assets: Configuration = {
   ],
 }
 
-// 上記 3 つの設定を配列にしてデフォルト・エクスポート
+// 上記の設定を配列にしてデフォルト・エクスポート
 export default [renderer, assets]

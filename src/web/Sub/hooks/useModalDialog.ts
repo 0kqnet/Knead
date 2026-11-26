@@ -12,7 +12,7 @@ export interface UseModalDialogOptions {
 }
 
 export interface ModalDialogBinding {
-  dialogRef: RefObject<HTMLDivElement>
+  dialogRef: RefObject<HTMLDivElement | null>
 }
 
 const FOCUSABLE_SELECTOR = [

@@ -1,13 +1,14 @@
 import React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, HStack, Text, useColorModeValue } from '@yamada-ui/react'
+import {
+  Box, Button, ChevronDownIcon, CircleCheckIcon, DownloadIcon, HStack, Text, useColorModeValue,
+} from '@yamada-ui/react'
 import { useAddDispatch } from '../../store/_store'
 import { Sound, updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
 import { VersionInfoType, compareReleaseVersionInfo, compareSnapshotVersionInfo, comparePreReleaseVersionInfo, compareReleaseCandidateVersionInfo, parseVersion } from '../../types/VersionInfo'
 import { useTranslation } from 'react-i18next'
 import { listen } from '@tauri-apps/api/event'
-import { ChevronDownIcon, CircleCheckIcon, DownloadIcon } from '@yamada-ui/lucide'
-import { FixedSizeList as VirtualList, ListChildComponentProps } from 'react-window'
+import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window'
 
 type AssetDownloadProgress = {
   version: string
@@ -49,7 +50,7 @@ const VersionStatusIcon = ({ downloaded }: { downloaded: boolean }) => downloade
   ? <CircleCheckIcon aria-hidden color="green.500" fontSize="md" />
   : <DownloadIcon aria-hidden color="gray.500" fontSize="md" />
 
-const VirtualVersionRow = React.memo(({ index, style, data }: ListChildComponentProps<VersionRowData>) => {
+function VirtualVersionRow({ index, style, data }: RowComponentProps<{ data: VersionRowData }>) {
   const row = data.rows[index]
   if (row.type === 'heading') {
     return (
@@ -89,14 +90,13 @@ const VirtualVersionRow = React.memo(({ index, style, data }: ListChildComponent
       </Text>
     </HStack>
   )
-})
-VirtualVersionRow.displayName = 'VirtualVersionRow'
+}
 
 const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: VirtualVersionSelectProps) => {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
-  const listRef = useRef<VirtualList>(null)
+  const listRef = useRef<ListImperativeAPI>(null)
   const menuBackground = useColorModeValue('white', 'gray.800')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const hoverBackground = useColorModeValue('gray.100', 'gray.700')
@@ -116,14 +116,14 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
 
   const activate = useCallback((index: number) => {
     setActiveIndex(index)
-    listRef.current?.scrollToItem(index, 'smart')
+    listRef.current?.scrollToRow({ index, align: 'smart' })
   }, [])
 
   const openList = useCallback(() => {
     const nextIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, firstVersionIndex)
     setActiveIndex(nextIndex)
     setOpen(true)
-    requestAnimationFrame(() => listRef.current?.scrollToItem(nextIndex, 'smart'))
+    requestAnimationFrame(() => listRef.current?.scrollToRow({ index: nextIndex, align: 'smart' }))
   }, [firstVersionIndex, selectedIndex])
 
   const selectVersion = useCallback((version: string) => {
@@ -195,7 +195,7 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
             setOpen(false)
           }
         }}
-        variant="filled"
+        variant="subtle"
         width="full"
       >
         <HStack gap={2} minW={0}>
@@ -220,21 +220,19 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
           width="full"
           zIndex={50}
         >
-          <VirtualList
-            height={Math.min(rows.length * VERSION_ROW_HEIGHT, VERSION_LIST_HEIGHT)}
-            itemCount={rows.length}
-            itemData={rowData}
-            itemKey={(index, data) => {
-              const row = data.rows[index]
+          <List
+            listRef={listRef}
+            style={{ height: Math.min(rows.length * VERSION_ROW_HEIGHT, VERSION_LIST_HEIGHT), width: '100%' }}
+            rowCount={rows.length}
+            rowHeight={VERSION_ROW_HEIGHT}
+            rowComponent={VirtualVersionRow}
+            rowProps={{ data: rowData }}
+            rowKey={index => {
+              const row = rows[index]
               return row.type === 'heading' ? `heading-${row.label}` : row.version.raw
             }}
-            itemSize={VERSION_ROW_HEIGHT}
             overscanCount={3}
-            ref={listRef}
-            width="100%"
-          >
-            {VirtualVersionRow}
-          </VirtualList>
+          />
         </Box>
       )}
     </Box>

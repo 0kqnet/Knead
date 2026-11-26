@@ -528,7 +528,7 @@ export const MidiDialog: React.FC<Props> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.midi_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={close} isDisabled={busy}>×</Button>
+          <Button size="sm" onClick={close} disabled={busy}>×</Button>
         </Flex>
 
         <Flex mt="5" gap="3" align="stretch" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
@@ -536,7 +536,7 @@ export const MidiDialog: React.FC<Props> = ({
             <Text fontWeight="bold">{t('studio.midi_file_import')}</Text>
             <Text mt="1" minH="54px" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_file_hint')}</Text>
             <Text mt="3" mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_preview_mapping')}</Text>
-            <Select
+            <Select.Root
               aria-label={t('studio.midi_preview_mapping')}
               size="sm" value={soundMapping}
               items={[
@@ -544,12 +544,12 @@ export const MidiDialog: React.FC<Props> = ({
                 { value: 'gm-identifiers', label: t('studio.midi_mapping_gm') },
               ]}
               onChange={value => setSoundMapping(value as MidiSoundMapping)}
-              isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+              disabled={busy || liveMidi.armed || liveMidi.requesting}
             />
             <Flex mt="2" gap="2">
               <Box flex="1">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_quantize')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.midi_quantize')}
                   size="sm"
                   value={String(quantizeStep)}
@@ -560,12 +560,12 @@ export const MidiDialog: React.FC<Props> = ({
                       : t('studio.midi_quantize_ticks', { count: step }),
                   }))}
                   onChange={value => setQuantizeStep(Number(value) as MidiQuantizeStep)}
-                  isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+                  disabled={busy || liveMidi.armed || liveMidi.requesting}
                 />
               </Box>
               <Box flex="1">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_note_length')}</Text>
-                <Select
+                <Select.Root
                   aria-label={t('studio.midi_note_length')}
                   size="sm"
                   value={noteLengthMode}
@@ -574,7 +574,7 @@ export const MidiDialog: React.FC<Props> = ({
                     { value: 'single-shot', label: t('studio.midi_note_length_single') },
                   ]}
                   onChange={value => setNoteLengthMode(value as MidiNoteLengthMode)}
-                  isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+                  disabled={busy || liveMidi.armed || liveMidi.requesting}
                 />
               </Box>
             </Flex>
@@ -582,7 +582,7 @@ export const MidiDialog: React.FC<Props> = ({
               <Checkbox
                 checked={tailFadeEnabled}
                 onChange={event => setTailFadeEnabled(event.target.checked)}
-                isDisabled={
+                disabled={
                   busy || liveMidi.armed || liveMidi.requesting
                   || noteLengthMode === 'single-shot'
                 }
@@ -607,7 +607,7 @@ export const MidiDialog: React.FC<Props> = ({
                         ? Math.max(0, Math.min(100, value))
                         : 50)
                     }}
-                    isDisabled={
+                    disabled={
                       busy || liveMidi.armed || liveMidi.requesting || !tailFadeEnabled
                       || noteLengthMode === 'single-shot'
                     }
@@ -627,7 +627,7 @@ export const MidiDialog: React.FC<Props> = ({
                         ? Math.max(0, Math.min(100, value))
                         : 50)
                     }}
-                    isDisabled={
+                    disabled={
                       busy || liveMidi.armed || liveMidi.requesting || !tailFadeEnabled
                       || noteLengthMode === 'single-shot'
                     }
@@ -641,8 +641,8 @@ export const MidiDialog: React.FC<Props> = ({
               )}
             </Box>
             <Button
-              mt="3" w="full" colorScheme="cyan" onClick={selectMidiFile} isLoading={busy}
-              isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+              mt="3" w="full" colorScheme="cyan" onClick={selectMidiFile} loading={busy}
+              disabled={busy || liveMidi.armed || liveMidi.requesting}
             >
               {t('studio.midi_choose_file')}
             </Button>
@@ -662,17 +662,17 @@ export const MidiDialog: React.FC<Props> = ({
             {liveMidi.inputs.length > 0 && (
               <Box mt="3">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_device')}</Text>
-                <Select size="sm" value={liveMidi.selectedInputId} items={inputItems} onChange={liveMidi.setSelectedInputId} isDisabled={liveMidi.armed} />
+                <Select.Root size="sm" value={liveMidi.selectedInputId} items={inputItems} onChange={liveMidi.setSelectedInputId} disabled={liveMidi.armed} />
               </Box>
             )}
             <Flex mt="2" gap="2">
               <Box flex="1">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_channel')}</Text>
-                <Select size="sm" value={channelFilter} items={channelItems} onChange={setChannelFilter} isDisabled={liveMidi.armed} />
+                <Select.Root size="sm" value={channelFilter} items={channelItems} onChange={setChannelFilter} disabled={liveMidi.armed} />
               </Box>
               <Box flex="1">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_root_note')}</Text>
-                <Select size="sm" value={String(rootNote)} items={rootItems} onChange={value => setRootNote(Number(value))} isDisabled={liveMidi.armed} />
+                <Select.Root size="sm" value={String(rootNote)} items={rootItems} onChange={value => setRootNote(Number(value))} disabled={liveMidi.armed} />
               </Box>
             </Flex>
             <Text mt="2" mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_sound')}</Text>
@@ -682,7 +682,7 @@ export const MidiDialog: React.FC<Props> = ({
               onChange={(event) => {
                 setLiveSoundId(event.target.value)
               }}
-              isDisabled={liveMidi.armed}
+              disabled={liveMidi.armed}
             />
             <datalist id="knead-midi-sounds">
               {soundIds.map(soundId => <option key={soundId} value={soundId} />)}
@@ -690,8 +690,8 @@ export const MidiDialog: React.FC<Props> = ({
             <Button
               data-dialog-initial-focus
               mt="3" w="full" colorScheme={liveMidi.armed ? 'red' : 'purple'}
-              onClick={toggleArmed} isLoading={liveMidi.requesting}
-              isDisabled={!liveMidi.supported || !canRecord || busy}
+              onClick={toggleArmed} loading={liveMidi.requesting}
+              disabled={!liveMidi.supported || !canRecord || busy}
             >
               {liveMidi.armed ? t('studio.midi_disarm') : liveMidi.inputs.length ? t('studio.midi_arm') : t('studio.midi_connect')}
             </Button>
@@ -734,8 +734,8 @@ export const MidiDialog: React.FC<Props> = ({
               <Button
                 colorScheme="cyan"
                 onClick={applyMidiPreview}
-                isLoading={busy}
-                isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+                loading={busy}
+                disabled={busy || liveMidi.armed || liveMidi.requesting}
               >
                 {t('studio.midi_apply')}
               </Button>
@@ -758,7 +758,7 @@ export const MidiDialog: React.FC<Props> = ({
                       const value = event.target.value
                       setChannelSoundOverrides(current => ({ ...current, [channel]: value }))
                     }}
-                    isDisabled={busy || liveMidi.armed || liveMidi.requesting}
+                    disabled={busy || liveMidi.armed || liveMidi.requesting}
                   />
                 </Box>
               ))}
@@ -827,7 +827,7 @@ export const MidiDialog: React.FC<Props> = ({
           </Box>
         )}
         <Flex mt="5" justify="flex-end">
-          <Button onClick={close} isDisabled={busy}>{t('studio.close')}</Button>
+          <Button onClick={close} disabled={busy}>{t('studio.close')}</Button>
         </Flex>
       </Box>
     </Box>
