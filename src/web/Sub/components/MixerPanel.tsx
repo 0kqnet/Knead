@@ -124,8 +124,11 @@ export const MixerPanel: React.FC<Props> = ({
           gap="1"
           bg="var(--studio-frame)"
         >
-          <Text fontSize="xs" color="var(--studio-muted)">{t('studio.mixer_reference')}</Text>
-          <Text fontSize="xs" w="95px" flexShrink="0" textAlign="center" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
+          <Text
+            fontSize="xs" w="95px" flexShrink="0" textAlign="center"
+            whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis"
+            title={`${t('studio.mixer_reference')} · ${track.name}`}
+          >
             {track.name}
           </Text>
           <Flex gap="2" align="center">
