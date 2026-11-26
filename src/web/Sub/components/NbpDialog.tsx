@@ -161,12 +161,12 @@ export const NbpDialog: React.FC<Props> = ({
     >
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.nbp_title')} tabIndex={-1}
-        w="640px" maxW="calc(100vw - 32px)" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        w="640px" maxW="calc(100vw - 32px)" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.nbp_title')}</Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="var(--studio-muted)">
               {t('studio.nbp_description')}
             </Text>
           </Box>
@@ -175,7 +175,7 @@ export const NbpDialog: React.FC<Props> = ({
         </Flex>
 
         <Flex mt="5" gap="3" align="stretch">
-          <Box flex="1" p="4" bg="gray.900" borderRadius="md">
+          <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md">
             <Text fontWeight="bold">{t('studio.nbp_import')}</Text>
             <Select
               data-dialog-initial-focus
@@ -214,9 +214,9 @@ export const NbpDialog: React.FC<Props> = ({
             </Button>
           </Box>
 
-          <Box flex="1" p="4" bg="gray.900" borderRadius="md">
+          <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md">
             <Text fontWeight="bold">{t('studio.nbp_export_selection')}</Text>
-            <Text mt="2" fontSize="xs" color="gray.400">
+            <Text mt="2" fontSize="xs" color="var(--studio-muted)">
               {t('studio.nbp_selected_hint', { count: selectionCount })}
             </Text>
             <Select

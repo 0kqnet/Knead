@@ -308,12 +308,12 @@ export const NbsDialog: React.FC<Props> = ({
     >
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.nbs_compatibility')} tabIndex={-1}
-        w="640px" maxW="calc(100vw - 32px)" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        w="640px" maxW="calc(100vw - 32px)" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.nbs_compatibility')}</Text>
-            <Text fontSize="sm" color="gray.400">{t('studio.nbs_description')}</Text>
+            <Text fontSize="sm" color="var(--studio-muted)">{t('studio.nbs_description')}</Text>
           </Box>
           <Box flex="1" />
           <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
@@ -326,9 +326,9 @@ export const NbsDialog: React.FC<Props> = ({
         )}
 
         <Flex mt="5" gap="3">
-          <Box flex="1" p="4" bg="gray.900" borderRadius="md" border="1px solid" borderColor="gray.700">
+          <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_import')}</Text>
-            <Text mt="1" minH="42px" fontSize="xs" color="gray.400">{t('studio.nbs_import_hint')}</Text>
+            <Text mt="1" minH="42px" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_import_hint')}</Text>
             <Button data-dialog-initial-focus mt="3" w="full" colorScheme="cyan" onClick={importNbs} isLoading={busy}>
               {t('studio.nbs_choose_file')}
             </Button>
@@ -336,9 +336,9 @@ export const NbsDialog: React.FC<Props> = ({
               {t('studio.nbs_choose_bundle')}
             </Button>
           </Box>
-          <Box flex="1" p="4" bg="gray.900" borderRadius="md" border="1px solid" borderColor="gray.700">
+          <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_export')}</Text>
-            <Text mt="1" fontSize="xs" color="gray.400">{t('studio.nbs_export_hint')}</Text>
+            <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_export_hint')}</Text>
             <Select
               mt="2" value={String(nbsVersion)}
               items={[

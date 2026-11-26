@@ -179,12 +179,12 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
     >
       <Box
         w="780px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 40px)"
-        overflowY="auto" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.song_metadata_title')}</Text>
-            <Text mt="1" fontSize="sm" color="gray.400">
+            <Text mt="1" fontSize="sm" color="var(--studio-muted)">
               {t('studio.song_metadata_description')}
             </Text>
           </Box>
@@ -208,11 +208,11 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
           />
         </Box>
 
-        <Box mt="4" p="3" bg="gray.900" borderRadius="md">
+        <Box mt="4" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="center" gap="3" wrap="wrap">
             <Box minW="155px">
               <Text fontWeight="bold">{t('studio.song_metadata_loop_section')}</Text>
-              <Text fontSize="xs" color="gray.400">{t('studio.song_metadata_loop_hint')}</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">{t('studio.song_metadata_loop_hint')}</Text>
             </Box>
             <Button
               size="sm" colorScheme={draft.loop.enabled ? 'green' : 'gray'}
@@ -249,7 +249,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
                 value={draft.loop.maxLoopCount}
                 onChange={event => updateLoop({ maxLoopCount: Number(event.target.value) })}
               />
-              <Text mt="1" fontSize="xs" color="gray.500">
+              <Text mt="1" fontSize="xs" color="var(--studio-muted)">
                 {t('studio.song_metadata_loop_count_hint')}
               </Text>
             </Box>
@@ -265,8 +265,8 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
             : t('studio.song_metadata_advanced_show')}
         </Button>
         {advanced && (
-          <Box mt="3" p="3" bg="gray.900" borderRadius="md">
-            <Text fontSize="xs" color="gray.400">{t('studio.song_metadata_advanced_hint')}</Text>
+          <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
+            <Text fontSize="xs" color="var(--studio-muted)">{t('studio.song_metadata_advanced_hint')}</Text>
             <Flex mt="3" gap="3" wrap="wrap" align="end">
               <Box flex="1" minW="250px">
                 <Text fontSize="xs" mb="1">{t('studio.song_metadata_source_file')}</Text>
@@ -297,7 +297,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
               </Box>
             </Flex>
             <Text mt="4" fontSize="sm" fontWeight="bold">{t('studio.song_metadata_stats')}</Text>
-            <Text fontSize="xs" color="gray.400">{t('studio.song_metadata_stats_readonly')}</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">{t('studio.song_metadata_stats_readonly')}</Text>
             <Flex mt="2" gap="2" wrap="wrap">
               {STAT_FIELDS.map(stat => (
                 <Box key={stat} w="130px">

@@ -175,22 +175,22 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.resource_pack_title')} tabIndex={-1}
         w="720px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)" overflowY="auto"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.resource_pack_title')}</Text>
-            <Text fontSize="sm" color="gray.400">{t('studio.resource_pack_description')}</Text>
+            <Text fontSize="sm" color="var(--studio-muted)">{t('studio.resource_pack_description')}</Text>
           </Box>
           <Box flex="1" />
           <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
         </Flex>
 
-        <Box mt="5" p="4" bg="gray.900" borderRadius="md">
+        <Box mt="5" p="4" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="center" gap="3">
             <Box flex="1">
               <Text fontWeight="bold">{t('studio.resource_pack_layers')}</Text>
-              <Text fontSize="xs" color="gray.400">{t('studio.resource_pack_priority_hint')}</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">{t('studio.resource_pack_priority_hint')}</Text>
             </Box>
             <Button data-dialog-initial-focus colorScheme="cyan" onClick={addPack} isLoading={busy}>
               {t('studio.resource_pack_add')}
@@ -198,7 +198,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
           </Flex>
 
           {!packs.length && (
-            <Text mt="4" p="4" textAlign="center" fontSize="sm" color="gray.500">
+            <Text mt="4" p="4" textAlign="center" fontSize="sm" color="var(--studio-muted)">
               {t('studio.resource_pack_empty')}
             </Text>
           )}
@@ -206,9 +206,9 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
             {packs.map((pack, index) => (
               <Flex
                 key={pack.fingerprint} align="center" gap="2" p="3"
-                border="1px solid" borderColor="gray.700" borderRadius="md"
+                border="1px solid" borderColor="var(--studio-line)" borderRadius="md"
               >
-                <Text minW="28px" fontSize="xs" color="gray.500">{index + 1}</Text>
+                <Text minW="28px" fontSize="xs" color="var(--studio-muted)">{index + 1}</Text>
                 <Box flex="1" minW="0">
                   <Text
                     fontSize="sm" fontWeight="bold" overflow="hidden"
@@ -216,7 +216,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
                   >
                     {pack.label}
                   </Text>
-                  <Text fontSize="xs" color="gray.400">
+                  <Text fontSize="xs" color="var(--studio-muted)">
                     {t('studio.resource_pack_layer_summary', {
                       format: pack.packFormat ?? '?',
                       manifests: pack.manifests.length,

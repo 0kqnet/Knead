@@ -820,7 +820,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   }
 
   return (
-    <Box display="flex" flexDir="column" h="100vh" bg="gray.950" position="relative">
+    <Box className="studio-shell" display="flex" flexDir="column" h="100vh" position="relative">
       {isProjectDragOver && (
         <Box
           position="absolute" inset="0" zIndex="2200" pointerEvents="none"

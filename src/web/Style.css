@@ -1,48 +1,165 @@
-footer.fixed_bottom {
-    width: 100%;
-    padding: 0;
-    /*絶対位置*/
-    position: absolute;
-    /*下に固定*/
-    bottom: 0;
+:root {
+    --studio-canvas: #edf0f7;
+    --studio-frame: #f5f6fb;
+    --studio-panel: #ffffff;
+    --studio-raised: #e9edf6;
+    --studio-line: #d6ddec;
+    --studio-grid: rgb(97 114 157 / 16%);
+    --studio-lane-grid: rgb(97 114 157 / 8%);
+    --studio-text: #252b43;
+    --studio-muted: #56617a;
+    --studio-accent: #5948c6;
+    --studio-accent-hover: #4939ad;
+    --studio-accent-text: #4b3aae;
+    --studio-accent-soft: #ede9fd;
+    --studio-warning: #a15b12;
+    --studio-error: #b13654;
 }
 
-/* SoundSelector 用 */
+.studio-shell {
+    color: var(--studio-text);
+    background: var(--studio-canvas);
+    overflow: hidden;
+}
+
+:root[data-mode="dark"] {
+    --studio-canvas: #0e1321;
+    --studio-frame: #131827;
+    --studio-panel: #191f30;
+    --studio-raised: #222a40;
+    --studio-line: #303951;
+    --studio-grid: rgb(155 173 219 / 13%);
+    --studio-lane-grid: rgb(155 173 219 / 6%);
+    --studio-text: #eff1fd;
+    --studio-muted: #a8b3d0;
+    --studio-accent: #6754d4;
+    --studio-accent-hover: #745ee4;
+    --studio-accent-text: #c7baff;
+    --studio-accent-soft: #30294d;
+    --studio-warning: #efb46b;
+    --studio-error: #ffa0b5;
+}
+
+:root {
+    --knead-scrollbar-track: var(--ui-colors-blackAlpha-200);
+    --knead-scrollbar-thumb: var(--ui-colors-blackAlpha-600);
+}
+
+:root[data-mode="dark"] {
+    --knead-scrollbar-track: var(--ui-colors-whiteAlpha-200);
+    --knead-scrollbar-thumb: var(--ui-colors-whiteAlpha-600);
+}
+
+::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--knead-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--knead-scrollbar-thumb);
+    border-radius: 10px;
+}
+
+.knead-main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100vh;
+    padding: 12px;
+    background: var(--studio-canvas);
+    color: var(--studio-text);
+}
+
+.knead-main-toolbar,
+.knead-sound-search,
+.knead-command-bar {
+    flex: 0 0 auto;
+}
+
+:root .knead-main-toolbar button.knead-studio-button {
+    background: var(--studio-accent);
+    color: #fff;
+}
+
+:root .knead-main-toolbar button.knead-studio-button:hover {
+    background: var(--studio-accent-hover);
+}
+
+.sound-list-pane,
+.knead-command-bar {
+    border: 1px solid var(--studio-line);
+    border-radius: 8px;
+    background: var(--studio-panel);
+}
+
+.sound-list-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.knead-command-bar {
+    padding: 10px 12px;
+}
+
+.knead-command-output {
+    margin-top: 6px;
+    background: var(--studio-frame);
+    border: 1px solid var(--studio-line);
+    border-radius: 6px;
+}
+
+.knead-command-text {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    align-content: center;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
 .sound-list-container {
-  width: 100%;
-  height: calc(100vh - 388.5px);
-  overflow-y: scroll;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
 }
-.sound-list-outer {
-  height: 100%;
-}
-.sound-list-ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  position: relative;
-}
-.sound-list-li {
-  height: 40px;
-  display: flex;
-  justify-content: left;
-  align-items: center;
-}
-.sound-list-box {
-  transition: 0.25s all;
-}
-.sound-list-box:hover {
-  background: var(--ui-colors-blackAlpha-200, #0002);
-}
-.sound-list-flex {
-  user-select: none;
-  transition: 0.25s all;
-}
-.sound-list-flex.selected {
-  background-color: var(--ui-colors-blackAlpha-400, #0004);
-}
+
+.sound-list-ul,
 .menu-list-no-style {
-  user-select: none;
-  padding: 0;
-  margin: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sound-list-ul {
+    position: relative;
+}
+
+.sound-list-li {
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+.sound-list-flex {
+    user-select: none;
+    transition: background-color 120ms;
+}
+
+.sound-list-flex:hover {
+    background: var(--studio-frame);
+}
+
+.sound-list-flex.selected {
+    color: var(--studio-accent-text);
+    background: var(--studio-accent-soft);
+}
+
+.menu-list-no-style {
+    user-select: none;
 }

@@ -211,14 +211,14 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
         aria-label={t('studio.note_block_build_title', { defaultValue: 'Minecraft note-block build export' })}
         w="680px" maxW="calc(100vw - 32px)" maxH="92vh" overflowY="auto"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">
               {t('studio.note_block_build_title', { defaultValue: 'Minecraft note-block build export' })}
             </Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="var(--studio-muted)">
               {t('studio.note_block_build_description', {
                 defaultValue: 'Export OpenNBS-compatible Structure or legacy schematic files.',
               })}
@@ -270,7 +270,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             }}
           />
           {format === 'litematica-compatible-nbt' && (
-            <Text mt="2" fontSize="xs" color="orange.300">
+            <Text mt="2" fontSize="xs" color="var(--studio-warning)">
               {t('studio.note_block_build_exact_warning', {
                 defaultValue: 'This writes an exact-size vanilla Structure .nbt for Litematica import. It is not a native .litematic file.',
               })}
@@ -323,7 +323,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
           >
             {t('studio.note_block_build_include_locked', { defaultValue: 'Include locked tracks' })}
           </Button>
-          <Text fontSize="xs" color="gray.400">
+          <Text fontSize="xs" color="var(--studio-muted)">
             {t('studio.note_block_build_target', {
               defaultValue: 'Target: {{version}}',
               version: project.targetVersion || t('studio.unknown', { defaultValue: 'unknown' }),
@@ -342,12 +342,12 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         </Text>
 
         {targetError && (
-          <Text mt="3" p="3" borderRadius="md" bg="red.900" color="red.200" fontSize="sm">
+          <Text mt="3" p="3" borderRadius="md" bg="red.900" color="var(--studio-error)" fontSize="sm">
             {targetError}
           </Text>
         )}
         {summary && <Text mt="4" fontSize="sm" fontWeight="bold">{summary}</Text>}
-        {timingSummary && <Text mt="1" fontSize="xs" color="red.200">{timingSummary}</Text>}
+        {timingSummary && <Text mt="1" fontSize="xs" color="var(--studio-error)">{timingSummary}</Text>}
         {warnings.length > 0 && (
           <Box mt="3" p="3" bg="orange.900" borderRadius="md" aria-label={t('studio.warnings', { defaultValue: 'Warnings' })}>
             {warnings.map((warning, index) => (
@@ -372,7 +372,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
                   })}
                 </Text>
                 <Box
-                  mt="2" h="7px" overflow="hidden" borderRadius="full" bg="gray.700"
+                  mt="2" h="7px" overflow="hidden" borderRadius="full" bg="var(--studio-raised)"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -390,7 +390,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
           </Box>
         )}
         {generation.status === 'canceled' && (
-          <Text mt="3" fontSize="sm" color="gray.300">
+          <Text mt="3" fontSize="sm" color="var(--studio-muted)">
             {t('studio.export_generation_canceled', { defaultValue: 'Generation canceled.' })}
           </Text>
         )}

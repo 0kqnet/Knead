@@ -188,12 +188,12 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.command_export')} tabIndex={-1}
         w="680px" maxW="calc(100vw - 32px)" maxH="92vh" overflowY="auto"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.command_export')}</Text>
-            <Text fontSize="sm" color="gray.400">{t('studio.command_export_description')}</Text>
+            <Text fontSize="sm" color="var(--studio-muted)">{t('studio.command_export_description')}</Text>
           </Box>
           <Box flex="1" />
           <Button size="sm" onClick={onClose} isDisabled={saving}>×</Button>
@@ -265,7 +265,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           </Box>
         </Flex>
 
-        <Box mt="3" p="3" bg="gray.900" borderRadius="md">
+        <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="end" gap="3" wrap="wrap">
             <Box minW="230px">
               <Text fontSize="xs" mb="1" fontWeight="bold">{t('studio.command_pan_mode')}</Text>
@@ -304,7 +304,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           </Text>
         </Box>
 
-        <Box mt="4" p="3" bg="gray.900" borderRadius="md">
+        <Box mt="4" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="center" gap="3" wrap="wrap">
             <Box minW="190px">
               <Text fontSize="xs" mb="1" fontWeight="bold">{t('studio.command_visualizer')}</Text>
@@ -397,7 +397,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
               </Box>
             </Flex>
           )}
-          <Text mt="2" fontSize="xs" color="gray.500">
+          <Text mt="2" fontSize="xs" color="var(--studio-muted)">
             {t('studio.command_visualizer_hint')}
           </Text>
         </Box>
@@ -431,7 +431,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
               })}
             </Text>
             {(generated?.skippedEventCount ?? 0) > 0 && (
-              <Text fontSize="xs" color="orange.300">
+              <Text fontSize="xs" color="var(--studio-warning)">
                 {t('studio.command_skipped_events', { count: generated?.skippedEventCount ?? 0 })}
               </Text>
             )}
@@ -444,7 +444,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           {t('studio.advanced')}
         </Button>
         {advanced && (
-          <Flex mt="2" gap="4" wrap="wrap" p="3" bg="gray.900" borderRadius="md">
+          <Flex mt="2" gap="4" wrap="wrap" p="3" bg="var(--studio-frame)" borderRadius="md">
             <Box>
               <Text fontSize="xs">{t('studio.pack_format')}</Text>
               <CommitNumberInput
@@ -486,7 +486,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                   })}
                 </Text>
                 <Box
-                  mt="2" h="7px" overflow="hidden" borderRadius="full" bg="gray.700"
+                  mt="2" h="7px" overflow="hidden" borderRadius="full" bg="var(--studio-raised)"
                   role="progressbar"
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -538,14 +538,14 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         )}
 
         <Box
-          mt="3" p="3" bg="gray.900" border="1px solid" borderColor="gray.700"
+          mt="3" p="3" bg="var(--studio-frame)" border="1px solid" borderColor="var(--studio-line)"
           borderRadius="md" aria-label={t('studio.command_diagnostics_title')}
         >
           <Text fontSize="sm" fontWeight="bold">{t('studio.command_diagnostics_title')}</Text>
-          <Text mt="1" fontSize="xs" color="gray.400">
+          <Text mt="1" fontSize="xs" color="var(--studio-muted)">
             {t('studio.command_diagnostics_summary', diagnosticCounts)}
           </Text>
-          <Text fontSize="xs" color="gray.500">{t('studio.command_diagnostics_report')}</Text>
+          <Text fontSize="xs" color="var(--studio-muted)">{t('studio.command_diagnostics_report')}</Text>
           <Box mt="2" maxH="150px" overflowY="auto">
             {generated?.diagnostics.map(diagnostic => (
               <Text
@@ -566,11 +566,11 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         </Box>
 
         <Box mt="4">
-          <Text fontSize="xs" mb="1" color="gray.400">{t('studio.command_preview')}</Text>
+          <Text fontSize="xs" mb="1" color="var(--studio-muted)">{t('studio.command_preview')}</Text>
           <Textarea value={preview} readOnly h="110px" resize="vertical" fontFamily="mono" fontSize="xs" />
         </Box>
 
-        <Box mt="3" p="3" bg="gray.900" borderRadius="md">
+        <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Text fontSize="sm" fontWeight="bold">{t('studio.command_resource_pack_title')}</Text>
           <Text mt="1" fontSize="xs" color={generated?.resourcePack ? 'green.200' : 'gray.500'}>
             {generated?.resourcePack
@@ -582,19 +582,19 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                 })
               : t('studio.command_resource_pack_empty')}
           </Text>
-          <Text mt="1" fontSize="xs" color="gray.500">{t('studio.command_resource_pack_hint')}</Text>
+          <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.command_resource_pack_hint')}</Text>
         </Box>
 
-        <Box mt="3" p="3" bg="gray.900" borderRadius="md">
-          <Text fontSize="xs" color="gray.400">{t('studio.after_install')}</Text>
+        <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
+          <Text fontSize="xs" color="var(--studio-muted)">{t('studio.after_install')}</Text>
           <Flex mt="1" gapX="4" gapY="1" wrap="wrap">
             <Text minW="200px" fontFamily="mono" color="green.200">{generated?.startCommand ?? '—'}</Text>
-            <Text minW="200px" fontFamily="mono" color="yellow.200">{generated?.pauseCommand ?? '—'}</Text>
+            <Text minW="200px" fontFamily="mono" color="var(--studio-warning)">{generated?.pauseCommand ?? '—'}</Text>
             <Text minW="200px" fontFamily="mono" color="cyan.200">{generated?.resumeCommand ?? '—'}</Text>
-            <Text minW="200px" fontFamily="mono" color="red.200">{generated?.stopCommand ?? '—'}</Text>
-            <Text minW="200px" fontFamily="mono" color="orange.200">{generated?.uninstallCommand ?? '—'}</Text>
+            <Text minW="200px" fontFamily="mono" color="var(--studio-error)">{generated?.stopCommand ?? '—'}</Text>
+            <Text minW="200px" fontFamily="mono" color="var(--studio-warning)">{generated?.uninstallCommand ?? '—'}</Text>
           </Flex>
-          <Text mt="2" fontSize="xs" color="gray.500">{t('studio.pause_resume_hint')}</Text>
+          <Text mt="2" fontSize="xs" color="var(--studio-muted)">{t('studio.pause_resume_hint')}</Text>
         </Box>
 
         {resultMessage && <Text mt="3" fontSize="sm" color={resultMessage.includes('失敗') || resultMessage.includes('Failed') ? 'red.300' : 'green.300'}>{resultMessage}</Text>}

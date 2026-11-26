@@ -118,10 +118,10 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
         w={`${TRACK_HEADER_WIDTH}px`}
         minW={`${TRACK_HEADER_WIDTH}px`}
         h={`${height}px`}
-        bg="gray.850"
+        bg="var(--studio-panel)"
         borderRight="1px solid"
         borderBottom="1px solid"
-        borderColor="cyan.900"
+        borderColor="var(--studio-line)"
         px="2"
         py="1"
         overflow="hidden"
@@ -166,7 +166,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                   offsetTicks: snapTickToTempoMap(offsetTicks, settings, tempoModel),
                 })}
               />
-              <Box flex="1" h="4px" bg="gray.950" borderRadius="full" overflow="hidden">
+              <Box flex="1" h="4px" bg="var(--studio-canvas)" borderRadius="full" overflow="hidden">
                 <Box h="100%" w={`${Math.min(100, (meter?.peak ?? 0) * 100)}%`} bg={(meter?.peak ?? 0) > 0.9 ? 'red.400' : 'cyan.400'} />
               </Box>
             </Flex>
@@ -212,9 +212,9 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
         h={`${height}px`}
         w={`${TIMELINE_LEADING_PADDING_PX + tickToPx(lengthTicks, pxPerTick)}px`}
         minW="100%"
-        bg="rgba(8,47,73,.25)"
+        bg="var(--studio-frame)"
         borderBottom="1px solid"
-        borderColor="cyan.900"
+        borderColor="var(--studio-line)"
         onDoubleClick={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect()
           onSeek(Math.max(0, (event.clientX - bounds.left - TIMELINE_LEADING_PADDING_PX) / pxPerTick))
@@ -254,7 +254,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 <Flex h="100%" align="center" px="2">
                   <Text
                     fontSize="xs"
-                    color={error ? 'red.300' : 'cyan.200'}
+                    color={error ? 'var(--studio-error)' : 'var(--studio-text)'}
                     whiteSpace="nowrap"
                     overflow="hidden"
                     textOverflow="ellipsis"

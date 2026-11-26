@@ -1,5 +1,7 @@
 import React from 'react'
-import { Box, Button, Flex, Input, Slider, Text } from '@yamada-ui/react'
+import { Box, Button, Flex, IconButton, Input, Slider, Text } from '@yamada-ui/react'
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon, LockIcon, LockOpenIcon, Trash2Icon } from '@yamada-ui/lucide'
+import { useTranslation } from 'react-i18next'
 import {
   TRACK_COLORS,
   TRACK_HEIGHT,
@@ -33,16 +35,19 @@ const COLOR_HEX: Record<Track['color'], string> = {
 export const TrackHeader: React.FC<Props> = ({
   track, index, selected, meter, canDelete, onSelect, onChange, onDuplicate, onDelete, onMove,
 }) => {
+  const { t } = useTranslation()
+  const collapseLabel = t(track.collapsed ? 'studio.track_expand' : 'studio.track_collapse')
   const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
   return (
     <Box
       data-track-header-id={track.id}
       draggable
       h={`${height}px`}
-      bg={selected ? 'gray.700' : 'gray.800'}
+      bg={selected ? 'var(--studio-accent-soft)' : 'var(--studio-panel)'}
+      boxShadow={selected ? 'inset 2px 0 var(--studio-accent)' : undefined}
       borderBottom="1px solid"
       borderRight="1px solid"
-      borderColor="gray.600"
+      borderColor="var(--studio-line)"
       px="2"
       py={track.collapsed ? '1' : '2'}
       overflow="hidden"
@@ -56,21 +61,20 @@ export const TrackHeader: React.FC<Props> = ({
       }}
     >
       <Flex align="center" gap="1">
-        <Button
+        <IconButton
           size="xs"
-          minW="18px"
+          variant="ghost"
+          minW="21px"
           p="0"
-          bg={COLOR_HEX[track.color]}
-          color="transparent"
-          title="色を変更"
+          icon={<Box as="span" w="9px" h="16px" borderRadius="sm" bg={COLOR_HEX[track.color]} />}
+          aria-label={t('studio.track_color')}
+          title={t('studio.track_color')}
           onClick={(event) => {
             event.stopPropagation()
             const index = TRACK_COLORS.indexOf(track.color)
             onChange({ color: TRACK_COLORS[(index + 1) % TRACK_COLORS.length] })
           }}
-        >
-          ●
-        </Button>
+        />
         <Input
           size="xs"
           value={track.name}
@@ -78,16 +82,19 @@ export const TrackHeader: React.FC<Props> = ({
           h="24px"
           onClick={event => event.stopPropagation()}
           onChange={event => onChange({ name: event.target.value })}
-          aria-label="Track name"
+          aria-label={t('studio.track_name')}
         />
-        <Button
-          size="xs" minW="24px" p="0" onClick={(event) => {
+        <IconButton
+          size="xs" variant="ghost" minW="24px" p="0"
+          icon={track.collapsed ? <ChevronRightIcon boxSize="3.5" /> : <ChevronDownIcon boxSize="3.5" />}
+          aria-label={collapseLabel}
+          aria-expanded={!track.collapsed}
+          title={collapseLabel}
+          onClick={(event) => {
             event.stopPropagation()
             onChange({ collapsed: !track.collapsed })
           }}
-        >
-          {track.collapsed ? '▸' : '▾'}
-        </Button>
+        />
       </Flex>
       {!track.collapsed && (
         <Flex mt="1" align="center" gap="1">
@@ -98,7 +105,9 @@ export const TrackHeader: React.FC<Props> = ({
               event.stopPropagation()
               onChange({ muted: !track.muted })
             }}
-            title="Mute"
+            aria-label={t('studio.track_mute')}
+            aria-pressed={track.muted}
+            title={t('studio.track_mute')}
           >
             M
           </Button>
@@ -109,41 +118,50 @@ export const TrackHeader: React.FC<Props> = ({
               event.stopPropagation()
               onChange({ solo: !track.solo })
             }}
-            title="Solo"
+            aria-label={t('studio.track_solo')}
+            aria-pressed={track.solo}
+            title={t('studio.track_solo')}
           >
             S
           </Button>
-          <Button
+          <IconButton
             size="xs" minW="26px" p="0"
             colorScheme={track.locked ? 'blue' : 'gray'}
+            variant={track.locked ? 'solid' : 'ghost'}
+            icon={track.locked ? <LockIcon boxSize="3.5" /> : <LockOpenIcon boxSize="3.5" />}
+            aria-label={t('studio.track_lock')}
+            aria-pressed={track.locked}
+            title={t('studio.track_lock')}
             onClick={(event) => {
               event.stopPropagation()
               onChange({ locked: !track.locked })
             }}
-            title="Lock"
-          >
-            {track.locked ? '🔒' : '🔓'}
-          </Button>
-          <Button
-            size="xs" minW="26px" p="0" title="複製" onClick={(event) => {
+          />
+          <IconButton
+            size="xs" variant="ghost" minW="26px" p="0"
+            icon={<CopyIcon boxSize="3.5" />}
+            aria-label={t('studio.track_duplicate')}
+            title={t('studio.track_duplicate')}
+            onClick={(event) => {
               event.stopPropagation()
               onDuplicate()
             }}
-          >
-            ⧉
-          </Button>
-          <Button
-            size="xs" minW="26px" p="0" title="削除" isDisabled={!canDelete} onClick={(event) => {
+          />
+          <IconButton
+            size="xs" variant="ghost" minW="26px" p="0"
+            icon={<Trash2Icon boxSize="3.5" />}
+            aria-label={t('studio.track_delete')}
+            title={t('studio.track_delete')}
+            isDisabled={!canDelete}
+            onClick={(event) => {
               event.stopPropagation()
               onDelete()
             }}
-          >
-            ×
-          </Button>
+          />
           <Box
             flex="1"
             h="5px"
-            bg="gray.950"
+            bg="var(--studio-canvas)"
             borderRadius="full"
             overflow="hidden"
             position="relative"
@@ -163,7 +181,7 @@ export const TrackHeader: React.FC<Props> = ({
       )}
       {!track.collapsed && (
         <Flex mt="1" align="center" gap="1">
-          <Text fontSize="9px" minW="42px">
+          <Text fontSize="10px" fontVariantNumeric="tabular-nums" minW="42px">
             G
             {' '}
             {track.gainDb.toFixed(1)}
@@ -178,7 +196,7 @@ export const TrackHeader: React.FC<Props> = ({
             onClick={event => event.stopPropagation()}
             onChange={gainDb => onChange({ gainDb })}
           />
-          <Text fontSize="9px" minW="36px">
+          <Text fontSize="10px" fontVariantNumeric="tabular-nums" minW="36px">
             P
             {' '}
             {track.pan.toFixed(1)}

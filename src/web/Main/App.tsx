@@ -1,56 +1,34 @@
-import React, { useEffect, useState } from 'react'
-import { VersionSelector } from '../Main/VersionSelector'
-import { SoundSelector } from '../Main/SoundSelector'
-import { Footer } from '../Main/Footer'
-import { Configuration } from '../Main/Configuration'
-import { VolumeChange } from '../Main/VolumeChange'
-import { Separator, Flex, Spacer, Box, VStack, Button, useColorMode, ColorModeWithSystem } from '@yamada-ui/react'
+import React from 'react'
+import { Button, Flex, Spacer } from '@yamada-ui/react'
+import { AudioLinesIcon } from '@yamada-ui/lucide'
 import { useTranslation } from 'react-i18next'
+import { VersionSelector } from './VersionSelector'
+import { SoundSelector } from './SoundSelector'
+import { Footer } from './Footer'
+import { Configuration } from './Configuration'
+import { VolumeChange } from './VolumeChange'
 
 export const App = () => {
   const { t } = useTranslation()
-  const openSubWindow = () => {
-    window.myAPI.make_sub_window()
-  }
-
-  const { changeColorMode } = useColorMode()
-  const [themeLoadOnce, setThemeLoadOnce] = useState(false)
-
-  const getColorModeWithSystem = (v: string): ColorModeWithSystem => {
-    if (v == 'system') return 'system'
-    if (v == 'light') return 'light'
-    if (v == 'dark') return 'dark'
-    return 'system'
-  }
-
-  useEffect(() => {
-    if (!themeLoadOnce) {
-      (async () => {
-        const theme = await window.myAPI.getSetting('theme') as string
-        changeColorMode(getColorModeWithSystem(theme ?? 'system'))
-      })()
-      setThemeLoadOnce(true)
-    }
-  }, [changeColorMode, themeLoadOnce])
 
   return (
-    <>
-      <VStack h="100vh">
-        <Box padding={2}>
-          <Flex w="full" gap={2} paddingBottom={0}>
-            <VersionSelector />
-
-            <Spacer />
-
-            <VolumeChange />
-            <Button colorScheme="purple" onClick={openSubWindow}>{t('studio.title')}</Button>
-            <Configuration />
-          </Flex>
-          <Separator marginY={2} size="xs" />
-          <SoundSelector />
-        </Box>
-        <Footer />
-      </VStack>
-    </>
+    <main className="knead-main">
+      <Flex className="knead-main-toolbar" align="center" gap="2">
+        <VersionSelector />
+        <Spacer />
+        <VolumeChange />
+        <Button
+          className="knead-studio-button"
+          colorScheme="purple"
+          leftIcon={<AudioLinesIcon boxSize="4" />}
+          onClick={() => window.myAPI.make_sub_window()}
+        >
+          {t('studio.title')}
+        </Button>
+        <Configuration />
+      </Flex>
+      <SoundSelector />
+      <Footer />
+    </main>
   )
 }

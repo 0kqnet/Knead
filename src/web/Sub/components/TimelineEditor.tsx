@@ -1436,19 +1436,18 @@ export const TimelineEditor: React.FC<Props> = ({
 
   return (
     <Box
-      display="flex" flexDir="column" h={embeddedWorkspace ? '100%' : '100vh'}
-      bg="gray.950" position="relative"
+      className={embeddedWorkspace ? undefined : 'studio-shell'}
+      display="flex" flexDir="column" h={embeddedWorkspace ? '100%' : '100vh'} position="relative"
     >
       {isProjectDragOver && (
         <Box position="absolute" inset="0" zIndex="1500" pointerEvents="none" bg="rgba(0,0,0,.75)" display="flex" alignItems="center" justifyContent="center">
-          <Text color="white" fontSize="xl" fontWeight="bold">.kp / .nbs ファイルをドロップして開く</Text>
+          <Text color="white" fontSize="xl" fontWeight="bold">{t('studio.song_tab_drop')}</Text>
         </Box>
       )}
       <TimelineToolbar
         onNew={newProject}
         onOpen={handleOpen}
         onCommandPalette={() => setCommandPaletteOpen(true)}
-        commandPaletteOpen={commandPaletteOpen}
         onSave={save}
         onSaveAs={saveAs}
         onAudioExport={() => setExportOpen(true)}
@@ -1462,15 +1461,10 @@ export const TimelineEditor: React.FC<Props> = ({
         recoverySaving={recoverySaving}
         recoveryError={recoveryError}
         onPlayerMode={() => setPlayerModeOpen(true)}
-        playerModeOpen={playerModeOpen}
         onPianoRoll={() => setPianoRollOpen(true)}
-        pianoRollOpen={pianoRollOpen}
         onTempoMap={() => setTempoMapOpen(true)}
-        tempoMapOpen={tempoMapOpen}
         onSongMetadata={() => setSongMetadataOpen(true)}
-        songMetadataOpen={songMetadataOpen}
         onCustomInstruments={() => setCustomInstrumentsOpen(true)}
-        customInstrumentsOpen={customInstrumentsOpen}
         onMidi={() => setMidiOpen(true)}
         onExtensions={() => setExtensionsOpen(true)}
         onAddMarker={() => addAtTick(
@@ -1486,8 +1480,6 @@ export const TimelineEditor: React.FC<Props> = ({
         onAddReferenceAudio={() => void addReferenceAudio()}
         onDeleteSelected={deleteSelected}
         canDelete={hasEditableSelection}
-        dirty={dirty}
-        filePath={filePath}
         onTogglePlay={() => playback.isPlaying ? playback.pause() : playback.isPaused ? playback.resume() : playback.play()}
         onStop={playback.stop}
         isPlaying={playback.isPlaying}
@@ -1513,13 +1505,13 @@ export const TimelineEditor: React.FC<Props> = ({
         onToggleMarkerIcons={toggleMarkerIcons}
         navigatorOpen={navigatorOpen}
         onToggleNavigator={toggleNavigator}
-        extensionsOpen={extensionsOpen}
       />
 
       <Box
         ref={scrollRef}
+        className="studio-timeline-viewport"
         flex="1"
-        minH="150px"
+        minH="120px"
         overflow="auto"
         onScroll={syncViewportRange}
         onWheel={(event) => {
@@ -1528,14 +1520,23 @@ export const TimelineEditor: React.FC<Props> = ({
           setPxPerTick(value => Math.max(1.5, Math.min(64, value * (event.deltaY > 0 ? 0.88 : 1.12))))
         }}
       >
-        <Box position="relative" w={`${TRACK_HEADER_WIDTH + contentWidth}px`} minW="100%">
+        <Box position="relative" w={`${TRACK_HEADER_WIDTH + contentWidth}px`} minW="100%" minH="100%">
+          <Box
+            aria-hidden="true"
+            position="absolute" top="32px" bottom="0" left={`${TRACK_HEADER_WIDTH}px`} right="0"
+            pointerEvents="none"
+            backgroundImage="linear-gradient(to right, var(--studio-lane-grid) 1px, transparent 1px)"
+            backgroundPosition={`${TIMELINE_LEADING_PADDING_PX}px 0`}
+            backgroundSize={`${pxPerTick * 5}px 100%`}
+          />
           <Flex position="sticky" top="0" zIndex="20">
             <Flex
               position="sticky" left="0" zIndex="22"
               w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`} h="32px"
-              align="center" px="3" bg="gray.800" borderRight="1px solid" borderBottom="1px solid" borderColor="gray.600"
+              align="center" px="3" bg="var(--studio-frame)" borderRight="1px solid" borderBottom="1px solid"
+              borderColor="var(--studio-line)"
             >
-              <Text fontSize="xs" fontWeight="bold">{t('studio.tracks').toUpperCase()}</Text>
+              <Text fontSize="xs" fontWeight="semibold" color="var(--studio-muted)">{t('studio.tracks')}</Text>
             </Flex>
             <TimelineRuler
               lengthTicks={timeline.state.lengthTicks}

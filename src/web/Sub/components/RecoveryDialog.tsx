@@ -123,20 +123,20 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
     >
       <Box
         w="680px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 40px)" overflowY="auto"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.recovery_title')}</Text>
-            <Text mt="1" fontSize="sm" color="gray.400">{t('studio.recovery_description')}</Text>
+            <Text mt="1" fontSize="sm" color="var(--studio-muted)">{t('studio.recovery_description')}</Text>
           </Box>
           <Box flex="1" />
           <Button size="sm" onClick={onClose} isDisabled={!!busyId}>×</Button>
         </Flex>
 
-        {loading && <Text mt="5" color="gray.300">{t('studio.recovery_loading')}</Text>}
+        {loading && <Text mt="5" color="var(--studio-muted)">{t('studio.recovery_loading')}</Text>}
         {!loading && snapshots.length === 0 && !error && (
-          <Text mt="5" color="gray.300">{t('studio.recovery_empty')}</Text>
+          <Text mt="5" color="var(--studio-muted)">{t('studio.recovery_empty')}</Text>
         )}
         {!loading && snapshots.map((snapshot) => {
           const name = getTimelineRecoveryDisplayName(snapshot)
@@ -146,22 +146,22 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
           }).format(new Date(snapshot.updatedAt))
           return (
             <Box
-              key={snapshot.id} mt="4" p="4" bg="gray.900" borderRadius="md"
-              border="1px solid" borderColor="gray.700"
+              key={snapshot.id} mt="4" p="4" bg="var(--studio-frame)" borderRadius="md"
+              border="1px solid" borderColor="var(--studio-line)"
             >
               <Flex align="center" gap="3">
                 <Box minW="0" flex="1">
                   <Text fontWeight="bold" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
                     {name}
                   </Text>
-                  <Text mt="1" fontSize="xs" color="gray.400">
+                  <Text mt="1" fontSize="xs" color="var(--studio-muted)">
                     {t('studio.recovery_details', {
                       updated,
                       size: formatBytes(snapshot.byteLength),
                     })}
                   </Text>
                   {snapshot.filePath && (
-                    <Text mt="1" fontSize="xs" color="gray.500" overflowWrap="anywhere">
+                    <Text mt="1" fontSize="xs" color="var(--studio-muted)" overflowWrap="anywhere">
                       {snapshot.filePath}
                     </Text>
                   )}

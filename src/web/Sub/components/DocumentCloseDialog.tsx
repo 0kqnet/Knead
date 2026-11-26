@@ -41,10 +41,10 @@ export const DocumentCloseDialog: React.FC<DocumentCloseDialogProps> = ({
       display="flex" alignItems="center" justifyContent="center"
       role="dialog" aria-modal="true" aria-label={t('studio.song_tab_close_title')}
     >
-      <Box w="520px" maxW="calc(100vw - 32px)" bg="gray.800" p="5" borderRadius="lg" boxShadow="xl">
+      <Box w="520px" maxW="calc(100vw - 32px)" bg="var(--studio-panel)" p="5" borderRadius="lg" boxShadow="xl">
         <Text fontSize="lg" fontWeight="bold">{t('studio.song_tab_close_title')}</Text>
         <Text mt="2">{t('studio.song_tab_close_message', { name })}</Text>
-        {error && <Text role="alert" mt="3" color="red.200">{error}</Text>}
+        {error && <Text role="alert" mt="3" color="var(--studio-error)">{error}</Text>}
         <Flex mt="5" justify="flex-end" gap="2">
           <Button isDisabled={busy} onClick={onCancel}>{t('studio.cancel')}</Button>
           <Button colorScheme="red" isDisabled={busy} onClick={onDiscard}>

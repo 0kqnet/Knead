@@ -1,3 +1,4 @@
+import './Studio.css'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
 import { updateSoundList, updateTargetVersion } from '../../store/fetchSlice'

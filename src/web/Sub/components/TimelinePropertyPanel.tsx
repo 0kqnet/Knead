@@ -36,8 +36,6 @@ interface Props {
   onSoundFocusHandled: () => void
 }
 
-const PANEL_HEIGHT = 200
-const PANEL_HEIGHT_WITH_CURVES = 420
 const MIXED = Symbol('mixed')
 
 function commonValue<TMarker extends Marker, T>(
@@ -60,20 +58,26 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
   const [tickShift, setTickShift] = useState<number>(0)
 
   const variantItems: SelectItem[] = useMemo(() => [
-    { label: 'ランダム', value: '-1' },
+    { label: t('studio.marker_random'), value: '-1' },
     ...variants.map((v, i) => ({ label: v.path, value: `${i}` })),
-  ], [variants])
+  ], [t, variants])
+
+  const inspectorHeading = (
+    <div className="studio-inspector-header">
+      <span>{t('studio.inspector')}</span>
+      <small>{selectionCount ? t('studio.selected_markers', { count: selectionCount }) : t('studio.select_marker')}</small>
+    </div>
+  )
 
   if (selectionCount === 0) {
     return (
-      <Box
-        h={`${PANEL_HEIGHT}px`} bg="gray.900" borderTop="1px solid" borderColor="gray.700"
-        display="flex" alignItems="center" justifyContent="center"
-      >
-        <Text color="gray.500">マーカーを選択してください</Text>
+      <Box as="section" className="studio-inspector studio-inspector-empty" aria-label={t('studio.inspector')}>
+        {inspectorHeading}
       </Box>
     )
   }
+
+  const mixedLabel = t('studio.sound_stopper_mixed')
 
   const isMulti = selectionCount >= 2
   const soundStopMarkers = selectedMarkers.filter(isSoundStopMarker)
@@ -121,7 +125,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
   const tickControl = !isMulti && marker !== null
     ? (
         <Box w="120px">
-          <Text fontSize="sm" color="gray.400" mb="1">Tick</Text>
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">Tick</Text>
           <CommitNumberInput
             value={marker.tick}
             min={0} step={1} precision={0}
@@ -132,7 +136,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
       )
     : (
         <Box w="240px">
-          <Text fontSize="sm" color="gray.400" mb="1">Tick シフト (選択全体)</Text>
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.marker_tick_shift')}</Text>
           <Flex gap="2">
             <CommitNumberInput
               value={tickShift} step={1} precision={0}
@@ -148,7 +152,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               }}
               isDisabled={tickShift === 0 || selectedMarkers.length === 0}
             >
-              適用
+              {t('studio.apply')}
             </Button>
           </Flex>
         </Box>
@@ -170,16 +174,13 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
     const start = displayNum(startCommon, fallbackTrack)
     const end = Math.max(start, displayNum(endCommon, start))
     return (
-      <Box
-        h={`${PANEL_HEIGHT}px`}
-        bg="gray.900" borderTop="1px solid" borderColor="gray.700"
-        p="4" overflowY="auto"
-      >
-        <Flex gap="6" wrap="wrap" align="flex-start">
+      <Box as="section" className="studio-inspector" aria-label={t('studio.inspector')}>
+        {inspectorHeading}
+        <Flex gap="4" wrap="wrap" align="flex-start">
           {tickControl}
           <Box minW="180px">
-            <Text fontSize="sm" color="rose.300" mb="1">{t('studio.sound_stopper_title')}</Text>
-            <Text fontSize="xs" color="gray.400">
+            <Text fontSize="sm" color="var(--studio-error)" mb="1">{t('studio.sound_stopper_title')}</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">
               {onlySoundStops
                 ? t('studio.sound_stopper_description')
                 : t('studio.sound_stopper_mixed_description')}
@@ -188,7 +189,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
           {onlySoundStops && (
             <>
               <Box w="190px">
-                <Text fontSize="sm" color="gray.400" mb="1">{t('studio.sound_stopper_scope')}</Text>
+                <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_scope')}</Text>
                 <Select
                   aria-label={t('studio.sound_stopper_scope')}
                   value={scopeCommon === MIXED ? '' : scopeCommon ?? 'all'}
@@ -216,7 +217,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               {scopeCommon !== 'all' && (
                 <>
                   <Box w="140px">
-                    <Text fontSize="sm" color="gray.400" mb="1">{t('studio.sound_stopper_start_track')}</Text>
+                    <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_start_track')}</Text>
                     <CommitNumberInput
                       aria-label={t('studio.sound_stopper_start_track')}
                       value={start}
@@ -233,7 +234,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
                     />
                   </Box>
                   <Box w="140px">
-                    <Text fontSize="sm" color="gray.400" mb="1">{t('studio.sound_stopper_end_track')}</Text>
+                    <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_end_track')}</Text>
                     <CommitNumberInput
                       aria-label={t('studio.sound_stopper_end_track')}
                       value={end}
@@ -259,25 +260,23 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
   }
 
   return (
-    <Box
-      h={`${showCurves ? PANEL_HEIGHT_WITH_CURVES : PANEL_HEIGHT}px`}
-      bg="gray.900" borderTop="1px solid" borderColor="gray.700"
-      p="4" overflowY="auto"
-    >
-      <Flex gap="6" wrap="wrap" align="flex-start">
+    <Box as="section" className="studio-inspector" aria-label={t('studio.inspector')}>
+      {inspectorHeading}
+      <Flex gap="4" wrap="wrap" align="flex-start">
         {tickControl}
 
         <Box w="240px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Sound
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_sound')}
             {isMixed(soundIdCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <AudioSelectDropdown
+            label={t('studio.marker_sound')}
             options={soundIdList}
             value={displayVal(soundIdCommon)}
-            placeholder={isMixed(soundIdCommon) ? '(混在)' : '(未指定)'}
+            placeholder={isMixed(soundIdCommon) ? mixedLabel : t('studio.marker_unset')}
             onSelect={v => onChange({ soundId: v, variantIndex: -1 })}
             focusRequest={soundFocusRequest}
             onFocusRequestHandled={onSoundFocusHandled}
@@ -285,10 +284,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
         </Box>
 
         <Box w="320px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Variant
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_variant')}
             {isMixed(variantCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <Select
@@ -297,16 +296,16 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onChange={v => onChange({ variantIndex: parseInt(v, 10) })}
             disabled={variants.length === 0 || isMixed(soundIdCommon)}
             w="320px"
-            placeholder={isMixed(variantCommon) ? '(混在)' : undefined}
+            placeholder={isMixed(variantCommon) ? mixedLabel : undefined}
             placeholderInOptions={false}
           />
         </Box>
 
         <Box w="120px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Volume
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_volume')}
             {isMixed(volumeCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <CommitNumberInput
@@ -318,10 +317,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
         </Box>
 
         <Box w="220px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Pitch
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_pitch')}
             {isMixed(pitchCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <CommitNumberInput
@@ -331,7 +330,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onCommit={pitch => onChange({ pitch })}
             w="220px"
           />
-          <Text fontSize="xs" color="gray.500" mt="1">Minecraft quick range (0.5–2)</Text>
+          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_pitch_range')}</Text>
           <Slider
             aria-label="Minecraft pitch quick slider"
             value={Math.max(0.5, Math.min(2, displayNum(pitchCommon, 1)))}
@@ -347,10 +346,10 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
         </Box>
 
         <Box w="220px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Pan:
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_pan')}
             {' '}
-            {isMixed(panCommon) ? '(混在)' : (panCommon as number ?? 0).toFixed(2)}
+            {isMixed(panCommon) ? mixedLabel : (panCommon as number ?? 0).toFixed(2)}
           </Text>
           <Slider
             aria-label="Marker pan"
@@ -365,17 +364,17 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             }}
           />
           <Flex justify="space-between" mt="-1">
-            <Text fontSize="xs" color="gray.500">L</Text>
-            <Text fontSize="xs" color="gray.500">C</Text>
-            <Text fontSize="xs" color="gray.500">R</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">L</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">C</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">R</Text>
           </Flex>
         </Box>
 
         <Box w="140px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Duration (tick)
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_duration')}
             {isMixed(durationCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <CommitNumberInput
@@ -384,14 +383,14 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onCommit={duration => onChange({ duration: duration > 0 ? duration : undefined })}
             w="140px"
           />
-          <Text fontSize="xs" color="gray.500" mt="1">0 = 単発</Text>
+          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_one_shot')}</Text>
         </Box>
 
         <Box w="150px">
-          <Text fontSize="sm" color="gray.400" mb="1">
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
             {t('studio.marker_gate_ticks')}
             {isMixed(gateCommon) && (
-              <Text as="span" color="yellow.400" ml="2">
+              <Text as="span" color="var(--studio-warning)" ml="2">
                 {`(${t('studio.sound_stopper_mixed')})`}
               </Text>
             )}
@@ -403,14 +402,14 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onCommit={gateTicks => onChange({ gateTicks: gateTicks > 0 ? gateTicks : undefined })}
             w="150px"
           />
-          <Text mt="1" fontSize="xs" color="gray.500">{t('studio.marker_gate_sample_tail')}</Text>
+          <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.marker_gate_sample_tail')}</Text>
         </Box>
 
         <Box w="180px">
-          <Text fontSize="sm" color="gray.400" mb="1">
-            Retrigger Interval (tick)
+          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+            {t('studio.marker_retrigger')}
             {isMixed(retriggerCommon) && (
-              <Text as="span" color="yellow.400" ml="2">(混在)</Text>
+              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
             )}
           </Text>
           <CommitNumberInput
@@ -419,14 +418,14 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onCommit={retriggerInterval => onChange({ retriggerInterval })}
             w="180px"
           />
-          <Text fontSize="xs" color="gray.500" mt="1">連続モード時のみ有効</Text>
+          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_retrigger_hint')}</Text>
         </Box>
       </Flex>
 
       {showCurves && marker !== null && (
-        <Flex gap="6" mt="4" wrap="wrap">
+        <Flex gap="4" mt="3" wrap="wrap">
           <CurveEditor
-            label="Volume カーブ"
+            label={t('studio.volume_curve')}
             duration={curveDuration}
             valueMin={0} valueMax={Math.max(1, marker.volume)}
             fallback={marker.volume}
@@ -437,7 +436,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             onEndEdit={onEndEdit}
           />
           <CurveEditor
-            label="Pitch カーブ"
+            label={t('studio.pitch_curve')}
             duration={curveDuration}
             valueMin={pitchEditorMin} valueMax={pitchEditorMax}
             fallback={marker.pitch}

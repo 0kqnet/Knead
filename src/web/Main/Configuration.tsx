@@ -37,7 +37,7 @@ export const Configuration = () => {
 
   return (
     <>
-      <IconButton onClick={onOpen} icon={<SettingsIcon fontSize="xl" />} />
+      <IconButton onClick={onOpen} icon={<SettingsIcon fontSize="xl" />} aria-label={t('settings')} />
 
       <Drawer open={open} onClose={onClose} size="lg" placement="right" style={{ userSelect: 'none' }}>
         <DrawerHeader>

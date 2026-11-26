@@ -1,4 +1,4 @@
-import { Box, Flex, IconButton, Input, Select, SelectItem, Separator, Slider, Spacer, Text, Toggle, Tooltip, useBoolean, useClipboard } from '@yamada-ui/react'
+import { Box, Flex, IconButton, Input, Select, SelectItem, Slider, Spacer, Text, Toggle, Tooltip, useBoolean, useClipboard } from '@yamada-ui/react'
 import { FaPlay, FaPause, FaArrowRotateLeft } from 'react-icons/fa6'
 import { CheckIcon, CopyIcon, SlashIcon, MegaphoneOffIcon } from '@yamada-ui/lucide'
 import { PiTildeBold, PiCaretUpBold, PiSelectionBold } from 'react-icons/pi'
@@ -228,8 +228,8 @@ export const Footer = () => {
 
   return (
     <>
-      <footer className="fixed_bottom">
-        <Box w="full" bg="footerBackground" padding={2} borderTop="1px solid" borderColor="inherit">
+      <footer className="knead-command-bar">
+        <Box w="full">
 
           <Box alignContent="center" paddingX={1} style={{ userSelect: 'none' }}>
             <Slider
@@ -324,11 +324,9 @@ export const Footer = () => {
             </Tooltip>
           </Flex>
 
-          <Box w="full" marginTop={1} border="1px solid" borderColor="bg" borderRadius={5}>
+          <Box w="full" className="knead-command-output">
             <Flex>
-              <Box alignContent="center" paddingX={3}>{command}</Box>
-              <Spacer />
-              <Box><Separator orientation="vertical" borderColor="bg" /></Box>
+              <Box as="code" className="knead-command-text">{command}</Box>
               <Tooltip label={hasCopied ? 'Copied!' : 'Copy'} placement="bottom" animation="bottom">
                 <IconButton icon={hasCopied ? <CheckIcon color="success" marginX={6} /> : <CopyIcon marginX={6} />} onClick={() => onCopy(command)} variant="ghost" borderLeftRadius={0} borderRightRadius={2} />
               </Tooltip>

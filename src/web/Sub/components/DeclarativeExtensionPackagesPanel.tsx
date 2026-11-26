@@ -395,9 +395,9 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
   }
 
   return (
-    <Box mt="4" p="4" bg="gray.900" borderRadius="lg" border="1px solid" borderColor="purple.700">
+    <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="lg" border="1px solid" borderColor="purple.700">
       <Text fontWeight="bold">Declarative Extension Packages</Text>
-      <Text fontSize="xs" color="gray.400">
+      <Text fontSize="xs" color="var(--studio-muted)">
         Install local JSON packages built from a fixed transform/command DSL. Packages cannot contain or execute JavaScript.
       </Text>
 
@@ -431,13 +431,13 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
       </Flex>
 
       {pendingPackage && (
-        <Box mt="3" p="3" bg="gray.800" borderRadius="md" data-testid="package-install-preview">
+        <Box mt="3" p="3" bg="var(--studio-panel)" borderRadius="md" data-testid="package-install-preview">
           <Text fontWeight="bold">
             {pendingPackage.manifest.name}
             {' v'}
             {pendingPackage.manifest.version}
           </Text>
-          <Text fontSize="xs" color="gray.400">{pendingPackage.manifest.id}</Text>
+          <Text fontSize="xs" color="var(--studio-muted)">{pendingPackage.manifest.id}</Text>
           <Text mt="2" fontSize="xs">Approve requested permissions:</Text>
           {requestedPermissions(pendingPackage).map(permission => (
             <label key={permission} style={{ display: 'block', fontSize: '12px', marginTop: '4px' }}>
@@ -464,7 +464,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
 
       {busy === 'loading' && <Text mt="3" fontSize="xs">Loading installed packages…</Text>}
       {busy !== 'loading' && records.length === 0 && (
-        <Text mt="3" fontSize="xs" color="gray.500">No third-party packages installed.</Text>
+        <Text mt="3" fontSize="xs" color="var(--studio-muted)">No third-party packages installed.</Text>
       )}
 
       {records.map((record) => {
@@ -474,13 +474,13 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
         const isActive = info?.status === 'active'
         return (
           <Box
-            key={id} mt="3" p="3" bg="gray.800" borderRadius="md"
+            key={id} mt="3" p="3" bg="var(--studio-panel)" borderRadius="md"
             data-extension-package={id} data-testid={`extension-package-${id}`}
           >
             <Flex align="center" gap="2" wrap="wrap">
               <Box flex="1" minW="220px">
                 <Text fontWeight="bold">{extensionPackage.manifest.name}</Text>
-                <Text fontSize="xs" color="gray.400">
+                <Text fontSize="xs" color="var(--studio-muted)">
                   {id}
                   {' · v'}
                   {extensionPackage.manifest.version}
@@ -526,7 +526,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
             </Box>
 
             {info?.lastFailure && (
-              <Text mt="2" fontSize="xs" color="red.300">
+              <Text mt="2" fontSize="xs" color="var(--studio-error)">
                 Last failure:
                 {' '}
                 {info.lastFailure.phase}
@@ -575,11 +575,11 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
         )
       })}
 
-      <Text mt="3" fontSize="xs" color="orange.300">
+      <Text mt="3" fontSize="xs" color="var(--studio-warning)">
         Security boundary: JSON packages are interpreted by host-owned operations only. They are not process, filesystem,
         network, Web Worker, or arbitrary-code sandboxes because no package code is loaded at all.
       </Text>
-      <Text fontSize="xs" color="gray.500">
+      <Text fontSize="xs" color="var(--studio-muted)">
         Supported permissions:
         {' '}
         {(EXTENSION_PERMISSIONS as readonly string[]).join(', ')}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Box, Button, Text } from '@yamada-ui/react'
 import type { Curve, Keyframe } from '../types/timeline'
 import { applyEasePreset, calculateCurveViewport, EasePreset } from '../utils/curvePresets'
@@ -50,6 +51,7 @@ export const CurveEditor: React.FC<Props> = ({
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null)
+  const { t } = useTranslation()
   const [snapEnabled, setSnapEnabled] = useState(false)
   const [dragTooltip, setDragTooltip] = useState<{ x: number, y: number, value: number } | null>(null)
 
@@ -375,11 +377,16 @@ export const CurveEditor: React.FC<Props> = ({
   return (
     <Box>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb="1">
-        <Text fontSize="sm" color="gray.400">{label}</Text>
+        <Text fontSize="sm" color="var(--studio-muted)">{label}</Text>
         {snapValues && (
-          <Button size="xs" variant={snapEnabled ? 'solid' : 'outline'} onClick={() => setSnapEnabled(enabled => !enabled)}>
-            <span>音階スナップ:</span>
-            <span>{snapEnabled ? 'ON' : 'OFF'}</span>
+          <Button
+            size="xs"
+            variant={snapEnabled ? 'solid' : 'outline'}
+            colorScheme="purple"
+            aria-pressed={snapEnabled}
+            onClick={() => setSnapEnabled(enabled => !enabled)}
+          >
+            {t('studio.pitch_snap')}
           </Button>
         )}
       </Box>
@@ -387,7 +394,8 @@ export const CurveEditor: React.FC<Props> = ({
         ref={svgRef}
         tabIndex={0}
         width={width} height={height}
-        style={{ background: '#111827', border: '1px solid #374151', borderRadius: 4, cursor: 'crosshair', userSelect: 'none', outline: 'none' }}
+        aria-label={label}
+        className="studio-curve"
         onPointerDownCapture={() => svgRef.current?.focus()}
         onPointerDown={handleBgPointerDown}
         onDoubleClick={handleBgDoubleClick}
@@ -397,20 +405,20 @@ export const CurveEditor: React.FC<Props> = ({
         onContextMenu={e => e.preventDefault()}
       >
         {/* グリッド */}
-        <line x1={tickToX(0)} y1={PAD.t} x2={tickToX(0)} y2={PAD.t + plotH} stroke="#374151" />
-        <line x1={PAD.l} y1={valueToY(valueMin)} x2={PAD.l + plotW} y2={valueToY(valueMin)} stroke="#374151" />
+        <line x1={tickToX(0)} y1={PAD.t} x2={tickToX(0)} y2={PAD.t + plotH} stroke="var(--studio-line)" />
+        <line x1={PAD.l} y1={valueToY(valueMin)} x2={PAD.l + plotW} y2={valueToY(valueMin)} stroke="var(--studio-line)" />
         {referenceValue !== undefined && referenceValue >= viewport.valueMin && referenceValue <= viewport.valueMax && (
           <>
-            <line x1={PAD.l} y1={valueToY(referenceValue)} x2={PAD.l + plotW} y2={valueToY(referenceValue)} stroke="#6b7280" strokeDasharray="4 3" />
-            <text x={PAD.l - 4} y={valueToY(referenceValue) + 3} textAnchor="end" fill="#d1d5db" fontSize="10">{referenceValue.toFixed(2)}</text>
+            <line x1={PAD.l} y1={valueToY(referenceValue)} x2={PAD.l + plotW} y2={valueToY(referenceValue)} stroke="var(--studio-muted)" strokeDasharray="4 3" />
+            <text x={PAD.l - 4} y={valueToY(referenceValue) + 3} textAnchor="end" fill="var(--studio-text)" fontSize="10">{referenceValue.toFixed(2)}</text>
           </>
         )}
         {/* Y 軸ラベル */}
-        <text x={PAD.l - 4} y={PAD.t + 4} textAnchor="end" fill="#9ca3af" fontSize="10">{viewport.valueMax.toFixed(2)}</text>
-        <text x={PAD.l - 4} y={PAD.t + plotH} textAnchor="end" fill="#9ca3af" fontSize="10">{viewport.valueMin.toFixed(2)}</text>
+        <text x={PAD.l - 4} y={PAD.t + 4} textAnchor="end" fill="var(--studio-muted)" fontSize="10">{viewport.valueMax.toFixed(2)}</text>
+        <text x={PAD.l - 4} y={PAD.t + plotH} textAnchor="end" fill="var(--studio-muted)" fontSize="10">{viewport.valueMin.toFixed(2)}</text>
         {/* X 軸ラベル */}
-        <text x={tickToX(0)} y={height - 4} fill="#9ca3af" fontSize="10">0</text>
-        <text x={tickToX(duration)} y={height - 4} textAnchor="end" fill="#9ca3af" fontSize="10">{duration}</text>
+        <text x={tickToX(0)} y={height - 4} fill="var(--studio-muted)" fontSize="10">0</text>
+        <text x={tickToX(duration)} y={height - 4} textAnchor="end" fill="var(--studio-muted)" fontSize="10">{duration}</text>
         {warningRange && (
           <defs>
             <clipPath id={warningClipId}>
@@ -505,9 +513,9 @@ export const CurveEditor: React.FC<Props> = ({
           zIndex={2000}
           minW="140px"
           p="1"
-          bg="gray.800"
+          bg="var(--studio-panel)"
           border="1px solid"
-          borderColor="gray.600"
+          borderColor="var(--studio-line)"
           borderRadius="md"
           boxShadow="lg"
           onPointerDown={e => e.stopPropagation()}
@@ -531,9 +539,9 @@ export const CurveEditor: React.FC<Props> = ({
           zIndex={2100}
           px="2"
           py="1"
-          bg="gray.800"
+          bg="var(--studio-panel)"
           border="1px solid"
-          borderColor="gray.600"
+          borderColor="var(--studio-line)"
           borderRadius="sm"
           fontSize="xs"
           pointerEvents="none"
@@ -541,8 +549,8 @@ export const CurveEditor: React.FC<Props> = ({
           {dragTooltipText}
         </Box>
       )}
-      <Text fontSize="xs" color="gray.500" mt="1">
-        ダブルクリックで追加 / ドラッグで移動 / 右クリックで Ease / T で Linear⇔Bezier / Delete で削除
+      <Text fontSize="xs" color="var(--studio-muted)" mt="1">
+        {t('studio.curve_shortcuts')}
       </Text>
     </Box>
   )

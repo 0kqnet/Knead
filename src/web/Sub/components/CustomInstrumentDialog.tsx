@@ -250,12 +250,12 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.custom_instrument_title')} tabIndex={-1}
         w="1040px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 40px)"
-        overflow="hidden" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        overflow="hidden" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.custom_instrument_title')}</Text>
-            <Text mt="1" fontSize="sm" color="gray.400">
+            <Text mt="1" fontSize="sm" color="var(--studio-muted)">
               {t('studio.custom_instrument_description')}
             </Text>
           </Box>
@@ -269,13 +269,13 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
               <Button data-dialog-initial-focus size="sm" colorScheme="blue" onClick={add} isDisabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
                 {t('studio.custom_instrument_add')}
               </Button>
-              <Text alignSelf="center" fontSize="xs" color="gray.400">
+              <Text alignSelf="center" fontSize="xs" color="var(--studio-muted)">
                 {t('studio.custom_instrument_count', { count: draft.length, max: MAX_PROJECT_CUSTOM_INSTRUMENTS })}
               </Text>
             </Flex>
             <Box mt="2" flex="1" overflowY="auto" pr="1" aria-label={t('studio.custom_instrument_list')}>
               {draft.length === 0 && (
-                <Text p="3" color="gray.500" fontSize="sm">{t('studio.custom_instrument_empty')}</Text>
+                <Text p="3" color="var(--studio-muted)" fontSize="sm">{t('studio.custom_instrument_empty')}</Text>
               )}
               {draft.map((instrument, index) => {
                 const usage = instrument.kind === 'audio'
@@ -309,7 +309,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
 
           <Box flex="1" minW="0" overflowY="auto" pr="2">
             {!selected
-              ? <Text color="gray.500">{t('studio.custom_instrument_select_hint')}</Text>
+              ? <Text color="var(--studio-muted)">{t('studio.custom_instrument_select_hint')}</Text>
               : (
                   <Box>
                     {isProtectedProjectCustomInstrument(selected) && (
@@ -375,11 +375,11 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                     </Flex>
 
                     {selected.kind === 'audio' && (
-                      <Box mt="4" p="3" bg="gray.900" borderRadius="md">
+                      <Box mt="4" p="3" bg="var(--studio-frame)" borderRadius="md">
                         <Flex align="center" gap="3" wrap="wrap">
                           <Box flex="1" minW="230px">
                             <Text fontWeight="bold">{t('studio.custom_instrument_attachment')}</Text>
-                            <Text fontSize="xs" color="gray.400">
+                            <Text fontSize="xs" color="var(--studio-muted)">
                               {selectedAssets.length
                                 ? t('studio.custom_instrument_attachment_summary', {
                                     count: selectedAssets.length,

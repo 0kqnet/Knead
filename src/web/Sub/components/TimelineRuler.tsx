@@ -93,9 +93,9 @@ export const TimelineRuler: React.FC<Props> = ({
       h="32px"
       minW="100%"
       w={`${TIMELINE_LEADING_PADDING_PX + tickToPx(lengthTicks, pxPerTick)}px`}
-      bg="gray.800"
+      bg="var(--studio-frame)"
       borderBottom="1px solid"
-      borderColor="gray.600"
+      borderColor="var(--studio-line)"
       userSelect="none"
       onClick={(event) => {
         const rect = event.currentTarget.getBoundingClientRect()
@@ -113,7 +113,7 @@ export const TimelineRuler: React.FC<Props> = ({
           top={mark.major ? '0' : '15px'}
           bottom="0"
           borderLeft="1px solid"
-          borderColor={mark.major ? 'gray.300' : 'gray.500'}
+          borderColor={mark.major ? 'var(--studio-muted)' : 'var(--studio-line)'}
         >
           {(mark.major || pxPerTick >= 6) && (
             <Text
@@ -121,7 +121,7 @@ export const TimelineRuler: React.FC<Props> = ({
               left="3px"
               top="1px"
               fontSize="9px"
-              color={mark.major ? 'gray.100' : 'gray.400'}
+              color={mark.major ? 'var(--studio-text)' : 'var(--studio-muted)'}
               whiteSpace="nowrap"
             >
               {formatLabel(mark.tick, settings, tempoModel)}

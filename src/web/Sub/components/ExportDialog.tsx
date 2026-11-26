@@ -150,14 +150,14 @@ export const ExportDialog: React.FC<Props> = ({
     >
       <Box
         ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('studio.audio_export')} tabIndex={-1}
-        w="560px" maxH="90vh" overflowY="auto" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        w="560px" maxH="90vh" overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="center">
           <Text fontSize="xl" fontWeight="bold">{t('studio.audio_export')}</Text>
           <Box flex="1" />
           <Button size="sm" onClick={onClose} isDisabled={exportBusy}>×</Button>
         </Flex>
-        <Text fontSize="sm" color="gray.400" mt="1">{defaultName}</Text>
+        <Text fontSize="sm" color="var(--studio-muted)" mt="1">{defaultName}</Text>
 
         {missingSounds.length > 0 && (
           <Box mt="4" p="3" bg="red.900" border="1px solid" borderColor="red.500" borderRadius="md">
@@ -207,7 +207,7 @@ export const ExportDialog: React.FC<Props> = ({
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
             <Select
               aria-label={t('studio.range')}
-              w="140px" value={options.range}
+              w="165px" value={options.range}
               items={[
                 { label: t('studio.project_range'), value: 'project' },
                 { label: t('studio.loop_range'), value: 'loop' },
@@ -221,7 +221,7 @@ export const ExportDialog: React.FC<Props> = ({
           {advanced ? `▾ ${t('studio.advanced')}` : `▸ ${t('studio.advanced')}`}
         </Button>
         {advanced && (
-          <Flex mt="2" gap="4" wrap="wrap" p="3" bg="gray.900" borderRadius="md">
+          <Flex mt="2" gap="4" wrap="wrap" p="3" bg="var(--studio-frame)" borderRadius="md">
             <Box>
               <Text fontSize="xs">{t('studio.audio_export_sample_rate')}</Text>
               <Flex gap="2" align="center">
@@ -249,7 +249,7 @@ export const ExportDialog: React.FC<Props> = ({
                   precision={0}
                   onCommit={sampleRate => update({ sampleRate })}
                 />
-                <Text fontSize="xs" color="gray.400">Hz</Text>
+                <Text fontSize="xs" color="var(--studio-muted)">Hz</Text>
               </Flex>
             </Box>
             <Box>
@@ -321,7 +321,7 @@ export const ExportDialog: React.FC<Props> = ({
         )}
 
         {validationError && (
-          <Text role="alert" mt="3" color="red.300" fontSize="sm">
+          <Text role="alert" mt="3" color="var(--studio-error)" fontSize="sm">
             {t(VALIDATION_KEYS[validationError], {
               min: MIN_AUDIO_EXPORT_SAMPLE_RATE,
               max: MAX_AUDIO_EXPORT_SAMPLE_RATE,
@@ -339,11 +339,11 @@ export const ExportDialog: React.FC<Props> = ({
                 %
               </Text>
             </Flex>
-            <Box mt="1" h="8px" bg="gray.950" borderRadius="full" overflow="hidden">
+            <Box mt="1" h="8px" bg="var(--studio-canvas)" borderRadius="full" overflow="hidden">
               <Box h="100%" w={`${Math.max(0, Math.min(100, progress.progress * 100))}%`} bg="blue.400" />
             </Box>
-            {progress.currentTrack && <Text fontSize="xs" color="gray.400">{progress.currentTrack}</Text>}
-            {progress.error && <Text color="red.300" fontSize="sm" mt="2">{progress.error}</Text>}
+            {progress.currentTrack && <Text fontSize="xs" color="var(--studio-muted)">{progress.currentTrack}</Text>}
+            {progress.error && <Text color="var(--studio-error)" fontSize="sm" mt="2">{progress.error}</Text>}
             {progress.done && (
               <Text color="green.300" fontSize="sm" mt="2">
                 {t('studio.audio_export_complete')}

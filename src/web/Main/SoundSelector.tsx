@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
-import { Box, Flex, IconButton, Input, InputGroup, InputLeftElement, InputRightElement, Menu, MenuButton, MenuGroup, MenuItem, MenuList, MenuOptionGroup, MenuOptionItem, MenuSeparator, Spacer, Toggle, useColorModeValue } from '@yamada-ui/react'
+import { Box, Flex, IconButton, Input, InputGroup, InputLeftElement, InputRightElement, Menu, MenuButton, MenuGroup, MenuItem, MenuList, MenuOptionGroup, MenuOptionItem, MenuSeparator, Spacer, Text, Toggle, useColorModeValue } from '@yamada-ui/react'
 import { ArrowDownAZIcon, FilterIcon, SearchIcon, SquareCheckBigIcon, XIcon } from '@yamada-ui/lucide'
 import { useVirtualScroll } from '../../hooks/useVirtualScroll'
 import { RatingStars } from './RatingStars'
 import { updateSelectedSound } from '../../store/fetchSlice'
-import { useWindowSize } from '../../hooks/useWindowSize'
 import { useTranslation } from 'react-i18next'
 import { GoStarFill } from 'react-icons/go'
 import { SoundSort } from '../../types/Settings'
@@ -103,24 +102,20 @@ export const SoundSelector = () => {
 
   const itemHeight = 40
 
-  useWindowSize()
-
-  const listBoxHeightCSS = 'calc(100vh - 388.5px)'
-  const initialHeight = window.innerHeight - 388.5
-
-  const containerHeight = scrollRef.current?.getBoundingClientRect().height || initialHeight
+  const [containerHeight, setContainerHeight] = useState(0)
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    const observer = new ResizeObserver(() => setContainerHeight(container.clientHeight))
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   const { displayingItems, handleScroll, startIndex } = useVirtualScroll({
     containerHeight,
     itemHeight,
     items: filteredSounds,
   })
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0
-    }
-  }, [containerHeight])
 
   const onChangeSearchWord = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTxt(e.target.value)
@@ -174,9 +169,6 @@ export const SoundSelector = () => {
         id={item.id}
         w="full"
         maxH={itemHeight}
-        className="sound-list-box"
-        _hover={{ background: ['blackAlpha.200', 'whiteAlpha.200'] }}
-        bg=""
       >
         <Flex
           w="full"
@@ -196,7 +188,7 @@ export const SoundSelector = () => {
 
   return (
     <>
-      <Flex w="full">
+      <Flex w="full" className="knead-sound-search" gap="2">
         <InputGroup>
           <InputLeftElement>
             <SearchIcon color="gray.500" fontSize="lg" />
@@ -266,17 +258,27 @@ export const SoundSelector = () => {
         </Menu>
       </Flex>
 
-      <Box marginTop={2} border="1px solid" borderColor="inherit" borderRadius={5} h={listBoxHeightCSS}>
+      <Box className="sound-list-pane">
         <div
           onScroll={handleScroll}
           ref={scrollRef}
           className="sound-list-container"
         >
-          <div className="sound-list-outer" style={{ height: (filteredSounds.length * itemHeight) + 2 }}>
-            <ul className="sound-list-ul" style={{ top: startIndex * itemHeight }}>
-              {items}
-            </ul>
-          </div>
+          {filteredSounds.length > 0
+            ? (
+                <div style={{ height: (filteredSounds.length * itemHeight) + 2 }}>
+                  <ul className="sound-list-ul" style={{ top: startIndex * itemHeight }}>
+                    {items}
+                  </ul>
+                </div>
+              )
+            : (
+                <Flex h="100%" align="center" justify="center" px="3">
+                  <Text fontSize="sm" color="var(--studio-muted)">
+                    {t(targetVersion ? 'studio.no_matching_sounds' : 'browse_sounds_hint')}
+                  </Text>
+                </Flex>
+              )}
         </div>
       </Box>
     </>

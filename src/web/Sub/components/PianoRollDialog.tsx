@@ -374,12 +374,12 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
     >
       <Box
         w="min(1180px, calc(100vw - 24px))" h="min(820px, calc(100vh - 24px))"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="4" display="flex" flexDirection="column"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="4" display="flex" flexDirection="column"
       >
         <Flex align="center" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.piano_roll_title')}</Text>
-            <Text fontSize="xs" color="gray.400">{t('studio.piano_roll_description')}</Text>
+            <Text fontSize="xs" color="var(--studio-muted)">{t('studio.piano_roll_description')}</Text>
           </Box>
           <Box flex="1" />
           <Select
@@ -411,16 +411,16 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
         </Flex>
 
-        <Flex mt="3" gap="3" fontSize="xs" color="gray.300">
+        <Flex mt="3" gap="3" fontSize="xs" color="var(--studio-muted)">
           <Text>{t('studio.piano_roll_visible_count', { count: visible.total })}</Text>
           <Text>{t('studio.piano_roll_selected_count', { count: localSelection.size })}</Text>
           <Text>{t('studio.piano_roll_changed_count', { count: changedCount })}</Text>
           <Text>{t('studio.piano_roll_grid_step', { count: gridStep })}</Text>
-          {visible.truncated && <Text color="orange.300">{t('studio.piano_roll_limit_warning')}</Text>}
-          {lockedTrackIds.size > 0 && <Text color="yellow.300">{t('studio.piano_roll_locked_hint')}</Text>}
+          {visible.truncated && <Text color="var(--studio-warning)">{t('studio.piano_roll_limit_warning')}</Text>}
+          {lockedTrackIds.size > 0 && <Text color="var(--studio-warning)">{t('studio.piano_roll_locked_hint')}</Text>}
         </Flex>
 
-        <Box mt="3" flex="1" minH="0" overflow="auto" bg="gray.950" border="1px solid" borderColor="gray.600">
+        <Box mt="3" flex="1" minH="0" overflow="auto" bg="var(--studio-canvas)" border="1px solid" borderColor="var(--studio-line)">
           <Flex align="start" w={`${88 + canvasWidth}px`} minH={`${canvasHeight}px`}>
             <Box position="sticky" left="0" zIndex="4" w="88px" flexShrink="0" boxShadow="2px 0 4px rgba(0,0,0,.45)">
               {keys.map(note => (
@@ -462,7 +462,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   borderColor={line.kind === 'bar' ? 'purple.300' : line.kind === 'beat' ? 'whiteAlpha.400' : 'whiteAlpha.100'}
                 >
                   {line.kind !== 'tick' && (
-                    <Text ml="1" fontSize="10px" color="gray.400">{Math.round(line.tick)}</Text>
+                    <Text ml="1" fontSize="10px" color="var(--studio-muted)">{Math.round(line.tick)}</Text>
                   )}
                 </Box>
               ))}
@@ -568,7 +568,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           />
         </Flex>
 
-        {error && <Text mt="2" role="alert" color="red.300">{t('studio.piano_roll_error', { error })}</Text>}
+        {error && <Text mt="2" role="alert" color="var(--studio-error)">{t('studio.piano_roll_error', { error })}</Text>}
         <Flex mt="3" justify="flex-end" gap="2">
           <Button onClick={onClose} isDisabled={busy}>{t('studio.cancel')}</Button>
           <Button colorScheme="purple" isLoading={busy} isDisabled={changedCount === 0} onClick={() => { void apply() }}>

@@ -188,11 +188,11 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
       role="dialog" aria-modal="true" aria-label={t('studio.nbs_macros_title')}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
-      <Box w="680px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)" overflowY="auto" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5">
+      <Box w="680px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)" overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5">
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.nbs_macros_title')}</Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="var(--studio-muted)">
               {t('studio.nbs_macros_description')}
             </Text>
           </Box>
@@ -200,7 +200,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
           <Button size="sm" onClick={onClose} isDisabled={busy}>×</Button>
         </Flex>
 
-        <Box mt="4" p="4" bg="gray.900" borderRadius="md">
+        <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="center" gap="3">
             <Text minW="140px" fontSize="sm">{t('studio.nbs_macro_label')}</Text>
             <Select
@@ -289,7 +289,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
               </Button>
             )}
             {['fade-in', 'fade-out', 'replace-key', 'reset-properties'].includes(type) && (
-              <Text fontSize="sm" color="gray.400">{t('studio.nbs_macro_no_parameters')}</Text>
+              <Text fontSize="sm" color="var(--studio-muted)">{t('studio.nbs_macro_no_parameters')}</Text>
             )}
           </Box>
         </Box>
@@ -297,13 +297,13 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
         <Text mt="3" fontSize="xs" color={selectionCount ? 'cyan.300' : 'orange.300'}>
           {t('studio.nbs_macro_selection_hint', { count: selectionCount })}
         </Text>
-        <Box mt="3" p="3" bg="gray.900" borderRadius="md" aria-live="polite">
+        <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md" aria-live="polite">
           <Text fontSize="sm" fontWeight="bold">{t('studio.nbs_macro_preview_title')}</Text>
           {!selectionCount && (
-            <Text mt="1" fontSize="sm" color="gray.400">{t('studio.nbs_macro_preview_empty')}</Text>
+            <Text mt="1" fontSize="sm" color="var(--studio-muted)">{t('studio.nbs_macro_preview_empty')}</Text>
           )}
           {previewError && (
-            <Text role="alert" mt="1" fontSize="sm" color="red.300">
+            <Text role="alert" mt="1" fontSize="sm" color="var(--studio-error)">
               {t('studio.nbs_macro_preview_error', { error: previewError })}
             </Text>
           )}
@@ -317,24 +317,24 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
                 })}
               </Text>
               {!hasPreviewChanges && (
-                <Text mt="1" fontSize="xs" color="gray.400">{t('studio.nbs_macro_preview_no_changes')}</Text>
+                <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_macro_preview_no_changes')}</Text>
               )}
               {!!preview.details.length && (
                 <Box mt="2" maxH="170px" overflowY="auto">
                   {preview.details.map(detail => (
-                    <Text key={`${detail.kind}:${detail.markerId}`} fontSize="xs" fontFamily="mono" color="gray.300">
+                    <Text key={`${detail.kind}:${detail.markerId}`} fontSize="xs" fontFamily="mono" color="var(--studio-muted)">
                       {formatPreviewDetail(detail)}
                     </Text>
                   ))}
                 </Box>
               )}
               {!!preview.omittedDetailCount && (
-                <Text mt="1" fontSize="xs" color="gray.500">
+                <Text mt="1" fontSize="xs" color="var(--studio-muted)">
                   {t('studio.nbs_macro_preview_more', { count: preview.omittedDetailCount })}
                 </Text>
               )}
               {preview.result.warnings.map(warning => (
-                <Text key={warning} mt="1" fontSize="xs" color="orange.300">{warning}</Text>
+                <Text key={warning} mt="1" fontSize="xs" color="var(--studio-warning)">{warning}</Text>
               ))}
             </>
           )}

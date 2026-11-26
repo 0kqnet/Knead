@@ -252,13 +252,13 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
     >
       <Box
         w="760px" maxW="calc(100vw - 32px)" maxH="92vh" overflowY="auto"
-        bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
         role="dialog" aria-modal="true" aria-label="Studio extensions"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">Studio Extensions</Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="var(--studio-muted)">
               Built-in tools plus permission-reviewed, code-free declarative packages on Studio extension API v1.
             </Text>
           </Box>
@@ -282,11 +282,11 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
           </Box>
         )}
 
-        <Box mt="4" p="4" bg="gray.900" borderRadius="lg" border="1px solid" borderColor="gray.700">
+        <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="lg" border="1px solid" borderColor="var(--studio-line)">
           <Flex align="center" gap="3" wrap="wrap">
             <Box flex="1" minW="250px">
               <Text fontWeight="bold">Humanize</Text>
-              <Text fontSize="xs" color="gray.400">Deterministic timing, volume, pitch, and lane variation.</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">Deterministic timing, volume, pitch, and lane variation.</Text>
             </Box>
             <Text fontSize="xs" color={statusColor(humanizeInfo)} data-extension-status="knead.humanize">
               {humanizeInfo?.status ?? 'inactive'}
@@ -352,11 +352,11 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
           </Flex>
         </Box>
 
-        <Box mt="4" p="4" bg="gray.900" borderRadius="lg" border="1px solid" borderColor="gray.700">
+        <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="lg" border="1px solid" borderColor="var(--studio-line)">
           <Flex align="center" gap="3" wrap="wrap">
             <Box flex="1" minW="250px">
               <Text fontWeight="bold">Note Block Composer</Text>
-              <Text fontSize="xs" color="gray.400">Turn each selected marker into a pitch-safe chord or arpeggio.</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">Turn each selected marker into a pitch-safe chord or arpeggio.</Text>
             </Box>
             <Text fontSize="xs" color={statusColor(composerInfo)} data-extension-status="knead.note-block-composer">
               {composerInfo?.status ?? 'inactive'}

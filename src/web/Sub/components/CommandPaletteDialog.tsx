@@ -274,8 +274,8 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
     >
       <Box
         w="720px" maxW="100%" maxH="min(760px, calc(100vh - 32px))"
-        display="flex" flexDirection="column" bg="gray.900" border="1px solid"
-        borderColor="gray.700" borderRadius="xl" boxShadow="2xl" overflow="hidden"
+        display="flex" flexDirection="column" bg="var(--studio-frame)" border="1px solid"
+        borderColor="var(--studio-line)" borderRadius="xl" boxShadow="2xl" overflow="hidden"
       >
         <Flex align="center" gap="3" px="4" pt="4">
           <Text id={`command-palette-title-${instanceId}`} as="h2" fontSize="lg" fontWeight="bold" flex="1">
@@ -339,7 +339,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
             }}
           />
           {warningCount > 0 && (
-            <Text mt="2" fontSize="xs" color="orange.300">
+            <Text mt="2" fontSize="xs" color="var(--studio-warning)">
               {t('studio.command_palette_normalized', { count: warningCount })}
             </Text>
           )}
@@ -350,7 +350,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
           flex="1" minH="160px" overflowY="auto" px="2" pb="2"
         >
           {!visibleCommands.length && (
-            <Text p="8" textAlign="center" color="gray.500">{t('studio.command_palette_no_results')}</Text>
+            <Text p="8" textAlign="center" color="var(--studio-muted)">{t('studio.command_palette_no_results')}</Text>
           )}
           {groups.map((group) => {
             let groupOffset = 0
@@ -362,7 +362,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
               <Box key={group.key} role="presentation">
                 <Text
                   role="presentation" px="3" pt="3" pb="1"
-                  fontSize="10px" fontWeight="bold" letterSpacing=".08em" color="gray.500"
+                  fontSize="10px" fontWeight="bold" letterSpacing=".08em" color="var(--studio-muted)"
                 >
                   {upper(group.label, language)}
                 </Text>
@@ -415,7 +415,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
           })}
         </Box>
 
-        <Flex minH="38px" align="center" gap="3" px="4" py="2" bg="gray.950" borderTop="1px solid" borderColor="gray.800">
+        <Flex minH="38px" align="center" gap="3" px="4" py="2" bg="var(--studio-canvas)" borderTop="1px solid" borderColor="var(--studio-line)">
           <Text role="status" aria-live="polite" flex="1" fontSize="xs" color={statusError ? 'red.300' : 'gray.400'}>
             {status || selectedCommand?.description || t('studio.command_palette_hint')}
           </Text>

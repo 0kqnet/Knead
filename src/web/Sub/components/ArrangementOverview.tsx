@@ -59,8 +59,6 @@ export const ArrangementOverview: React.FC<Props> = ({
     if (!context) return
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
     context.clearRect(0, 0, size.width, size.height)
-    context.fillStyle = '#080d18'
-    context.fillRect(0, 0, size.width, size.height)
 
     const tickToX = (tick: number) => tick / Math.max(1, lengthTicks) * size.width
     const totalRows = tracks.length + referenceAudio.length
@@ -116,7 +114,7 @@ export const ArrangementOverview: React.FC<Props> = ({
     const viewWidth = tickToX(viewport.endTick) - viewX
     context.fillStyle = 'rgba(147,197,253,.07)'
     context.fillRect(viewX, 0, Math.max(2, viewWidth), size.height)
-    context.strokeStyle = 'rgba(191,219,254,.9)'
+    context.strokeStyle = '#8976dc'
     context.lineWidth = 1
     context.strokeRect(viewX + 0.5, 0.5, Math.max(1, viewWidth - 1), size.height - 1)
 
@@ -143,11 +141,12 @@ export const ArrangementOverview: React.FC<Props> = ({
       aria-valuemax={lengthTicks}
       aria-valuenow={Math.round(currentTick)}
       tabIndex={0}
-      h="64px"
-      minH="64px"
+      h="52px"
+      minH="52px"
       position="relative"
       borderTop="1px solid"
-      borderColor="gray.700"
+      borderColor="var(--studio-line)"
+      bg="var(--studio-frame)"
       cursor="crosshair"
       userSelect="none"
       onPointerDown={(event) => {
@@ -165,7 +164,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       }}
     >
       <canvas ref={canvasRef} aria-hidden="true" />
-      <Text position="absolute" top="1" left="2" fontSize="9px" color="gray.400" pointerEvents="none">
+      <Text position="absolute" top="1" left="2" fontSize="xs" color="var(--studio-text)" px="1" bg="var(--studio-frame)" borderRadius="sm" pointerEvents="none">
         {label}
       </Text>
     </Box>

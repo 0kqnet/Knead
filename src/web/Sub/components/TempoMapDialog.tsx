@@ -152,12 +152,12 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
     >
       <Box
         w="820px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 40px)"
-        overflowY="auto" bg="gray.800" borderRadius="lg" boxShadow="xl" p="5"
+        overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.tempo_map_title')}</Text>
-            <Text mt="1" fontSize="sm" color="gray.400">
+            <Text mt="1" fontSize="sm" color="var(--studio-muted)">
               {t('studio.tempo_map_description')}
             </Text>
           </Box>
@@ -169,7 +169,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
           {t('studio.tempo_map_anchor_hint')}
         </Text>
 
-        <Flex mt="4" px="2" gap="2" color="gray.400" fontSize="xs">
+        <Flex mt="4" px="2" gap="2" color="var(--studio-muted)" fontSize="xs">
           <Text w="110px">{t('studio.tempo_map_tick')}</Text>
           <Text w="110px">{t('studio.tempo_map_bpm')}</Text>
           <Text w="130px">{t('studio.tempo_map_meter')}</Text>
@@ -180,7 +180,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
           return (
             <Flex
               key={`tempo-row-${index}`} mt="2" p="2" gap="2" align="center"
-              bg="gray.900" borderRadius="md"
+              bg="var(--studio-frame)" borderRadius="md"
             >
               <Input
                 aria-label={t('studio.tempo_map_tick_index', { index: index + 1 })}
@@ -252,7 +252,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
         >
           {t('studio.tempo_map_add')}
         </Button>
-        <Text ml="3" as="span" fontSize="xs" color="gray.400">
+        <Text ml="3" as="span" fontSize="xs" color="var(--studio-muted)">
           {t('studio.tempo_map_count', { count: draft.length, max: MAX_TEMPO_MAP_EVENTS })}
         </Text>
 
