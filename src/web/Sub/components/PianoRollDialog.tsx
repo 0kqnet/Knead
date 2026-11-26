@@ -383,7 +383,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           </Box>
           <Box flex="1" />
           <Select.Root
-            w="220px" value={filterMode}
+            rootProps={{ w: '220px' }} value={filterMode}
             items={[
               { value: 'selected', label: t('studio.piano_roll_filter_selected') },
               { value: 'track', label: t('studio.piano_roll_filter_track', {

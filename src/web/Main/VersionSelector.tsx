@@ -227,7 +227,7 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
             rowHeight={VERSION_ROW_HEIGHT}
             rowComponent={VirtualVersionRow}
             rowProps={{ data: rowData }}
-            rowKey={index => {
+            rowKey={(index) => {
               const row = rows[index]
               return row.type === 'heading' ? `heading-${row.label}` : row.version.raw
             }}

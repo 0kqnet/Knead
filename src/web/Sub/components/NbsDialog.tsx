@@ -340,7 +340,7 @@ export const NbsDialog: React.FC<Props> = ({
             <Text fontWeight="bold">{t('studio.nbs_export')}</Text>
             <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_export_hint')}</Text>
             <Select.Root
-              mt="2" value={String(nbsVersion)}
+              rootProps={{ mt: '2' }} value={String(nbsVersion)}
               items={[
                 { label: 'NBS v6 (beta)', value: '6' },
                 { label: 'NBS v5 (stable)', value: '5' },

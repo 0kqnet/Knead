@@ -175,7 +175,7 @@ export const ExportDialog: React.FC<Props> = ({
             <Select.Root
               data-dialog-initial-focus
               aria-label={t('studio.format')}
-              w="120px" value={options.format}
+              rootProps={{ w: '120px' }} value={options.format}
               items={[
                 { label: 'WAV', value: 'wav' },
                 { label: 'AIFF', value: 'aiff' },
@@ -207,7 +207,7 @@ export const ExportDialog: React.FC<Props> = ({
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
             <Select.Root
               aria-label={t('studio.range')}
-              w="165px" value={options.range}
+              rootProps={{ w: '165px' }} value={options.range}
               items={[
                 { label: t('studio.project_range'), value: 'project' },
                 { label: t('studio.loop_range'), value: 'loop' },
@@ -227,7 +227,7 @@ export const ExportDialog: React.FC<Props> = ({
               <Flex gap="2" align="center">
                 <Select.Root
                   aria-label={t('studio.audio_export_sample_rate_preset')}
-                  w="150px"
+                  rootProps={{ w: '150px' }}
                   value={sampleRatePresets.includes(options.sampleRate) ? String(options.sampleRate) : 'custom'}
                   items={[
                     ...sampleRatePresets.map(value => ({
@@ -256,7 +256,7 @@ export const ExportDialog: React.FC<Props> = ({
               <Text fontSize="xs">{t('studio.audio_export_channels')}</Text>
               <Select.Root
                 aria-label={t('studio.audio_export_channels')}
-                w="110px" value={String(options.channels)}
+                rootProps={{ w: '110px' }} value={String(options.channels)}
                 items={[
                   { label: t('studio.audio_export_mono'), value: '1' },
                   { label: t('studio.audio_export_stereo'), value: '2' },
@@ -269,7 +269,7 @@ export const ExportDialog: React.FC<Props> = ({
                 <Text fontSize="xs">{t('studio.audio_export_bit_depth')}</Text>
                 <Select.Root
                   aria-label={t('studio.audio_export_bit_depth')}
-                  w="120px" value={String(options.wavBitDepth)}
+                  rootProps={{ w: '120px' }} value={String(options.wavBitDepth)}
                   items={[16, 24, 32].map(value => ({
                     label: value === 32 && options.format === 'wav'
                       ? t('studio.audio_export_32_bit_float')
@@ -295,7 +295,7 @@ export const ExportDialog: React.FC<Props> = ({
                 <Text fontSize="xs">{t('studio.audio_export_mp3_bitrate')}</Text>
                 <Select.Root
                   aria-label={t('studio.audio_export_mp3_bitrate')}
-                  w="120px" value={String(options.mp3Bitrate)}
+                  rootProps={{ w: '120px' }} value={String(options.mp3Bitrate)}
                   items={MP3_BITRATES.map(value => ({ label: `${value} kbps`, value: String(value) }))}
                   onChange={mp3Bitrate => update({
                     mp3Bitrate: Number(mp3Bitrate) as AudioExportOptions['mp3Bitrate'],

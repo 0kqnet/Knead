@@ -27,8 +27,7 @@ export interface WorkerTaskLike<Request, Result, Stage extends string> {
   onmessageerror: ((event: MessageEvent<unknown>) => void) | null
 }
 
-export type WorkerTaskFactory<Request, Result, Stage extends string> =
-  () => WorkerTaskLike<Request, Result, Stage>
+export type WorkerTaskFactory<Request, Result, Stage extends string> = () => WorkerTaskLike<Request, Result, Stage>
 
 export function createTaskAbortError(reason?: unknown): Error {
   const message = typeof reason === 'string' && reason ? reason : 'Task canceled'

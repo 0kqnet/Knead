@@ -65,13 +65,14 @@ const common: Configuration = {
 }
 
 // レンダラープロセス向け設定
-const renderer: WebpackConfiguration = {
+const config: WebpackConfiguration = {
   ...common,
   // Tauri WebView 上で実行する通常の Web バンドル。
   target: 'web',
   entry: {
     // React アプリのエントリーファイル
     app: './src/web/index.tsx',
+    main: ['./src/web/img/icon.png', './src/web/img/icon.ico'],
   },
   devServer: {
     port: 1420,
@@ -89,24 +90,16 @@ const renderer: WebpackConfiguration = {
      * HTMLファイルを出力するプラグイン
      */
     new HtmlWebpackPlugin({
+      chunks: ['app'],
       // テンプレート
       template: './src/web/index.html',
     }),
     new HtmlWebpackPlugin({
+      chunks: ['app'],
       template: './src/web/index.html',
       filename: 'sub.html',
     }),
   ],
 }
 
-// その他必要なファイルいろいろ
-const assets: Configuration = {
-  ...common,
-  entry: [
-    './src/web/img/icon.png',
-    './src/web/img/icon.ico',
-  ],
-}
-
-// 上記の設定を配列にしてデフォルト・エクスポート
-export default [renderer, assets]
+export default config

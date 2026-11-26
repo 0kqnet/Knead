@@ -80,10 +80,10 @@ function removeModal(entry: ModalEntry): void {
 }
 
 function initialFocusTarget(container: HTMLElement): HTMLElement {
-  const focusable = focusableElements(container)
   const preferred = container.querySelector<HTMLElement>('[data-dialog-initial-focus]')
+  if (preferred?.matches(FOCUSABLE_SELECTOR) && preferred.tabIndex >= 0 && !isHidden(preferred)) return preferred
+  const focusable = focusableElements(container)
   if (!preferred) return focusable[0] ?? container
-  if (focusable.includes(preferred)) return preferred
   return focusable.find(element => preferred.contains(element)) ?? focusable[0] ?? container
 }
 

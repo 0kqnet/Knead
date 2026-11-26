@@ -408,7 +408,7 @@ async function inflateRawLimited(
     stream = new Blob([data.slice()]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
   }
   catch (error) {
-    throw new Error(`Deflate decompression is unavailable: ${String(error)}`)
+    throw new Error(`Deflate decompression is unavailable: ${String(error)}`, { cause: error })
   }
   const reader = stream.getReader()
   const chunks: Uint8Array[] = []
@@ -427,7 +427,7 @@ async function inflateRawLimited(
   }
   catch (error) {
     if (error instanceof Error && error.message.includes('declared size')) throw error
-    throw new Error(`Invalid deflated ZIP entry: ${String(error)}`)
+    throw new Error(`Invalid deflated ZIP entry: ${String(error)}`, { cause: error })
   }
   if (size !== expectedSize) throw new Error('ZIP entry expanded size does not match its directory record')
   const output = new Uint8Array(size)

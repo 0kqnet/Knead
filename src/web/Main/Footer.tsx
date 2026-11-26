@@ -270,7 +270,7 @@ export const Footer = () => {
             </Tooltip>
             <Spacer maxW={1} />
             <Tooltip content={t('play_source')} placement="end" animationScheme="block-start">
-              <Select.Root value={PlaySource} disabled={!isTargetVersion15w49aOrHigher} items={PlaySourceItems} onChange={onChangePlaySource} includePlaceholder={false} w={32} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }} />
+              <Select.Root value={PlaySource} disabled={!isTargetVersion15w49aOrHigher} items={PlaySourceItems} onChange={onChangePlaySource} includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }} />
             </Tooltip>
             <Spacer />
             <Tooltip content={t('max_volume')} placement="end" animationScheme="block-start">

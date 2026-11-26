@@ -179,7 +179,7 @@ export const NbpDialog: React.FC<Props> = ({
             <Text fontWeight="bold">{t('studio.nbp_import')}</Text>
             <Select.Root
               data-dialog-initial-focus
-              mt="3"
+              rootProps={{ mt: '3' }}
               value={mode}
               items={[
                 { label: t('studio.nbp_mode_insert'), value: 'insert' },
@@ -220,7 +220,7 @@ export const NbpDialog: React.FC<Props> = ({
               {t('studio.nbp_selected_hint', { count: selectionCount })}
             </Text>
             <Select.Root
-              mt="3"
+              rootProps={{ mt: '3' }}
               value={String(version)}
               items={[
                 { label: t('studio.nbp_v2'), value: '2' },

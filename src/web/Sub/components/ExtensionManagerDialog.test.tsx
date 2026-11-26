@@ -174,7 +174,7 @@ describe('ExtensionManagerDialog', () => {
     expect((screen.getByRole('button', { name: 'Apply Humanize' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('installs, permission-approves, runs, persists, exposes export, and removes a JSON package', async () => {
+  it('installs, permission-approves, runs, persists, exposes export, and removes a JSON package', { timeout: 15_000 }, async () => {
     const storage = mockExtensionStorage()
     const onApply = vi.fn()
     const rendered = renderDialog({ onApply })

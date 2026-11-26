@@ -155,7 +155,7 @@ function parseMetadata(entry: SafeZipEntry, warnings: string[]): {
     raw = JSON.parse(text)
   }
   catch (error) {
-    throw new Error(`Invalid pack.mcmeta JSON: ${error instanceof Error ? error.message : String(error)}`)
+    throw new Error(`Invalid pack.mcmeta JSON: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
   }
   if (!isRecord(raw) || !isRecord(raw.pack)) throw new Error('pack.mcmeta must contain a pack object')
   const packFormat = positiveInteger(raw.pack.pack_format)

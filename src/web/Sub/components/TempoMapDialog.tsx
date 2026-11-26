@@ -197,7 +197,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
               />
               <Select.Root
                 aria-label={t('studio.tempo_map_meter_index', { index: index + 1 })}
-                w="130px"
+                rootProps={{ w: '130px' }}
                 value={meterMode}
                 items={[
                   ...(index === 0

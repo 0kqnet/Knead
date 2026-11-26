@@ -295,7 +295,7 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
             items={variantItems}
             onChange={v => onChange({ variantIndex: parseInt(v, 10) })}
             disabled={variants.length === 0 || isMixed(soundIdCommon)}
-            w="320px"
+            rootProps={{ w: '320px' }}
             placeholder={isMixed(variantCommon) ? mixedLabel : undefined}
             includePlaceholder={false}
           />

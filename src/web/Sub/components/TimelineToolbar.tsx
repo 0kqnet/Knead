@@ -269,20 +269,20 @@ export const TimelineToolbar: React.FC<Props> = ({
         <Flex className="studio-toolbar-group studio-tempo-controls">
           <Text as="span" className="studio-field-label">BPM</Text>
           <CommitNumberInput
-            aria-label="BPM" size="xs" w="60px" value={settings.bpm} min={20} max={300} step={1} precision={0}
+            aria-label="BPM" size="xs" w="68px" value={settings.bpm} min={20} max={300} step={1} precision={0}
             onCommit={bpm => onSettingsChange({ bpm })}
           />
           <Flex className="studio-toolbar-group" role="group" aria-label={t('studio.time_signature')}>
             <CommitNumberInput
               aria-label={t('studio.meter_numerator')}
-              size="xs" w="42px" value={settings.timeSignature.numerator} min={1} max={16} step={1} precision={0}
+              size="xs" w="58px" value={settings.timeSignature.numerator} min={1} max={16} step={1} precision={0}
               onCommit={numerator => onSettingsChange({
                 timeSignature: { ...settings.timeSignature, numerator },
               })}
             />
             <Select.Root
               aria-label={t('studio.meter_denominator')}
-              size="xs" w="55px"
+              size="xs" rootProps={{ w: '64px' }}
               value={String(settings.timeSignature.denominator)}
               items={[2, 4, 8, 16].map(value => ({ label: `/${value}`, value: String(value) }))}
               onChange={value => onSettingsChange({
@@ -296,7 +296,7 @@ export const TimelineToolbar: React.FC<Props> = ({
           <Text as="span" className="studio-field-label">{t('studio.snap')}</Text>
           <Select.Root
             aria-label={t('studio.snap')}
-            size="xs" w="82px"
+            size="xs" rootProps={{ w: '82px' }}
             value={snapValue}
             items={snapItems}
             onChange={(value) => {

@@ -173,7 +173,7 @@ function parseLayer(input: ResourcePackLayerInput): ParsedLayer {
     raw = JSON.parse(input.soundsJson)
   }
   catch (error) {
-    throw new Error(`Invalid sounds.json JSON: ${error instanceof Error ? error.message : String(error)}`)
+    throw new Error(`Invalid sounds.json JSON: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
   }
   if (!isRecord(raw) || Object.keys(raw).length > MAX_EVENTS) throw new Error('sounds.json has an invalid event count')
   const events = new Map<string, SoundEvent>()

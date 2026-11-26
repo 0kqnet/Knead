@@ -220,7 +220,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
                 if (value === 'set-velocity') setPrimary(100)
                 if (value === 'set-panning') setPrimary(0)
               }}
-              flex="1"
+              rootProps={{ flex: '1' }}
             />
           </Flex>
 

@@ -31,6 +31,8 @@ export const CommitNumberInput = React.forwardRef<HTMLInputElement, CommitNumber
   min = Number.MIN_SAFE_INTEGER,
   max = Number.MAX_SAFE_INTEGER,
   precision,
+  w,
+  rootProps,
   onBlur,
   onFocus,
   onKeyDown,
@@ -62,6 +64,7 @@ export const CommitNumberInput = React.forwardRef<HTMLInputElement, CommitNumber
     <NumberInput
       ref={ref}
       {...props}
+      rootProps={{ w, ...rootProps }}
       value={draft}
       min={min}
       max={max}

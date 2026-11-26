@@ -198,7 +198,8 @@ export const SoundSelector = () => {
           </InputElement>
 
           <Input value={searchTxt} onChange={onChangeSearchWord} placeholder={t('search_sound_id')} />
-          <InputElement placement="end"
+          <InputElement
+            placement="end"
             clickable
             onClick={() => {
               setTxtFilters([])
@@ -244,8 +245,14 @@ export const SoundSelector = () => {
 
           <MenuContent className="menu-list-no-style">
             <MenuGroup label={t('rating_filter')}>
-              <MenuItem onSelect={() => clearRatingFilters()}><XIcon fontSize="lg" />{t('clear_filter')}</MenuItem>
-              <MenuItem onSelect={() => allOnRatingFilters()}><SquareCheckBigIcon fontSize="lg" />{t('all_on_filter')}</MenuItem>
+              <MenuItem onSelect={() => clearRatingFilters()}>
+                <XIcon fontSize="lg" />
+                {t('clear_filter')}
+              </MenuItem>
+              <MenuItem onSelect={() => allOnRatingFilters()}>
+                <SquareCheckBigIcon fontSize="lg" />
+                {t('all_on_filter')}
+              </MenuItem>
               <MenuSeparator />
 
               <MenuOptionGroup

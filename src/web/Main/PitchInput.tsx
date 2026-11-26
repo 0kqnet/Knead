@@ -1,5 +1,5 @@
 import { Slider, Spacer, Tooltip, Select, Flex } from '@yamada-ui/react'
-import React, { JSX, useCallback, useMemo, useState } from 'react'
+import React, { JSX, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../components/CommitNumberInput'
 
@@ -43,8 +43,6 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
 
   const { t } = useTranslation()
 
-  const [internalPitch, setInternalPitch] = useState(safePitch)
-
   const safePitchFloat = useMemo(() => parseFloat(safePitch), [safePitch])
   const selectedPitchScale = useMemo(
     () => floatPitchScale.find(({ float: v }) => (v - 0.005 < safePitchFloat) && (safePitchFloat < v + 0.005))?.value ?? unsupportedPitch,
@@ -63,36 +61,20 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
     [selectedPitchScale, t],
   )
 
-  const onChangePitchSlider = useCallback((value: number) => {
-    setInternalPitch(value.toString())
-    onChange(value.toString())
+  const onChangePitchValue = useCallback((value: number) => {
+    onChange(String(value))
   }, [onChange])
-  const onCommitPitchInput = useCallback((value: number) => {
-    const pitch = value.toString()
-    setInternalPitch(pitch)
-    onChange(pitch)
-  }, [onChange, setInternalPitch])
 
   const onChangePitchScaleMenu = useCallback((value: string) => {
-    if (value !== unsupportedPitch) {
-      setInternalPitch(value.toString())
-      onChange(value)
-    }
+    if (value !== unsupportedPitch) onChange(value)
   }, [onChange])
-
-  const style = document.getElementById('pitchScaleItems')?.lastElementChild
-  if (style?.innerHTML) {
-    const label = pitchScales.find(v => v.value == selectedPitchScale)?.label ?? ''
-    if (label === unsupportedPitch) style.innerHTML = label
-    else style.innerHTML = [t(label), '-', parseFloat(internalPitch).toFixed(2).toString()].join(' ')
-  }
 
   return (
     <>
       <Tooltip content={t('pitch_input')} placement="end" animationScheme="block-start">
         <Flex>
           <Slider.Root
-            onChange={onChangePitchSlider} value={parseFloat(safePitch)}
+            onChange={onChangePitchValue} value={safePitchFloat}
             w={32} h={10} step={0.01} min={0.5} max={2}
             rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
             thumbSize={2.5} readOnly={false}
@@ -102,7 +84,7 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
           />
           <Spacer minW={3} />
           <CommitNumberInput
-            onCommit={onCommitPitchInput} value={internalPitch}
+            onCommit={onChangePitchValue} value={safePitch}
             w={20} placeholder="pitch" step={0.01} precision={2} min={0.5} max={2}
           />
         </Flex>
@@ -111,8 +93,7 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
       <Tooltip content={t('pitch_scale')} placement="end" animationScheme="block-start">
         <Select.Root
           onChange={onChangePitchScaleMenu} items={pitchScaleItems} value={selectedPitchScale}
-          includePlaceholder={false} w={32} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }}
-          id="pitchScaleItems"
+          includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }}
         />
       </Tooltip>
     </>

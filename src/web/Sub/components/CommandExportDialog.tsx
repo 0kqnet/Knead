@@ -213,7 +213,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
             <Select.Root
-              w="160px" value={options.range}
+              rootProps={{ w: '160px' }} value={options.range}
               items={[
                 { label: t('studio.project_range'), value: 'project' },
                 { label: t('studio.loop_range'), value: 'loop' },
@@ -224,7 +224,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_source')}</Text>
             <Select.Root
-              w="130px" value={options.source}
+              rootProps={{ w: '130px' }} value={options.source}
               items={['master', 'music', 'record', 'weather', 'block', 'hostile', 'neutral', 'player', 'ambient', 'voice', 'ui'].map(value => ({ label: value, value }))}
               onChange={source => update({ source })}
             />
@@ -235,7 +235,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_audience')}</Text>
             <Select.Root
-              w="170px" value={options.audience}
+              rootProps={{ w: '170px' }} value={options.audience}
               items={[
                 { label: t('studio.audience_all'), value: 'all' },
                 { label: t('studio.audience_nearby'), value: 'nearby' },
