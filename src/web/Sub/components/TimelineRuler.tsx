@@ -137,7 +137,7 @@ export const TimelineRuler: React.FC<Props> = ({
             top="0"
             bottom="0"
             w={`${tickToPx(settings.loop.endTick - settings.loop.startTick, pxPerTick)}px`}
-            bg="rgba(34,197,94,.16)"
+            bg="var(--studio-loop-ruler-fill)"
             borderX="1px solid #4ade80"
             pointerEvents="none"
           />

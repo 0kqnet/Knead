@@ -494,7 +494,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                   aria-valuenow={Math.round(generation.progress * 100)}
                   aria-label={t('studio.export_generation_progress', { defaultValue: 'Generating export' })}
                 >
-                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="var(--knead-slider-accent)" />
+                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="var(--studio-accent)" />
                 </Box>
               </Box>
               <Text fontSize="xs" minW="42px" textAlign="right">

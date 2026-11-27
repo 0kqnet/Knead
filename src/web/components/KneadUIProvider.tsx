@@ -30,9 +30,9 @@ const theme = extendTheme({
       },
       emerald: {
         base: 'var(--studio-accent)', bg: 'var(--studio-accent-soft)', emphasized: 'var(--knead-focus)',
-        solid: 'var(--studio-accent)', contrast: 'var(--studio-accent-contrast)', outline: 'var(--studio-accent-text)',
+        solid: 'var(--studio-accent)', contrast: 'var(--studio-accent-contrast)', outline: 'var(--studio-selected-text)',
         ghost: 'var(--studio-accent-soft)', subtle: 'var(--studio-accent-soft)',
-        muted: 'var(--knead-accent-line)', fg: 'var(--studio-accent-text)',
+        muted: 'var(--knead-accent-line)', fg: 'var(--studio-selected-text)',
       },
     },
   },

@@ -345,7 +345,7 @@ export const ExportDialog: React.FC<Props> = ({
               </Text>
             </Flex>
             <Box mt="1" h="8px" bg="var(--studio-canvas)" borderRadius="full" overflow="hidden">
-              <Box h="100%" w={`${Math.max(0, Math.min(100, progress.progress * 100))}%`} bg="var(--knead-slider-accent)" />
+              <Box h="100%" w={`${Math.max(0, Math.min(100, progress.progress * 100))}%`} bg="var(--studio-accent)" />
             </Box>
             {progress.currentTrack && <Text fontSize="xs" color="var(--studio-muted)">{progress.currentTrack}</Text>}
             {progress.error && <Text color="var(--studio-error)" fontSize="sm" mt="2">{progress.error}</Text>}

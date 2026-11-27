@@ -376,7 +376,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
                       role="option" aria-selected={selected} aria-disabled={command.disabled || undefined}
                       align="center" gap="3" px="3" py="2" borderRadius="md"
                       bg={selected ? 'var(--studio-accent-soft)' : 'transparent'} opacity={command.disabled ? 0.55 : 1}
-                      color={selected ? 'var(--studio-accent-text)' : 'var(--studio-text)'}
+                      color={selected ? 'var(--studio-selected-text)' : 'var(--studio-text)'}
                       cursor={command.disabled ? 'not-allowed' : 'pointer'}
                       onPointerMove={() => setSelectedIndex(index)}
                       onClick={() => { void execute(command) }}

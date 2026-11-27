@@ -63,7 +63,7 @@
 }
 
 .studio-song-tab[data-active="true"] [role="tab"] {
-    color: var(--studio-accent-text);
+    color: var(--studio-selected-text);
     font-weight: 650;
 }
 
@@ -124,7 +124,7 @@
 }
 
 .studio-toolbar button[aria-pressed="true"] {
-    color: var(--studio-accent-text);
+    color: var(--studio-selected-text);
     background: var(--studio-accent-soft);
 }
 
@@ -296,7 +296,7 @@
 
 :root .knead-choice-group button[aria-pressed="true"] {
     background: var(--studio-accent-soft);
-    color: var(--studio-accent-text);
+    color: var(--studio-selected-text);
     font-weight: 600;
 }
 
@@ -350,6 +350,10 @@
     min-width: 2px;
     border: 1px solid var(--knead-focus);
     background: var(--studio-selection-fill);
+}
+
+:root[data-mode="dark"] .studio-navigator:not(:focus-visible) .studio-navigator-viewport {
+    border-color: var(--knead-control-line-hover);
 }
 
 .studio-navigator-playhead {

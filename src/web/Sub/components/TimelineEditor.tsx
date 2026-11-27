@@ -1648,7 +1648,7 @@ export const TimelineEditor: React.FC<Props> = ({
                 top="32px"
                 h={`${totalTrackHeight}px`}
                 w={`${tickToPx(timeline.state.settings.loop.endTick - timeline.state.settings.loop.startTick, pxPerTick)}px`}
-                bg="rgba(34,197,94,.035)"
+                bg="var(--studio-loop-track-fill)"
                 borderX="1px solid rgba(74,222,128,.35)"
               />
             )}

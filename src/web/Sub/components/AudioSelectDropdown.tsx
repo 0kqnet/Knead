@@ -45,7 +45,7 @@ function SoundOptionRow({
       onClick={() => onSelect(opt)}
       onMouseEnter={() => onActivate(index)}
     >
-      <CheckIcon aria-hidden boxSize="14px" flexShrink="0" opacity={selected ? 1 : 0} />
+      <CheckIcon aria-hidden boxSize="14px" flexShrink="0" color="var(--studio-accent-text)" opacity={selected ? 1 : 0} />
       <span>{opt}</span>
     </div>
   )

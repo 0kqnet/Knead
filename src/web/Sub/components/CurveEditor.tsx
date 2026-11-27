@@ -506,7 +506,7 @@ export const CurveEditor: React.FC<Props> = ({
               <circle
                 cx={cx} cy={cy}
                 r={5}
-                fill={isSel ? '#fbbf24' : (kf.interpolation === 'bezier' ? 'var(--knead-slider-accent)' : '#60a5fa')}
+                fill={isSel ? '#fbbf24' : (kf.interpolation === 'bezier' ? 'var(--studio-accent)' : '#60a5fa')}
                 stroke={isSel ? '#fde68a' : '#1f2937'}
                 strokeWidth={2}
                 cursor="grab"

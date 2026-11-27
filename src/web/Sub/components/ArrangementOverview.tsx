@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Box, Text } from '@yamada-ui/react'
+import { Box, Text, useColorModeValue } from '@yamada-ui/react'
 import type { Marker, ReferenceAudioTrack, TimelineSettings, Track } from '../types/timeline'
 import { referenceAudioDurationTicks } from '../utils/referenceAudio'
 import { overviewXToTick, type OverviewRange } from '../utils/arrangementOverview'
@@ -33,6 +33,8 @@ export const ArrangementOverview: React.FC<Props> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ width: 1, height: 64 })
+  const rowDivider = useColorModeValue('rgba(124,151,134,.18)', 'rgba(160,160,160,.18)')
+  const loopFill = useColorModeValue('rgba(74,222,128,.13)', 'rgba(200,200,200,.13)')
   const tickPercent = (tick: number) => `${tick / Math.max(1, lengthTicks) * 100}%`
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export const ArrangementOverview: React.FC<Props> = ({
     const tickToX = (tick: number) => tick / Math.max(1, lengthTicks) * size.width
     const totalRows = tracks.length + referenceAudio.length
     const rowHeight = size.height / Math.max(1, totalRows)
-    context.strokeStyle = 'rgba(124,151,134,.18)'
+    context.strokeStyle = rowDivider
     context.lineWidth = 1
     for (let index = 1; index < totalRows; index++) {
       const y = Math.round(index * rowHeight) + 0.5
@@ -77,7 +79,7 @@ export const ArrangementOverview: React.FC<Props> = ({
     if (settings.loop.enabled) {
       const x = tickToX(settings.loop.startTick)
       const width = tickToX(settings.loop.endTick) - x
-      context.fillStyle = 'rgba(74,222,128,.13)'
+      context.fillStyle = loopFill
       context.fillRect(x, 0, Math.max(1, width), size.height)
     }
 
@@ -110,7 +112,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       context.fillRect(x, y, width, Math.max(1, rowHeight * 0.64))
     }
     context.globalAlpha = 1
-  }, [lengthTicks, markers, referenceAudio, settings.loop, size, tracks])
+  }, [lengthTicks, loopFill, markers, referenceAudio, rowDivider, settings.loop, size, tracks])
 
   const seekAtPointer = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
