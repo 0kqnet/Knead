@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Modal, Flex, Text } from '@yamada-ui/react'
+import { Box, Flex, IconButton, MaximizeIcon, MinusIcon, Modal, PlusIcon, Text } from '@yamada-ui/react'
 import {
   TRACK_HEADER_WIDTH,
   TRACK_HEIGHT,
@@ -1155,6 +1155,17 @@ export const TimelineEditor: React.FC<Props> = ({
     })
   }, [])
 
+  useEffect(() => {
+    const viewport = scrollRef.current
+    if (!viewport) return
+    const headers = viewport.querySelectorAll<HTMLElement>('[data-track-header-id]')
+    const selected = Array.from(headers).find(header => header.dataset.trackHeaderId === selectedTrackId)
+    if (!selected) return
+    const observer = new ResizeObserver(() => selected.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [selectedTrackId])
+
   const syncViewportRange = useCallback(() => {
     const viewport = scrollRef.current
     if (!viewport) return
@@ -1199,6 +1210,7 @@ export const TimelineEditor: React.FC<Props> = ({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) return
       const target = event.target as HTMLElement
       const mod = event.ctrlKey || event.metaKey
       const key = event.key.toLowerCase()
@@ -1207,8 +1219,8 @@ export const TimelineEditor: React.FC<Props> = ({
         if (!commandPaletteOpen && !blockingDialogOpen) setCommandPaletteOpen(true)
         return
       }
-      if (commandPaletteOpen) return
-      if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName) || target.isContentEditable) return
+      if (commandPaletteOpen || blockingDialogOpen) return
+      if (target.isContentEditable || target.closest('input, textarea, select, button, [role="combobox"], [role="listbox"], [role="menu"], [role="dialog"], [role="slider"]')) return
       if (mod && key === 'n') {
         event.preventDefault()
         void newProject()
@@ -1436,8 +1448,9 @@ export const TimelineEditor: React.FC<Props> = ({
 
   return (
     <Box
-      className={embeddedWorkspace ? undefined : 'studio-shell'}
-      display="flex" flexDir="column" h={embeddedWorkspace ? '100%' : '100vh'} position="relative"
+      className={embeddedWorkspace ? 'studio-editor' : 'studio-shell studio-editor'}
+      data-inspecting={editableSelectedMarkers.length > 0}
+      h={embeddedWorkspace ? '100%' : '100vh'} position="relative"
     >
       {isProjectDragOver && (
         <Box position="absolute" inset="0" zIndex="1500" pointerEvents="none" bg="rgba(0,0,0,.75)" display="flex" alignItems="center" justifyContent="center">
@@ -1493,9 +1506,6 @@ export const TimelineEditor: React.FC<Props> = ({
         settings={timeline.state.settings}
         onSettingsChange={timeline.setSettings}
         onReroll={timeline.rerollRandomSeed}
-        pxPerTick={pxPerTick}
-        onZoom={value => setPxPerTick(Math.max(1.5, Math.min(64, value)))}
-        onFitProject={() => fitRange(0, timeline.state.lengthTicks)}
         onFitSelection={fitSelection}
         canFitSelection={selectedIds.size > 0}
         mixerOpen={mixerOpen}
@@ -1510,8 +1520,6 @@ export const TimelineEditor: React.FC<Props> = ({
       <Box
         ref={scrollRef}
         className="studio-timeline-viewport"
-        flex="1"
-        minH="120px"
         overflow="auto"
         onScroll={syncViewportRange}
         onWheel={(event) => {
@@ -1537,6 +1545,33 @@ export const TimelineEditor: React.FC<Props> = ({
               borderColor="var(--studio-line)"
             >
               <Text fontSize="xs" fontWeight="semibold" color="var(--studio-muted)">{t('studio.tracks')}</Text>
+              <Flex className="studio-zoom-controls" role="group" aria-label={t('studio.zoom')}>
+                <IconButton
+                  size="xs" variant="ghost"
+                  icon={<MinusIcon boxSize="4" />}
+                  aria-label={t('studio.zoom_out')}
+                  title={t('studio.zoom_out')}
+                  onClick={() => setPxPerTick(value => Math.max(1.5, value / 1.35))}
+                />
+                <Text as="span" className="studio-zoom-value">
+                  {Math.round(pxPerTick / DEFAULT_PX_PER_TICK * 100)}
+                  %
+                </Text>
+                <IconButton
+                  size="xs" variant="ghost"
+                  icon={<PlusIcon boxSize="4" />}
+                  aria-label={t('studio.zoom_in')}
+                  title={t('studio.zoom_in')}
+                  onClick={() => setPxPerTick(value => Math.min(64, value * 1.35))}
+                />
+                <IconButton
+                  size="xs" variant="ghost"
+                  icon={<MaximizeIcon boxSize="3.5" />}
+                  aria-label={t('studio.fit_all')}
+                  title={t('studio.fit_all')}
+                  onClick={() => fitRange(0, timeline.state.lengthTicks)}
+                />
+              </Flex>
             </Flex>
             <TimelineRuler
               lengthTicks={timeline.state.lengthTicks}
@@ -1625,6 +1660,7 @@ export const TimelineEditor: React.FC<Props> = ({
       {mixerOpen && (
         <MixerPanel
           tracks={timeline.state.tracks}
+          selectedTrackId={selectedTrackId}
           referenceAudio={referenceAudio}
           master={timeline.state.master}
           trackMeters={playback.trackMeters}

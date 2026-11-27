@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Input, Text, Textarea } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { useModalDialog } from '../hooks/useModalDialog'
 import {
   DEFAULT_SONG_METADATA,
   MAX_LOOP_COUNT,
@@ -84,17 +85,6 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
     setSubmitError('')
   }, [lengthTicks, loop, metadata, open])
 
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || busy) return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [busy, onClose, open])
-
   const validationError = useMemo(() => {
     if (validateSongMetadata(draft.metadata)) return t('studio.song_metadata_invalid_metadata')
     const textLength = draft.metadata.title.length
@@ -116,6 +106,8 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
     }
     return ''
   }, [draft, lengthTicks, t])
+
+  const { dialogRef } = useModalDialog({ open, busy, onClose })
 
   if (!open) return null
 
@@ -172,7 +164,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
     <Box
       position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
       display="flex" alignItems="center" justifyContent="center"
-      role="dialog" aria-modal="true" aria-label={t('studio.song_metadata_title')}
+      ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.song_metadata_title')}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose()
       }}

@@ -42,6 +42,7 @@ export const TrackHeader: React.FC<Props> = ({
   const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
   return (
     <Box
+      className="studio-track-header"
       data-track-header-id={track.id}
       draggable
       h={`${height}px`}
@@ -50,8 +51,6 @@ export const TrackHeader: React.FC<Props> = ({
       borderBottom="1px solid"
       borderRight="1px solid"
       borderColor="var(--studio-line)"
-      px="2"
-      py={track.collapsed ? '1' : '2'}
       overflow="hidden"
       onClick={onSelect}
       onDragStart={event => event.dataTransfer.setData('application/x-knead-track', track.id)}
@@ -99,9 +98,10 @@ export const TrackHeader: React.FC<Props> = ({
         />
       </Flex>
       {!track.collapsed && (
-        <Flex mt="1" align="center" gap="1">
+        <Flex align="center" gap="1">
           <Button
             size="xs" minW="26px" p="0"
+            variant={track.muted ? 'solid' : 'outline'}
             colorScheme={track.muted ? 'red' : 'gray'}
             onClick={(event) => {
               event.stopPropagation()
@@ -115,6 +115,7 @@ export const TrackHeader: React.FC<Props> = ({
           </Button>
           <Button
             size="xs" minW="26px" p="0"
+            variant={track.solo ? 'solid' : 'outline'}
             colorScheme={track.solo ? 'yellow' : 'gray'}
             onClick={(event) => {
               event.stopPropagation()
@@ -182,14 +183,15 @@ export const TrackHeader: React.FC<Props> = ({
         </Flex>
       )}
       {!track.collapsed && (
-        <Flex mt="1" align="center" gap="1">
+        <Flex align="center" gap="1">
           <Text fontSize="10px" fontVariantNumeric="tabular-nums" minW="42px">
             G
             {' '}
             {track.gainDb.toFixed(1)}
           </Text>
           <Slider.Root
-            aria-label="Track gain"
+            size="sm" colorScheme="purple"
+            thumbProps={{ 'aria-label': t('studio.mixer_gain') }}
             value={track.gainDb}
             min={-60}
             max={12}
@@ -203,7 +205,8 @@ export const TrackHeader: React.FC<Props> = ({
             {track.pan.toFixed(1)}
           </Text>
           <Slider.Root
-            aria-label="Track pan"
+            size="sm" colorScheme="purple"
+            thumbProps={{ 'aria-label': t('studio.mixer_pan') }}
             value={track.pan}
             min={-1}
             max={1}

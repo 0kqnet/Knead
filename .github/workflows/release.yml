@@ -93,6 +93,12 @@ jobs:
       - name: Run frontend tests
         run: npm test
 
+      - name: Test Studio in Chromium
+        if: matrix.name == 'linux-x64'
+        run: |
+          npx playwright install --with-deps --only-shell chromium
+          npm run test:studio
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
 

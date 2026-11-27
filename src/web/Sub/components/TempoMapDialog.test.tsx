@@ -130,7 +130,7 @@ describe('TempoMapDialog', () => {
     fireEvent.change(bpm, { target: { value: '95.5' } })
     expect(document.activeElement).toBe(bpm)
     expect(bpm.value).toBe('95.5')
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

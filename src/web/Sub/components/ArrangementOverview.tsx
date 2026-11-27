@@ -135,6 +135,7 @@ export const ArrangementOverview: React.FC<Props> = ({
   return (
     <Box
       ref={wrapperRef}
+      className="studio-navigator"
       role="slider"
       aria-label={label}
       aria-valuemin={0}

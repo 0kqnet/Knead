@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { useModalDialog } from '../hooks/useModalDialog'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineState } from '../types/timeline'
 import {
@@ -152,13 +153,6 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        if (applyLockRef.current) return
-        event.preventDefault()
-        event.stopPropagation()
-        onClose()
-        return
-      }
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.repeat) {
         event.preventDefault()
         event.stopPropagation()
@@ -167,7 +161,9 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
     }
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [apply, onClose, open])
+  }, [apply, open])
+
+  const { dialogRef } = useModalDialog({ open, busy, onClose })
 
   if (!open) return null
 
@@ -185,7 +181,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
     <Box
       position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
       display="flex" alignItems="center" justifyContent="center"
-      role="dialog" aria-modal="true" aria-label={t('studio.nbs_macros_title')}
+      ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.nbs_macros_title')}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
       <Box w="680px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)" overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5">

@@ -112,6 +112,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
   return (
     <Flex data-reference-audio-track={track.id} h={`${height}px`}>
       <Box
+        className="studio-track-header"
         position="sticky"
         left="0"
         zIndex="13"
@@ -122,8 +123,6 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
         borderRight="1px solid"
         borderBottom="1px solid"
         borderColor="var(--studio-line)"
-        px="2"
-        py="1"
         overflow="hidden"
       >
         <Flex align="center" gap="1">
@@ -145,9 +144,9 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
         </Flex>
         {!track.collapsed && (
           <>
-            <Flex mt="1" align="center" gap="1">
-              <Button title="Mute reference audio" size="xs" minW="24px" p="0" colorScheme={track.muted ? 'red' : 'gray'} onClick={() => onChange({ muted: !track.muted })}>M</Button>
-              <Button title="Solo reference audio" size="xs" minW="24px" p="0" colorScheme={track.solo ? 'yellow' : 'gray'} onClick={() => onChange({ solo: !track.solo })}>S</Button>
+            <Flex align="center" gap="1">
+              <Button title="Mute reference audio" size="xs" minW="24px" p="0" variant={track.muted ? 'solid' : 'outline'} colorScheme={track.muted ? 'red' : 'gray'} onClick={() => onChange({ muted: !track.muted })}>M</Button>
+              <Button title="Solo reference audio" size="xs" minW="24px" p="0" variant={track.solo ? 'solid' : 'outline'} colorScheme={track.solo ? 'yellow' : 'gray'} onClick={() => onChange({ solo: !track.solo })}>S</Button>
               <Button size="xs" minW="24px" p="0" colorScheme={track.locked ? 'blue' : 'gray'} onClick={() => onChange({ locked: !track.locked })}>
                 {track.locked ? '🔒' : '🔓'}
               </Button>
@@ -170,14 +169,15 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 <Box h="100%" w={`${Math.min(100, (meter?.peak ?? 0) * 100)}%`} bg={(meter?.peak ?? 0) > 0.9 ? 'red.400' : 'cyan.400'} />
               </Box>
             </Flex>
-            <Flex mt="1" align="center" gap="1">
+            <Flex align="center" gap="1">
               <Text fontSize="9px" minW="38px">
                 G
                 {' '}
                 {track.gainDb.toFixed(1)}
               </Text>
               <Slider.Root
-                aria-label="Reference audio gain"
+                size="sm" colorScheme="purple"
+                thumbProps={{ 'aria-label': 'Reference audio gain' }}
                 value={track.gainDb}
                 min={-60}
                 max={12}
@@ -192,7 +192,8 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 {track.pan.toFixed(1)}
               </Text>
               <Slider.Root
-                aria-label="Reference audio pan"
+                size="sm" colorScheme="purple"
+                thumbProps={{ 'aria-label': 'Reference audio pan' }}
                 value={track.pan}
                 min={-1}
                 max={1}

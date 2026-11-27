@@ -1,3 +1,18 @@
+/* Yamada mounts menu and select popovers in the document body. Keep the
+   editor's sticky controls and fixed dialogs within the Studio layer. */
+.studio-shell {
+    isolation: isolate;
+}
+
+.studio-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "toolbar" "timeline" "navigator" "mixer" "inspector";
+    min-width: 0;
+    min-height: 0;
+}
+
 .studio-tab-bar {
     display: flex;
     flex: 0 0 auto;
@@ -69,7 +84,8 @@
 }
 
 .studio-toolbar {
-    flex: 0 0 auto;
+    grid-area: toolbar;
+    min-width: 0;
     padding: 7px 12px;
     background: var(--studio-panel);
     border-bottom: 1px solid var(--studio-line);
@@ -160,7 +176,17 @@
 }
 
 .studio-zoom-controls {
+    align-items: center;
+    gap: 2px;
     margin-left: auto;
+}
+
+.studio-zoom-controls > button {
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    min-height: 26px;
+    padding: 0;
 }
 
 .studio-zoom-value {
@@ -199,29 +225,99 @@
 }
 
 .studio-timeline-viewport {
+    grid-area: timeline;
+    min-width: 0;
+    min-height: 0;
+    scroll-padding-top: 32px;
     background: var(--studio-canvas);
 }
 
+.studio-track-header {
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    padding: 4px 8px;
+}
+
+.studio-track-header > div > button,
+.studio-track-header > div > input,
+.studio-track-header .ui-number-input__field {
+    height: 26px;
+    min-height: 26px;
+}
+
+.studio-track-header .ui-slider__root {
+    flex: 1;
+    margin-inline: 4px;
+}
+
+.studio-navigator {
+    grid-area: navigator;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.studio-navigator canvas {
+    display: block;
+}
+
+.studio-mixer {
+    grid-area: mixer;
+    min-width: 0;
+}
+
+.studio-mixer-channels {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.studio-mixer-channel,
+.studio-mixer-master {
+    flex-shrink: 0;
+}
+
+.studio-mixer-channel[data-selected="true"] {
+    background: var(--studio-accent-soft);
+}
+
+.studio-timeline-viewport,
+.studio-mixer-channels,
+.studio-inspector-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--studio-muted) var(--studio-frame);
+}
+
+.studio-mixer-master {
+    border-left: 1px solid var(--studio-line);
+}
+
+.studio-mixer button {
+    height: 26px;
+    min-height: 26px;
+}
+
 .studio-inspector {
-    flex: 0 1 auto;
-    min-height: 36px;
-    max-height: min(37vh, 376px);
-    overflow: auto;
-    padding: 0 12px 12px;
+    grid-area: inspector;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-height: min(32vh, 260px);
+    color: var(--studio-text);
     background: var(--studio-panel);
     border-top: 1px solid var(--studio-line);
 }
 
 .studio-inspector-header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     display: flex;
-    align-items: center;
-    gap: 9px;
-    min-height: 36px;
-    background: var(--studio-panel);
-    font-size: 12px;
+    flex: none;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    padding: 9px 12px;
+    font-size: 13px;
     font-weight: 650;
 }
 
@@ -231,16 +327,66 @@
     font-weight: 500;
 }
 
-.studio-inspector-empty {
-    padding-bottom: 0;
+.studio-inspector-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 10px 12px 14px;
+    border-top: 1px solid var(--studio-line);
+}
+
+.studio-inspector-fields,
+.studio-inspector-curves {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.studio-inspector-fields > *,
+.studio-inspector-curves > * {
+    min-width: 0;
+}
+
+.studio-inspector-wide {
+    grid-column: 1 / -1;
+}
+
+.studio-inspector-curves {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--studio-line);
 }
 
 .studio-curve {
+    display: block;
+    max-width: 100%;
     background: var(--studio-canvas);
     border: 1px solid var(--studio-line);
     border-radius: 6px;
     cursor: crosshair;
     user-select: none;
+}
+
+@media (min-width: 650px) {
+    .studio-editor[data-inspecting="true"] {
+        grid-template-columns: minmax(0, 1fr) clamp(240px, 32vw, 368px);
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            "toolbar toolbar"
+            "timeline inspector"
+            "navigator inspector"
+            "mixer inspector";
+    }
+
+    .studio-inspector:not(.studio-inspector-empty) {
+        max-height: none;
+        border-top: 0;
+        border-left: 1px solid var(--studio-line);
+    }
+
+    .studio-inspector-curves {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .studio-curve:focus-visible {
@@ -259,6 +405,12 @@
         column-gap: 7px;
     }
 
+    .studio-toolbar-group > button,
+    .studio-time-units > button {
+        padding-inline: 5px;
+    }
+
+
     .studio-tempo-controls {
         gap: 3px;
     }
@@ -266,6 +418,13 @@
     .studio-field-label:not(:first-child),
     .studio-time-units {
         margin-left: 2px;
+    }
+}
+
+@media (max-width: 649px) {
+    .studio-editor {
+        grid-template-rows: auto minmax(160px, 1fr) auto auto auto;
+        overflow: auto;
     }
 }
 

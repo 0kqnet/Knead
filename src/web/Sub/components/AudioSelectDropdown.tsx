@@ -1,5 +1,5 @@
 import React, { FC, useState, useRef, useEffect, useId, useMemo, ChangeEvent } from 'react'
-import { Box, Input, Portal, Text, usePopper } from '@yamada-ui/react'
+import { Box, Input, Text, usePopper } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window'
 
@@ -77,11 +77,15 @@ export const AudioSelectDropdown: FC<Props> = ({
   const listRef = useRef<ListImperativeAPI>(null)
   const handledFocusRequest = useRef(0)
   const { getReferenceProps, getPopperProps } = usePopper({
-    open, placement: 'start-start', strategy: 'fixed', matchWidth: true, gutter: 4,
+    open, placement: 'end-start', strategy: 'fixed', matchWidth: true, gutter: 4,
   })
 
   useEffect(() => {
-    if (disabled || focusRequest <= 0 || handledFocusRequest.current === focusRequest) return
+    if (focusRequest <= 0) {
+      handledFocusRequest.current = 0
+      return
+    }
+    if (disabled || handledFocusRequest.current === focusRequest) return
     handledFocusRequest.current = focusRequest
     setInputValue(value)
     setActiveIndex(0)
@@ -184,33 +188,31 @@ export const AudioSelectDropdown: FC<Props> = ({
         disabled={disabled}
       />
       {open && (
-        <Portal>
-          <Box
-            {...getPopperProps({ ref })}
-            id={listId}
-            role="listbox"
-            aria-label={label}
-            bg="var(--studio-panel)"
-            color="var(--studio-text)"
-            border="1px solid var(--studio-line)"
-            borderRadius="md"
-            boxShadow="md"
-            zIndex="popover"
-          >
-            {filteredOptions.length > 0
-              ? (
-                  <List
-                    listRef={listRef}
-                    style={{ height: Math.min(filteredOptions.length * ITEM_H, height), width: '100%' }}
-                    rowCount={filteredOptions.length}
-                    rowHeight={ITEM_H}
-                    rowComponent={SoundOptionRow}
-                    rowProps={{ options: filteredOptions, value, activeIndex, listId, onSelect: selectOption, onActivate: setActiveIndex }}
-                  />
-                )
-              : <Text px="3" py="2" fontSize="sm" role="status">{t('studio.no_matching_sounds')}</Text>}
-          </Box>
-        </Portal>
+        <Box
+          {...getPopperProps({ ref })}
+          id={listId}
+          role="listbox"
+          aria-label={label}
+          bg="var(--studio-panel)"
+          color="var(--studio-text)"
+          border="1px solid var(--studio-line)"
+          borderRadius="md"
+          boxShadow="md"
+          zIndex="recoome"
+        >
+          {filteredOptions.length > 0
+            ? (
+                <List
+                  listRef={listRef}
+                  style={{ height: Math.min(filteredOptions.length * ITEM_H, height), width: '100%' }}
+                  rowCount={filteredOptions.length}
+                  rowHeight={ITEM_H}
+                  rowComponent={SoundOptionRow}
+                  rowProps={{ options: filteredOptions, value, activeIndex, listId, onSelect: selectOption, onActivate: setActiveIndex }}
+                />
+              )
+            : <Text px="3" py="2" fontSize="sm" role="status">{t('studio.no_matching_sounds')}</Text>}
+        </Box>
       )}
     </Box>
   )

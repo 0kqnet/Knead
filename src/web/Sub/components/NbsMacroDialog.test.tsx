@@ -122,7 +122,7 @@ describe('NbsMacroDialog', () => {
     const before = structuredClone(source)
     const { onApply, onClose } = renderDialog({ source })
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onApply).not.toHaveBeenCalled()
     expect(source).toEqual(before)
@@ -140,7 +140,7 @@ describe('NbsMacroDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply macro' }))
     fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
     expect(onApply).toHaveBeenCalledTimes(1)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
 
     await act(async () => release?.())

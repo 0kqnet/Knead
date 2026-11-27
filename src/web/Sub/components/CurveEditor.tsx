@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Box, Button, Text } from '@yamada-ui/react'
 import type { Curve, Keyframe } from '../types/timeline'
@@ -48,6 +48,19 @@ export const CurveEditor: React.FC<Props> = ({
 }) => {
   const warningClipId = `curve-warning-${useId().replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const [plotWidth, setPlotWidth] = useState(width)
+  useLayoutEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const resize = () => {
+      if (svg.clientWidth > 0) setPlotWidth(svg.clientWidth)
+    }
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(svg)
+    return () => observer.disconnect()
+  }, [])
+
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null)
@@ -68,7 +81,7 @@ export const CurveEditor: React.FC<Props> = ({
   }, [curve, duration, fallback])
   const effectiveCurve = useMemo(() => ({ keyframes: kfs }), [kfs])
 
-  const plotW = width - PAD.l - PAD.r
+  const plotW = Math.max(1, plotWidth - PAD.l - PAD.r)
   const plotH = height - PAD.t - PAD.b
   const viewport = useMemo(
     () => calculateCurveViewport(kfs, duration, valueMin, valueMax),
@@ -510,6 +523,7 @@ export const CurveEditor: React.FC<Props> = ({
           position="fixed"
           left={`${contextMenu.x}px`}
           top={`${contextMenu.y}px`}
+          transform={`translate(${contextMenu.x > window.innerWidth / 2 ? '-100%' : '0'}, ${contextMenu.y > window.innerHeight / 2 ? '-100%' : '0'})`}
           zIndex={2000}
           minW="140px"
           p="1"

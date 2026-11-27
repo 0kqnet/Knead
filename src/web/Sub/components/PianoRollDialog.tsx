@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { useModalDialog } from '../hooks/useModalDialog'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { Marker, TempoMapEvent, TimelineState } from '../types/timeline'
 import {
@@ -178,6 +179,8 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
     const original = originalById.get(marker.id)
     return count + (original && editableFieldsDiffer(original, marker) ? 1 : 0)
   }, 0), [draftMarkers, originalById])
+
+  const { dialogRef } = useModalDialog({ open, busy, onClose })
 
   if (!open) return null
 
@@ -369,7 +372,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
     <Box
       position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.78)"
       display="flex" alignItems="center" justifyContent="center"
-      role="dialog" aria-modal="true" aria-label={t('studio.piano_roll_title')}
+      ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.piano_roll_title')}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
       <Box
@@ -542,30 +545,42 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
               ? t('studio.piano_roll_inspector_count', { count: selectedEditable.length })
               : t('studio.piano_roll_inspector_empty')}
           </Text>
-          <Text fontSize="xs">{t('studio.piano_roll_velocity')}</Text>
-          <CommitNumberInput
-            value={Math.round((firstEditable?.volume ?? 0) * 100)} min={0} max={100} step={1} precision={0}
-            size="sm" w="92px" disabled={!firstEditable}
-            onCommit={value => updateSelected({ volume: value / 100 })}
-          />
-          <Text fontSize="xs">{t('studio.piano_roll_pan')}</Text>
-          <CommitNumberInput
-            value={Math.round((firstEditable?.pan ?? 0) * 100)} min={-100} max={100} step={1} precision={0}
-            size="sm" w="92px" disabled={!firstEditable}
-            onCommit={value => updateSelected({ pan: value / 100 })}
-          />
-          <Text fontSize="xs">{t('studio.piano_roll_duration')}</Text>
-          <CommitNumberInput
-            value={firstEditable?.duration ?? 0} min={0} max={1_000_000} step={1} precision={0}
-            size="sm" w="105px" disabled={!firstEditable}
-            onCommit={value => updateSelected({ duration: value })}
-          />
-          <Text fontSize="xs">{t('studio.piano_roll_retrigger')}</Text>
-          <CommitNumberInput
-            value={firstEditable?.retriggerInterval ?? 1} min={1} max={1_000_000} step={1} precision={0}
-            size="sm" w="105px" disabled={!firstEditable}
-            onCommit={value => updateSelected({ retriggerInterval: value })}
-          />
+          <Flex align="center" gap="2">
+            <Text fontSize="xs">{t('studio.piano_roll_velocity')}</Text>
+            <CommitNumberInput
+              aria-label={t('studio.piano_roll_velocity')}
+              value={Math.round((firstEditable?.volume ?? 0) * 100)} min={0} max={100} step={1} precision={0}
+              size="sm" w="92px" disabled={!firstEditable}
+              onCommit={value => updateSelected({ volume: value / 100 })}
+            />
+          </Flex>
+          <Flex align="center" gap="2">
+            <Text fontSize="xs">{t('studio.piano_roll_pan')}</Text>
+            <CommitNumberInput
+              aria-label={t('studio.piano_roll_pan')}
+              value={Math.round((firstEditable?.pan ?? 0) * 100)} min={-100} max={100} step={1} precision={0}
+              size="sm" w="92px" disabled={!firstEditable}
+              onCommit={value => updateSelected({ pan: value / 100 })}
+            />
+          </Flex>
+          <Flex align="center" gap="2">
+            <Text fontSize="xs">{t('studio.piano_roll_duration')}</Text>
+            <CommitNumberInput
+              aria-label={t('studio.piano_roll_duration')}
+              value={firstEditable?.duration ?? 0} min={0} max={1_000_000} step={1} precision={0}
+              size="sm" w="105px" disabled={!firstEditable}
+              onCommit={value => updateSelected({ duration: value })}
+            />
+          </Flex>
+          <Flex align="center" gap="2">
+            <Text fontSize="xs">{t('studio.piano_roll_retrigger')}</Text>
+            <CommitNumberInput
+              aria-label={t('studio.piano_roll_retrigger')}
+              value={firstEditable?.retriggerInterval ?? 1} min={1} max={1_000_000} step={1} precision={0}
+              size="sm" w="105px" disabled={!firstEditable}
+              onCommit={value => updateSelected({ retriggerInterval: value })}
+            />
+          </Flex>
         </Flex>
 
         {error && <Text mt="2" role="alert" color="var(--studio-error)">{t('studio.piano_roll_error', { error })}</Text>}

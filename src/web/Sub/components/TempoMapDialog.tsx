@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { useModalDialog } from '../hooks/useModalDialog'
 import {
   MAX_TEMPO_MAP_EVENTS,
   type TempoMapEvent,
@@ -79,17 +80,6 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
     open,
   ])
 
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || busy) return
-      event.preventDefault()
-      onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [busy, onClose, open])
-
   const validationError = useMemo(() => {
     const error = validateTempoMap(draft, fallback, { maxTick: Math.max(0, lengthTicks - 1) })
     if (error) return error
@@ -98,6 +88,8 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
     if (!draft.some(event => event.tick === 0)) return t('studio.tempo_map_tick_zero_required')
     return ''
   }, [draft, fallback, lengthTicks, t])
+
+  const { dialogRef } = useModalDialog({ open, busy, onClose })
 
   if (!open) return null
 
@@ -145,7 +137,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
     <Box
       position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
       display="flex" alignItems="center" justifyContent="center"
-      role="dialog" aria-modal="true" aria-label={t('studio.tempo_map_title')}
+      ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.tempo_map_title')}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose()
       }}

@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react'
 import {
-  Button, ChevronDownIcon, Flex, IconButton, MaximizeIcon, Menu, MenuContent, MenuItem, MenuOptionGroup,
-  MenuOptionItem, MenuSeparator, MinusIcon, PauseIcon, PlayIcon, PlusIcon, Redo2Icon, RepeatIcon,
+  Button, ChevronDownIcon, Flex, IconButton, Menu, MenuContent, MenuItem, MenuOptionGroup,
+  MenuOptionItem, MenuSeparator, PauseIcon, PlayIcon, Redo2Icon, RepeatIcon,
   SaveIcon, SearchIcon, Select, SquareIcon, Text, TimerIcon, TrashIcon, Undo2Icon,
 } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
-import { DEFAULT_PX_PER_TICK } from '../utils/tickPixel'
 import type { TimelineSettings } from '../types/timeline'
 
 interface Props {
@@ -52,9 +51,6 @@ interface Props {
   settings: TimelineSettings
   onSettingsChange: (patch: Partial<TimelineSettings>) => void
   onReroll: () => void
-  pxPerTick: number
-  onZoom: (next: number) => void
-  onFitProject: () => void
   onFitSelection: () => void
   canFitSelection: boolean
   mixerOpen: boolean
@@ -87,7 +83,7 @@ export const TimelineToolbar: React.FC<Props> = ({
   onMidi, onExtensions, onAddMarker, onAddSoundStopper, onAddTrack, onAddReferenceAudio,
   canAddMarker, onDeleteSelected, canDelete, onTogglePlay, onStop, isPlaying, isPaused,
   currentTick, preloading, onUndo, onRedo, canUndo, canRedo, settings, onSettingsChange,
-  onReroll, pxPerTick, onZoom, onFitProject, onFitSelection, canFitSelection, mixerOpen,
+  onReroll, onFitSelection, canFitSelection, mixerOpen,
   onToggleMixer, markerIconsEnabled, markerIconsLoading, onToggleMarkerIcons, navigatorOpen,
   onToggleNavigator,
 }) => {
@@ -324,34 +320,6 @@ export const TimelineToolbar: React.FC<Props> = ({
               </Button>
             ))}
           </Flex>
-        </Flex>
-
-        <Flex className="studio-toolbar-group studio-zoom-controls" role="group" aria-label={t('studio.zoom')}>
-          <IconButton
-            {...toolButton}
-            icon={<MinusIcon boxSize="4" />}
-            aria-label={t('studio.zoom_out')}
-            title={t('studio.zoom_out')}
-            onClick={() => onZoom(pxPerTick / 1.35)}
-          />
-          <Text as="span" className="studio-zoom-value">
-            {Math.round(pxPerTick / DEFAULT_PX_PER_TICK * 100)}
-            %
-          </Text>
-          <IconButton
-            {...toolButton}
-            icon={<PlusIcon boxSize="4" />}
-            aria-label={t('studio.zoom_in')}
-            title={t('studio.zoom_in')}
-            onClick={() => onZoom(pxPerTick * 1.35)}
-          />
-          <IconButton
-            {...toolButton}
-            icon={<MaximizeIcon boxSize="3.5" />}
-            aria-label={t('studio.fit_all')}
-            title={t('studio.fit_all')}
-            onClick={onFitProject}
-          />
         </Flex>
       </div>
     </header>

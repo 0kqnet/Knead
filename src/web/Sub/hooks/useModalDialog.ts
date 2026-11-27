@@ -164,8 +164,16 @@ export function useModalDialog({ open, busy = false, onClose }: UseModalDialogOp
         first.focus()
       }
     }
+    // Yamada selects consume Escape even with the list closed.
+    const onClosedSelectEscape = (event: KeyboardEvent) => {
+      const target = event.target
+      if (event.key === 'Escape' && target instanceof Element && container.contains(target)
+        && target.closest('[role="combobox"][aria-expanded="false"]')) onKeyDown(event)
+    }
+    document.addEventListener('keydown', onClosedSelectEscape, true)
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      document.removeEventListener('keydown', onClosedSelectEscape, true)
       document.removeEventListener('keydown', onKeyDown)
       removeModal(entry)
       queueMicrotask(() => {

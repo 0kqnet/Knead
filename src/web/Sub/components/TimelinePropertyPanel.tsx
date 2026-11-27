@@ -124,21 +124,22 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
 
   const tickControl = !isMulti && marker !== null
     ? (
-        <Box w="120px">
+        <Box>
           <Text fontSize="xs" color="var(--studio-muted)" mb="1">Tick</Text>
           <CommitNumberInput
+            aria-label="Tick"
             value={marker.tick}
             min={0} step={1} precision={0}
             onCommit={tick => onChange({ tick })}
-            w="120px"
           />
         </Box>
       )
     : (
-        <Box w="240px">
+        <Box className="studio-inspector-wide">
           <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.marker_tick_shift')}</Text>
           <Flex gap="2">
             <CommitNumberInput
+              aria-label={t('studio.marker_tick_shift')}
               value={tickShift} step={1} precision={0}
               onCommit={setTickShift}
               w="100px"
@@ -176,85 +177,85 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
     return (
       <Box as="section" className="studio-inspector" aria-label={t('studio.inspector')}>
         {inspectorHeading}
-        <Flex gap="4" wrap="wrap" align="flex-start">
-          {tickControl}
-          <Box minW="180px">
-            <Text fontSize="sm" color="var(--studio-error)" mb="1">{t('studio.sound_stopper_title')}</Text>
-            <Text fontSize="xs" color="var(--studio-muted)">
-              {onlySoundStops
-                ? t('studio.sound_stopper_description')
-                : t('studio.sound_stopper_mixed_description')}
-            </Text>
-          </Box>
-          {onlySoundStops && (
-            <>
-              <Box w="190px">
-                <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_scope')}</Text>
-                <Select.Root
-                  aria-label={t('studio.sound_stopper_scope')}
-                  value={scopeCommon === MIXED ? '' : scopeCommon ?? 'all'}
-                  items={[
-                    { label: t('studio.sound_stopper_scope_all'), value: 'all' },
-                    { label: t('studio.sound_stopper_scope_range'), value: 'track-range' },
-                  ]}
-                  placeholder={scopeCommon === MIXED ? t('studio.sound_stopper_mixed') : undefined}
-                  includePlaceholder={false}
-                  onChange={(scope) => {
-                    if (scope === 'all') onChange({ action: { type: 'sound-stop', scope: 'all' } })
-                    else {
-                      onChange({
-                        action: {
-                          type: 'sound-stop',
-                          scope: 'track-range',
-                          startTrack: start,
-                          endTrack: end,
-                        },
-                      })
-                    }
-                  }}
-                />
-              </Box>
-              {scopeCommon !== 'all' && (
-                <>
-                  <Box w="140px">
-                    <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_start_track')}</Text>
-                    <CommitNumberInput
-                      aria-label={t('studio.sound_stopper_start_track')}
-                      value={start}
-                      min={1} max={MAX_SOUND_STOP_TRACK} step={1} precision={0}
-                      onCommit={startTrack => onChange({
-                        action: {
-                          type: 'sound-stop',
-                          scope: 'track-range',
-                          startTrack,
-                          endTrack: Math.max(startTrack, end),
-                        },
-                      })}
-                      w="140px"
-                    />
-                  </Box>
-                  <Box w="140px">
-                    <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_end_track')}</Text>
-                    <CommitNumberInput
-                      aria-label={t('studio.sound_stopper_end_track')}
-                      value={end}
-                      min={start} max={MAX_SOUND_STOP_TRACK} step={1} precision={0}
-                      onCommit={endTrack => onChange({
-                        action: {
-                          type: 'sound-stop',
-                          scope: 'track-range',
-                          startTrack: start,
-                          endTrack,
-                        },
-                      })}
-                      w="140px"
-                    />
-                  </Box>
-                </>
-              )}
-            </>
-          )}
-        </Flex>
+        <div className="studio-inspector-body">
+          <div className="studio-inspector-fields">
+            {tickControl}
+            <Box className="studio-inspector-wide">
+              <Text fontSize="sm" color="var(--studio-error)" mb="1">{t('studio.sound_stopper_title')}</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">
+                {onlySoundStops
+                  ? t('studio.sound_stopper_description')
+                  : t('studio.sound_stopper_mixed_description')}
+              </Text>
+            </Box>
+            {onlySoundStops && (
+              <>
+                <Box className="studio-inspector-wide">
+                  <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_scope')}</Text>
+                  <Select.Root
+                    aria-label={t('studio.sound_stopper_scope')}
+                    value={scopeCommon === MIXED ? '' : scopeCommon ?? 'all'}
+                    items={[
+                      { label: t('studio.sound_stopper_scope_all'), value: 'all' },
+                      { label: t('studio.sound_stopper_scope_range'), value: 'track-range' },
+                    ]}
+                    placeholder={scopeCommon === MIXED ? t('studio.sound_stopper_mixed') : undefined}
+                    includePlaceholder={false}
+                    onChange={(scope) => {
+                      if (scope === 'all') onChange({ action: { type: 'sound-stop', scope: 'all' } })
+                      else {
+                        onChange({
+                          action: {
+                            type: 'sound-stop',
+                            scope: 'track-range',
+                            startTrack: start,
+                            endTrack: end,
+                          },
+                        })
+                      }
+                    }}
+                  />
+                </Box>
+                {scopeCommon !== 'all' && (
+                  <>
+                    <Box>
+                      <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_start_track')}</Text>
+                      <CommitNumberInput
+                        aria-label={t('studio.sound_stopper_start_track')}
+                        value={start}
+                        min={1} max={MAX_SOUND_STOP_TRACK} step={1} precision={0}
+                        onCommit={startTrack => onChange({
+                          action: {
+                            type: 'sound-stop',
+                            scope: 'track-range',
+                            startTrack,
+                            endTrack: Math.max(startTrack, end),
+                          },
+                        })}
+                      />
+                    </Box>
+                    <Box>
+                      <Text fontSize="xs" color="var(--studio-muted)" mb="1">{t('studio.sound_stopper_end_track')}</Text>
+                      <CommitNumberInput
+                        aria-label={t('studio.sound_stopper_end_track')}
+                        value={end}
+                        min={start} max={MAX_SOUND_STOP_TRACK} step={1} precision={0}
+                        onCommit={endTrack => onChange({
+                          action: {
+                            type: 'sound-stop',
+                            scope: 'track-range',
+                            startTrack: start,
+                            endTrack,
+                          },
+                        })}
+                      />
+                    </Box>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </Box>
     )
   }
@@ -262,194 +263,193 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
   return (
     <Box as="section" className="studio-inspector" aria-label={t('studio.inspector')}>
       {inspectorHeading}
-      <Flex gap="4" wrap="wrap" align="flex-start">
-        {tickControl}
+      <div className="studio-inspector-body">
+        <div className="studio-inspector-fields">
+          <Box className="studio-inspector-wide">
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_sound')}
+              {isMixed(soundIdCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <AudioSelectDropdown
+              label={t('studio.marker_sound')}
+              options={soundIdList}
+              value={displayVal(soundIdCommon)}
+              placeholder={isMixed(soundIdCommon) ? mixedLabel : t('studio.marker_unset')}
+              onSelect={v => onChange({ soundId: v, variantIndex: -1 })}
+              focusRequest={soundFocusRequest}
+              onFocusRequestHandled={onSoundFocusHandled}
+            />
+          </Box>
 
-        <Box w="240px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_sound')}
-            {isMixed(soundIdCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <AudioSelectDropdown
-            label={t('studio.marker_sound')}
-            options={soundIdList}
-            value={displayVal(soundIdCommon)}
-            placeholder={isMixed(soundIdCommon) ? mixedLabel : t('studio.marker_unset')}
-            onSelect={v => onChange({ soundId: v, variantIndex: -1 })}
-            focusRequest={soundFocusRequest}
-            onFocusRequestHandled={onSoundFocusHandled}
-          />
-        </Box>
+          <Box className="studio-inspector-wide">
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_variant')}
+              {isMixed(variantCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <Select.Root
+              value={isMixed(variantCommon) ? '' : String(variantCommon ?? -1)}
+              items={variantItems}
+              onChange={v => onChange({ variantIndex: parseInt(v, 10) })}
+              disabled={variants.length === 0 || isMixed(soundIdCommon)}
+              aria-label={t('studio.marker_variant')}
+              placeholder={isMixed(variantCommon) ? mixedLabel : undefined}
+              includePlaceholder={false}
+            />
+          </Box>
 
-        <Box w="320px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_variant')}
-            {isMixed(variantCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <Select.Root
-            value={isMixed(variantCommon) ? '' : String(variantCommon ?? -1)}
-            items={variantItems}
-            onChange={v => onChange({ variantIndex: parseInt(v, 10) })}
-            disabled={variants.length === 0 || isMixed(soundIdCommon)}
-            rootProps={{ w: '320px' }}
-            placeholder={isMixed(variantCommon) ? mixedLabel : undefined}
-            includePlaceholder={false}
-          />
-        </Box>
+          {tickControl}
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_volume')}
+              {isMixed(volumeCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <CommitNumberInput
+              aria-label={t('studio.marker_volume')}
+              value={displayNum(volumeCommon, 1)}
+              min={0} max={1} step={0.1} precision={2}
+              onCommit={volume => onChange({ volume })}
+            />
+          </Box>
 
-        <Box w="120px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_volume')}
-            {isMixed(volumeCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <CommitNumberInput
-            value={displayNum(volumeCommon, 1)}
-            min={0} max={1} step={0.1} precision={2}
-            onCommit={volume => onChange({ volume })}
-            w="120px"
-          />
-        </Box>
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_pitch')}
+              {isMixed(pitchCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <CommitNumberInput
+              aria-label="Marker pitch"
+              value={displayNum(pitchCommon, 1)}
+              min={MIN_MARKER_PITCH} max={MAX_MARKER_PITCH} step={0.001} precision={9}
+              onCommit={pitch => onChange({ pitch })}
+            />
+            <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_pitch_range')}</Text>
+            <Slider.Root
+              aria-label="Minecraft pitch quick slider"
+              value={Math.max(0.5, Math.min(2, displayNum(pitchCommon, 1)))}
+              onChange={value => onChange({ pitch: value })}
+              w="full" h={8} step={0.01} min={0.5} max={2}
+              rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
+              thumbSize={2.5} readOnly={false}
+              thumbProps={{
+                _disabled: { color: 'primary' },
+              }}
+            />
+          </Box>
 
-        <Box w="220px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_pitch')}
-            {isMixed(pitchCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <CommitNumberInput
-            aria-label="Marker pitch"
-            value={displayNum(pitchCommon, 1)}
-            min={MIN_MARKER_PITCH} max={MAX_MARKER_PITCH} step={0.001} precision={9}
-            onCommit={pitch => onChange({ pitch })}
-            w="220px"
-          />
-          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_pitch_range')}</Text>
-          <Slider.Root
-            aria-label="Minecraft pitch quick slider"
-            value={Math.max(0.5, Math.min(2, displayNum(pitchCommon, 1)))}
-            onChange={value => onChange({ pitch: value })}
-            w="220px" h={8} step={0.01} min={0.5} max={2}
-            rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
-            thumbSize={2.5} readOnly={false}
-            thumbProps={{
-              _disabled: { color: 'primary' },
-            }}
-          />
-        </Box>
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_pan')}
+              {' '}
+              {isMixed(panCommon) ? mixedLabel : (panCommon as number ?? 0).toFixed(2)}
+            </Text>
+            <Slider.Root
+              aria-label="Marker pan"
+              value={displayNum(panCommon, 0)}
+              onChange={value => onChange({ pan: value })}
+              w="full" h={10} step={0.01} min={-1} max={1}
+              rangeFill="cyan.300" trackFill="gray.600" thumbFill="cyan.300"
+              thumbSize={2.5} readOnly={false}
+              thumbProps={{
+                _disabled: { color: 'cyan.300' },
+              }}
+            />
+            <Flex justify="space-between" mt="-1">
+              <Text fontSize="xs" color="var(--studio-muted)">L</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">C</Text>
+              <Text fontSize="xs" color="var(--studio-muted)">R</Text>
+            </Flex>
+          </Box>
 
-        <Box w="220px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_pan')}
-            {' '}
-            {isMixed(panCommon) ? mixedLabel : (panCommon as number ?? 0).toFixed(2)}
-          </Text>
-          <Slider.Root
-            aria-label="Marker pan"
-            value={displayNum(panCommon, 0)}
-            onChange={value => onChange({ pan: value })}
-            w="220px" h={10} step={0.01} min={-1} max={1}
-            rangeFill="cyan.300" trackFill="gray.600" thumbFill="cyan.300"
-            thumbSize={2.5} readOnly={false}
-            thumbProps={{
-              _disabled: { color: 'cyan.300' },
-            }}
-          />
-          <Flex justify="space-between" mt="-1">
-            <Text fontSize="xs" color="var(--studio-muted)">L</Text>
-            <Text fontSize="xs" color="var(--studio-muted)">C</Text>
-            <Text fontSize="xs" color="var(--studio-muted)">R</Text>
-          </Flex>
-        </Box>
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_duration')}
+              {isMixed(durationCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <CommitNumberInput
+              aria-label={t('studio.marker_duration')}
+              value={displayNum(durationCommon, 0)}
+              min={0} step={1} precision={0}
+              onCommit={duration => onChange({ duration: duration > 0 ? duration : undefined })}
+            />
+            <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_one_shot')}</Text>
+          </Box>
 
-        <Box w="140px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_duration')}
-            {isMixed(durationCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <CommitNumberInput
-            value={displayNum(durationCommon, 0)}
-            min={0} step={1} precision={0}
-            onCommit={duration => onChange({ duration: duration > 0 ? duration : undefined })}
-            w="140px"
-          />
-          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_one_shot')}</Text>
-        </Box>
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_gate_ticks')}
+              {isMixed(gateCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">
+                  {`(${t('studio.sound_stopper_mixed')})`}
+                </Text>
+              )}
+            </Text>
+            <CommitNumberInput
+              aria-label={t('studio.marker_gate_ticks')}
+              value={displayNum(gateCommon, 0)}
+              min={0} max={MAX_GATE_TICKS} step={1} precision={0}
+              onCommit={gateTicks => onChange({ gateTicks: gateTicks > 0 ? gateTicks : undefined })}
+            />
+            <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.marker_gate_sample_tail')}</Text>
+          </Box>
 
-        <Box w="150px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_gate_ticks')}
-            {isMixed(gateCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">
-                {`(${t('studio.sound_stopper_mixed')})`}
-              </Text>
-            )}
-          </Text>
-          <CommitNumberInput
-            aria-label={t('studio.marker_gate_ticks')}
-            value={displayNum(gateCommon, 0)}
-            min={0} max={MAX_GATE_TICKS} step={1} precision={0}
-            onCommit={gateTicks => onChange({ gateTicks: gateTicks > 0 ? gateTicks : undefined })}
-            w="150px"
-          />
-          <Text mt="1" fontSize="xs" color="var(--studio-muted)">{t('studio.marker_gate_sample_tail')}</Text>
-        </Box>
+          <Box>
+            <Text fontSize="xs" color="var(--studio-muted)" mb="1">
+              {t('studio.marker_retrigger')}
+              {isMixed(retriggerCommon) && (
+                <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
+              )}
+            </Text>
+            <CommitNumberInput
+              aria-label={t('studio.marker_retrigger')}
+              value={displayNum(retriggerCommon, DEFAULT_RETRIGGER_INTERVAL)}
+              min={1} step={1} precision={0}
+              onCommit={retriggerInterval => onChange({ retriggerInterval })}
+            />
+            <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_retrigger_hint')}</Text>
+          </Box>
+        </div>
 
-        <Box w="180px">
-          <Text fontSize="xs" color="var(--studio-muted)" mb="1">
-            {t('studio.marker_retrigger')}
-            {isMixed(retriggerCommon) && (
-              <Text as="span" color="var(--studio-warning)" ml="2">{mixedLabel}</Text>
-            )}
-          </Text>
-          <CommitNumberInput
-            value={displayNum(retriggerCommon, DEFAULT_RETRIGGER_INTERVAL)}
-            min={1} step={1} precision={0}
-            onCommit={retriggerInterval => onChange({ retriggerInterval })}
-            w="180px"
-          />
-          <Text fontSize="xs" color="var(--studio-muted)" mt="1">{t('studio.marker_retrigger_hint')}</Text>
-        </Box>
-      </Flex>
-
-      {showCurves && marker !== null && (
-        <Flex gap="4" mt="3" wrap="wrap">
-          <CurveEditor
-            label={t('studio.volume_curve')}
-            duration={curveDuration}
-            valueMin={0} valueMax={Math.max(1, marker.volume)}
-            fallback={marker.volume}
-            curve={marker.volumeCurve}
-            valueTooltip
-            onChange={(next: Curve | undefined) => onChange({ volumeCurve: next })}
-            onBeginEdit={onBeginEdit}
-            onEndEdit={onEndEdit}
-          />
-          <CurveEditor
-            label={t('studio.pitch_curve')}
-            duration={curveDuration}
-            valueMin={pitchEditorMin} valueMax={pitchEditorMax}
-            fallback={marker.pitch}
-            curve={marker.pitchCurve}
-            referenceValue={1}
-            snapValues={PITCH_SNAP_VALUES}
-            snapValueLabels={PITCH_SNAP_LABELS}
-            valueTooltip
-            warningRange={{ min: 0.5, max: 2.0 }}
-            onChange={(next: Curve | undefined) => onChange({ pitchCurve: next })}
-            onBeginEdit={onBeginEdit}
-            onEndEdit={onEndEdit}
-          />
-        </Flex>
-      )}
+        {showCurves && marker !== null && (
+          <div className="studio-inspector-curves">
+            <CurveEditor
+              label={t('studio.volume_curve')}
+              duration={curveDuration}
+              valueMin={0} valueMax={Math.max(1, marker.volume)}
+              fallback={marker.volume}
+              curve={marker.volumeCurve}
+              valueTooltip
+              onChange={(next: Curve | undefined) => onChange({ volumeCurve: next })}
+              onBeginEdit={onBeginEdit}
+              onEndEdit={onEndEdit}
+            />
+            <CurveEditor
+              label={t('studio.pitch_curve')}
+              duration={curveDuration}
+              valueMin={pitchEditorMin} valueMax={pitchEditorMax}
+              fallback={marker.pitch}
+              curve={marker.pitchCurve}
+              referenceValue={1}
+              snapValues={PITCH_SNAP_VALUES}
+              snapValueLabels={PITCH_SNAP_LABELS}
+              valueTooltip
+              warningRange={{ min: 0.5, max: 2.0 }}
+              onChange={(next: Curve | undefined) => onChange({ pitchCurve: next })}
+              onBeginEdit={onBeginEdit}
+              onEndEdit={onEndEdit}
+            />
+          </div>
+        )}
+      </div>
     </Box>
   )
 })
