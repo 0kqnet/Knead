@@ -1,4 +1,5 @@
 import {
+  MAX_TIMELINE_MARKERS,
   isSoundStopMarker,
   type Marker,
   type TempoMapEvent,
@@ -18,8 +19,6 @@ import {
 export const PIANO_ROLL_MIN_MIDI_NOTE = 48
 export const PIANO_ROLL_MAX_MIDI_NOTE = 72
 export const PIANO_ROLL_KEY_COUNT = PIANO_ROLL_MAX_MIDI_NOTE - PIANO_ROLL_MIN_MIDI_NOTE + 1
-export const PIANO_ROLL_MAX_VISIBLE_MARKERS = 5_000
-export const PIANO_ROLL_MAX_DRAFT_MARKERS = PIANO_ROLL_MAX_VISIBLE_MARKERS * 2
 export const PIANO_ROLL_MAX_SELECTION = 2_000
 export const PIANO_ROLL_MAX_SPAN_TICKS = 1_000_000
 export const PIANO_ROLL_MIN_PX_PER_TICK = 0.25
@@ -111,9 +110,13 @@ export function formatMidiNote(note: number): string {
   return `${NOTE_NAMES[pitchClass]}${Math.floor(rounded / 12) - 1}`
 }
 
-export function pitchToPianoRollNote(pitch: number): PianoRollPitch {
+function midiPitch(pitch: number): number {
   const safePitch = clamp(Number.isFinite(pitch) ? pitch : 1, PITCH_MIN, PITCH_MAX)
-  const midiFloat = ROOT_MIDI_NOTE + 12 * Math.log2(safePitch)
+  return ROOT_MIDI_NOTE + 12 * Math.log2(safePitch)
+}
+
+export function pitchToPianoRollNote(pitch: number): PianoRollPitch {
+  const midiFloat = midiPitch(pitch)
   let note = Math.round(midiFloat)
   let cents = Math.round((midiFloat - note) * 100)
   if (cents >= 100) {
@@ -154,11 +157,11 @@ export function getPianoRollMarkerRect(
 ): PianoRollMarkerRect {
   const minMidi = viewport.minMidi ?? PIANO_ROLL_MIN_MIDI_NOTE
   const maxMidi = viewport.maxMidi ?? PIANO_ROLL_MAX_MIDI_NOTE
-  const pitch = pitchToPianoRollNote(marker.pitch)
+  const pitch = midiPitch(marker.pitch)
   const span = getPianoRollSpanTicks(marker)
   return {
     left: (marker.tick - viewport.startTick) * viewport.pxPerTick,
-    top: (maxMidi - clamp(pitch.midiFloat, minMidi, maxMidi)) * viewport.rowHeight + 2,
+    top: (maxMidi - clamp(pitch, minMidi, maxMidi)) * viewport.rowHeight + 2,
     width: Math.max(8, span * viewport.pxPerTick),
     height: Math.max(10, viewport.rowHeight - 4),
   }
@@ -169,16 +172,16 @@ export function filterPianoRollMarkers(
   mode: PianoRollFilterMode,
   selectedIds: ReadonlySet<string> | readonly string[],
   currentTrackId: string | null | undefined,
-  limit = PIANO_ROLL_MAX_VISIBLE_MARKERS,
+  limit = MAX_TIMELINE_MARKERS,
 ): PianoRollFilterResult {
-  const selected = normalizedIds(selectedIds)
+  const selected = selectedIds instanceof Set ? selectedIds : new Set(selectedIds)
   const filtered = state.markers
-    .filter(marker => !isSoundStopMarker(marker))
-    .filter(marker => mode === 'selected' ? selected.has(marker.id) : marker.trackId === currentTrackId)
+    .filter(marker => !isSoundStopMarker(marker)
+      && (mode === 'selected' ? selected.has(marker.id) : marker.trackId === currentTrackId))
     .sort((left, right) => left.tick - right.tick || left.id.localeCompare(right.id))
-  const safeLimit = clamp(Math.trunc(limit), 1, PIANO_ROLL_MAX_VISIBLE_MARKERS)
+  const safeLimit = clamp(Math.trunc(limit), 1, MAX_TIMELINE_MARKERS)
   return {
-    markers: filtered.slice(0, safeLimit),
+    markers: filtered.length > safeLimit ? filtered.slice(0, safeLimit) : filtered,
     total: filtered.length,
     truncated: filtered.length > safeLimit,
   }
@@ -229,7 +232,7 @@ export function movePianoRollMarkers(
   const moved = markers.map((marker) => {
     if (!ids.has(marker.id) || options.lockedTrackIds.has(marker.trackId)) return marker
     let targetTick = marker.tick + deltaTick
-    if (options.settings && options.tempoModel) {
+    if (options.settings && options.tempoModel && (options.deltaTick !== 0 || options.deltaBeats !== undefined)) {
       if (options.deltaBeats !== undefined && options.settings.snap.mode === 'beat') {
         const beatStep = 4 / options.settings.snap.beatDivision
         const beat = tickToMusicalBeat(marker.tick, options.tempoModel)
@@ -248,7 +251,7 @@ export function movePianoRollMarkers(
       }
     }
     const tick = clamp(Math.round(targetTick), 0, maximumTick)
-    const pitch = clamp(marker.pitch * 2 ** (deltaSemitones / 12), PITCH_MIN, PITCH_MAX)
+    const pitch = deltaSemitones === 0 ? marker.pitch : clamp(marker.pitch * 2 ** (deltaSemitones / 12), PITCH_MIN, PITCH_MAX)
     if (tick === marker.tick && pitch === marker.pitch) return marker
     changedIds.push(marker.id)
     return { ...marker, tick, pitch }
@@ -297,7 +300,7 @@ function mergePianoRollEditableFields(original: Marker, edited: Marker, lengthTi
   return {
     ...original,
     tick: clamp(Math.round(edited.tick), 0, maximumTick),
-    pitch: clamp(edited.pitch, PITCH_MIN, PITCH_MAX),
+    pitch: edited.pitch === original.pitch ? original.pitch : clamp(edited.pitch, PITCH_MIN, PITCH_MAX),
     volume: clamp(edited.volume, 0, 1),
     pan: (edited.pan ?? 0) === (original.pan ?? 0)
       ? original.pan
@@ -311,7 +314,7 @@ function mergePianoRollEditableFields(original: Marker, edited: Marker, lengthTi
   }
 }
 
-function editableFieldsChanged(left: Marker, right: Marker): boolean {
+export function editableFieldsChanged(left: Marker, right: Marker): boolean {
   return left.tick !== right.tick
     || left.pitch !== right.pitch
     || left.volume !== right.volume
@@ -325,7 +328,7 @@ export function applyPianoRollEdits(
   editedMarkers: readonly Marker[],
   tempoMap: readonly TempoMapEvent[] | undefined = state.tempoMap,
 ): PianoRollApplyResult {
-  const edits = new Map(editedMarkers.slice(0, PIANO_ROLL_MAX_DRAFT_MARKERS).map(marker => [marker.id, marker]))
+  const edits = new Map(editedMarkers.map(marker => [marker.id, marker]))
   const lockedTracks = new Set(state.tracks.filter(track => track.locked).map(track => track.id))
   const changedIds: string[] = []
   const markers = state.markers.map((marker) => {
@@ -359,10 +362,10 @@ export function buildPianoRollTickGrid(
   settings: TimelineSettings,
   tempoMap?: readonly TempoMapEvent[],
   maxLines = 2_000,
+  model = buildTempoMap(tempoMap, settings),
 ): PianoRollGridLine[] {
   const start = Math.max(0, Math.min(startTick, endTick))
   const end = Math.max(start, Math.max(startTick, endTick))
-  const model = buildTempoMap(tempoMap, settings)
   const lines = new Map<string, PianoRollGridLine>()
   const add = (tick: number, kind: PianoRollGridLine['kind']) => {
     if (tick < start - 1e-6 || tick > end + 1e-6) return
@@ -400,10 +403,11 @@ export function fitPianoRollPxPerTick(
   markers: readonly Marker[],
   availableWidth: number,
   fallbackLengthTicks: number,
+  startTick = 0,
 ): number {
   const endTick = markers.reduce((latest, marker) => (
     Math.max(latest, marker.tick + getPianoRollSpanTicks(marker))
   ), 0)
-  const range = Math.max(1, endTick || fallbackLengthTicks)
-  return clamp(availableWidth / range, PIANO_ROLL_MIN_PX_PER_TICK, PIANO_ROLL_MAX_PX_PER_TICK)
+  const range = Math.max(1, (markers.length ? endTick : fallbackLengthTicks) - startTick)
+  return Math.min(PIANO_ROLL_MAX_PX_PER_TICK, Math.max(1, availableWidth) / range)
 }

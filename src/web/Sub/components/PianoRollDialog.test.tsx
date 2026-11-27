@@ -28,7 +28,6 @@ vi.mock('react-i18next', () => ({
       'studio.piano_roll_selected_count': `${String(values?.count)} selected`,
       'studio.piano_roll_changed_count': `${String(values?.count)} changed`,
       'studio.piano_roll_grid_step': `Grid ${String(values?.count)}t`,
-      'studio.piano_roll_limit_warning': 'Limit reached.',
       'studio.piano_roll_locked_hint': 'Locked notes are read-only.',
       'studio.piano_roll_audition_key': `Audition ${String(values?.note)}`,
       'studio.piano_roll_grid': 'Piano roll note grid',
@@ -185,6 +184,27 @@ describe('PianoRollDialog editing', () => {
       const free = document.querySelector<HTMLElement>('[data-piano-roll-note="free"]')!
       expect(free.getAttribute('aria-pressed')).toBe('true')
     })
+  })
+
+  it('keeps an additive selection through a click and discards a canceled group drag', async () => {
+    const { onApply } = renderDialog({ selectedIds: new Set() })
+    const grid = screen.getByTestId('piano-roll-grid')
+    const free = grid.querySelector<HTMLElement>('[data-piano-roll-note="free"]')!
+    const second = grid.querySelector<HTMLElement>('[data-piano-roll-note="second"]')!
+    fireEvent.pointerDown(free, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerUp(grid, { pointerId: 1, clientX: 100, clientY: 100 })
+    fireEvent.pointerDown(second, { ctrlKey: true, pointerId: 2, clientX: 160, clientY: 100 })
+    fireEvent.pointerUp(grid, { pointerId: 2, clientX: 160, clientY: 100 })
+    fireEvent.click(second, { ctrlKey: true })
+    expect(screen.getByText('2 selected')).toBeTruthy()
+    fireEvent.pointerDown(free, { pointerId: 3, clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(grid, { pointerId: 3, clientX: 160, clientY: 100 })
+    fireEvent.pointerCancel(grid, { pointerId: 3 })
+    expect(screen.getByRole('button', { name: 'Apply 0 changes' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.keyDown(free, { key: 'ArrowUp' })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply 2 changes' }))
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1))
+    expect(onApply.mock.calls[0][1]).toEqual(['free', 'second'])
   })
 
   it('delegates keyboard audition without mutating the draft', async () => {

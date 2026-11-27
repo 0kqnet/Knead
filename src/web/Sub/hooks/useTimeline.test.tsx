@@ -201,6 +201,24 @@ describe('useTimeline track operations', () => {
     expect(result.current.state.settings.bpm).toBe(120)
   })
 
+  it('retains the active audio and untouched notes when applying piano roll edits', () => {
+    const { result } = renderHook(() => useTimeline())
+    act(() => {
+      result.current.addMarker({ tick: 10 })
+      result.current.addMarker({ tick: 20 })
+    })
+    const before = result.current.state
+    const edited = { ...before.markers[1], pitch: 1.5 }
+    act(() => result.current.applyState({ ...before, markers: [before.markers[0], edited] }))
+    const after = result.current.state
+    expect(after.customAudio).toBe(before.customAudio)
+    expect(after.markers[0]).toBe(before.markers[0])
+    edited.pitch = 2
+    expect(after.markers[1].pitch).toBe(1.5)
+    act(() => result.current.undo())
+    expect(result.current.state).toBe(before)
+  })
+
   it('accepts 2,000 BPM in the project settings and updates the tempo map', () => {
     const { result } = renderHook(() => useTimeline())
 

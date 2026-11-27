@@ -624,7 +624,16 @@ export function useTimelineController(
 
   const applyState = useCallback((state: TimelineState) => {
     mutate((draft) => {
-      Object.assign(draft, structuredClone(state))
+      const base = original(draft) ?? draft
+      const { markers, ...rest } = state
+      // Replacing an unchanged audio array remounts the Studio editor and loses its selection.
+      const changes = Object.entries(rest).filter(([key, value]) => value !== base[key as keyof TimelineState])
+      Object.assign(draft, structuredClone(Object.fromEntries(changes)))
+      if (markers !== base.markers) {
+        draft.markers = markers.map((marker, index) => (
+          marker === base.markers[index] ? marker : structuredClone(marker)
+        ))
+      }
     })
   }, [mutate])
 

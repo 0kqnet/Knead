@@ -332,6 +332,101 @@
     white-space: nowrap;
 }
 
+.piano-roll-content { display: flex; align-items: flex-start; }
+.piano-roll-selection {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    border: 1px solid var(--knead-focus);
+    background: var(--studio-selection-fill);
+}
+.piano-roll-grid {
+    position: relative;
+    flex-shrink: 0;
+    touch-action: pan-x pan-y;
+    user-select: none;
+    isolation: isolate;
+    overflow: clip;
+}
+
+.piano-roll-keyboard {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    flex-shrink: 0;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, .45);
+}
+.piano-roll-key {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding-inline: 6px;
+    border-bottom: 1px solid #a1a9b2;
+    text-align: right;
+    font-size: 12px;
+    color: #20252b;
+    background: #e4e8ed;
+}
+.piano-roll-key[data-black="true"] { background: #454c57; color: white; border-color: #30363e; }
+.piano-roll-key:hover:enabled { filter: brightness(.9); }
+.piano-roll-key:focus-visible { outline: 2px solid var(--knead-focus); outline-offset: -2px; }
+.piano-roll-row {
+    position: absolute;
+    inset-inline: 0;
+    border-bottom: 1px solid var(--studio-lane-grid);
+    background: rgba(255, 255, 255, .02);
+    pointer-events: none;
+}
+.piano-roll-row[data-black="true"] { background: rgba(0, 0, 0, .28); }
+
+.piano-roll-note {
+    position: absolute;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 0 2px;
+    border: 1px solid rgba(255, 255, 255, .55);
+    border-radius: 3px;
+    color: #17202a;
+    font: bold 10px/1.2 sans-serif;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: grab;
+    touch-action: none;
+}
+
+.piano-roll-note[aria-disabled="true"] { border-color: #737b87; cursor: default; }
+.piano-roll-note[aria-pressed="true"], .piano-roll-note:focus-visible {
+    outline: 2px solid var(--knead-focus);
+    border-color: white;
+}
+.piano-roll-note::after {
+    content: "";
+    position: absolute;
+    left: var(--pan-left);
+    width: var(--pan-width);
+    bottom: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, .55);
+    pointer-events: none;
+}
+.piano-roll-dense-notes { position: absolute; top: 0; pointer-events: none; }
+.piano-roll-grid-line { position: absolute; inset-block: 0; border-left: 1px solid var(--studio-lane-grid); pointer-events: none; }
+.piano-roll-grid-line[data-kind="beat"] { border-color: var(--studio-grid); }
+.piano-roll-grid-line[data-kind="bar"] { border-color: var(--knead-accent-line); }
+.piano-roll-grid-line span {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: block;
+    width: max-content;
+    margin-left: 2px;
+    padding-inline: 2px;
+    font-size: 10px;
+    color: var(--studio-muted);
+    background: var(--studio-canvas);
+}
+
 .studio-marker {
     --studio-marker-border: rgba(255, 255, 255, .45);
     --studio-marker-shadow: 0 2px 5px rgba(0, 0, 0, .4);

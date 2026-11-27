@@ -1,24 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { StudioDialogClose } from './StudioDialogClose'
+import { PianoRollNotes, PIANO_ROLL_DOM_NOTE_LIMIT } from './PianoRollNotes'
 import { useModalDialog } from '../hooks/useModalDialog'
+import { PIANO_KEY_WIDTH, usePianoRollViewport } from '../hooks/usePianoRollViewport'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { Marker, TempoMapEvent, TimelineState } from '../types/timeline'
+import { isSoundStopMarker } from '../types/timeline'
+import { createMarkerTickIndex, forEachMarkerInTickRange } from '../utils/markerTickIndex'
 import {
   PIANO_ROLL_KEY_COUNT,
-  PIANO_ROLL_MAX_DRAFT_MARKERS,
   PIANO_ROLL_MAX_MIDI_NOTE,
-  PIANO_ROLL_MAX_PX_PER_TICK,
-  PIANO_ROLL_MAX_ROW_HEIGHT,
-  PIANO_ROLL_MIN_PX_PER_TICK,
-  PIANO_ROLL_MIN_ROW_HEIGHT,
   applyPianoRollEdits,
   buildPianoRollTickGrid,
+  editableFieldsChanged,
   filterPianoRollMarkers,
-  fitPianoRollPxPerTick,
   formatMidiNote,
-  formatPianoRollPitch,
   getPianoRollMarkerRect,
   getPianoRollSpanTicks,
   movePianoRollMarkers,
@@ -27,15 +25,9 @@ import {
   updatePianoRollMarkerFields,
   type PianoRollFilterMode,
 } from '../utils/pianoRoll'
-import {
-  buildTempoMap,
-  musicalBeatToTick,
-  tickToMusicalBeat,
-  type TempoMapModel,
-} from '../utils/tempoMap'
+import { buildTempoMap, musicalBeatToTick, tickToMusicalBeat, type TempoMapModel } from '../utils/tempoMap'
 
-const MIN_CANVAS_WIDTH = 820
-const MAX_CANVAS_WIDTH = 1_000_000
+const keys = Array.from({ length: PIANO_ROLL_KEY_COUNT }, (_, index) => PIANO_ROLL_MAX_MIDI_NOTE - index)
 
 export interface PianoRollDialogProps {
   open: boolean
@@ -67,22 +59,6 @@ interface RectangleState {
   baseSelection: Set<string>
 }
 
-function toIdSet(ids: ReadonlySet<string> | readonly string[]): Set<string> {
-  return ids instanceof Set ? new Set(ids) : new Set(ids)
-}
-
-function collectDraftMarkers(
-  project: TimelineState,
-  selectedIds: ReadonlySet<string> | readonly string[],
-  currentTrackId: string | null | undefined,
-): Marker[] {
-  const selected = filterPianoRollMarkers(project, 'selected', selectedIds, currentTrackId).markers
-  const track = filterPianoRollMarkers(project, 'track', selectedIds, currentTrackId).markers
-  const markers = new Map<string, Marker>()
-  for (const marker of [...selected, ...track]) markers.set(marker.id, marker)
-  return [...markers.values()].slice(0, PIANO_ROLL_MAX_DRAFT_MARKERS)
-}
-
 function isBlackKey(note: number): boolean {
   return [1, 3, 6, 8, 10].includes(((note % 12) + 12) % 12)
 }
@@ -100,250 +76,247 @@ function snapTicks(project: TimelineState, tempoModel: TempoMapModel, referenceT
   return 1
 }
 
-function editableFieldsDiffer(left: Marker, right: Marker): boolean {
-  return left.tick !== right.tick
-    || left.pitch !== right.pitch
-    || left.volume !== right.volume
-    || (left.pan ?? 0) !== (right.pan ?? 0)
-    || left.duration !== right.duration
-    || left.retriggerInterval !== right.retriggerInterval
-}
+export const PianoRollDialog: React.FC<PianoRollDialogProps> = props => props.open
+  ? <PianoRollEditor key={JSON.stringify([props.project.projectId, props.currentTrackId])} {...props} />
+  : null
 
-function panColor(pan: number): string {
-  if (pan < -0.2) return '#63b3ed'
-  if (pan > 0.2) return '#f687b3'
-  return '#68d391'
-}
-
-export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
-  open,
-  project,
-  tempoMap,
-  selectedIds,
-  currentTrackId = null,
-  onApply,
-  onAudition,
-  onClose,
-}) => {
+function PianoRollEditor({
+  project, tempoMap, selectedIds, currentTrackId = null, onApply, onAudition, onClose,
+}: PianoRollDialogProps) {
   const { t } = useTranslation()
-  const [filterMode, setFilterMode] = useState<PianoRollFilterMode>('selected')
-  const [draftMarkers, setDraftMarkers] = useState<Marker[]>([])
-  const [localSelection, setLocalSelection] = useState<Set<string>>(new Set())
-  const [pxPerTick, setPxPerTick] = useState(3)
-  const [rowHeight, setRowHeight] = useState(24)
+  const effectiveTempoMap = tempoMap ?? project.tempoMap
+  const tempoModel = useMemo(() => buildTempoMap(effectiveTempoMap, project.settings), [effectiveTempoMap, project.settings])
+  const lockedTrackIds = useMemo(() => new Set(project.tracks.filter(track => track.locked).map(track => track.id)), [project.tracks])
+  const originalById = useMemo(() => new Map(project.markers.map(marker => [marker.id, marker])), [project.markers])
+  const externalSelection = useMemo(() => new Set([...selectedIds].filter((id) => {
+    const marker = originalById.get(id)
+    return marker && !isSoundStopMarker(marker)
+  })), [selectedIds, originalById])
+  const [filterMode, setFilterMode] = useState<PianoRollFilterMode>(() => externalSelection.size ? 'selected' : 'track')
+  const [localSelection, setLocalSelection] = useState(() => new Set(externalSelection))
+  const [edits, setEdits] = useState<Map<string, Marker>>(() => new Map())
   const [drag, setDrag] = useState<DragState | null>(null)
+  const [preview, setPreview] = useState<Map<string, Marker> | null>(null)
   const [rectangle, setRectangle] = useState<RectangleState | null>(null)
+  const [focusId, setFocusId] = useState<string | null>(null)
+  const focusRequest = useRef<string | null>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const { dialogRef } = useModalDialog({ open: true, busy, onClose })
 
-  const externalSelection = useMemo(() => toIdSet(selectedIds), [selectedIds])
-  const effectiveTempoMap = tempoMap ?? project.tempoMap
-  const tempoModel = useMemo(
-    () => buildTempoMap(effectiveTempoMap, project.settings),
-    [effectiveTempoMap, project.settings],
-  )
-  const lockedTrackIds = useMemo(() => new Set(
-    project.tracks.filter(track => track.locked).map(track => track.id),
-  ), [project.tracks])
-  const originalById = useMemo(() => new Map(project.markers.map(marker => [marker.id, marker])), [project.markers])
-
-  useEffect(() => {
-    if (!open) return
-    const draft = collectDraftMarkers(project, selectedIds, currentTrackId)
-    const selected = new Set(draft.filter(marker => externalSelection.has(marker.id)).map(marker => marker.id))
-    const mode: PianoRollFilterMode = selected.size > 0 ? 'selected' : 'track'
-    const initialVisible = filterPianoRollMarkers({ markers: draft }, mode, selectedIds, currentTrackId).markers
-    setDraftMarkers(draft)
-    setLocalSelection(selected)
-    setFilterMode(mode)
-    setPxPerTick(fitPianoRollPxPerTick(initialVisible, MIN_CANVAS_WIDTH, project.lengthTicks))
-    setRowHeight(24)
-    setDrag(null)
-    setRectangle(null)
-    setError('')
-  }, [currentTrackId, externalSelection, open, project, selectedIds])
-
-  const visible = useMemo(() => filterPianoRollMarkers(
-    { markers: draftMarkers },
-    filterMode,
-    selectedIds,
-    currentTrackId,
-  ), [currentTrackId, draftMarkers, filterMode, selectedIds])
-  const visibleIds = useMemo(() => new Set(visible.markers.map(marker => marker.id)), [visible.markers])
-  const selectedVisible = useMemo(() => draftMarkers.filter(marker => (
-    localSelection.has(marker.id) && visibleIds.has(marker.id)
-  )), [draftMarkers, localSelection, visibleIds])
-  const selectedEditable = useMemo(() => selectedVisible.filter(marker => (
-    !lockedTrackIds.has(marker.trackId)
-  )), [lockedTrackIds, selectedVisible])
-  const changedCount = useMemo(() => draftMarkers.reduce((count, marker) => {
-    const original = originalById.get(marker.id)
-    return count + (original && editableFieldsDiffer(original, marker) ? 1 : 0)
-  }, 0), [draftMarkers, originalById])
-
-  const { dialogRef } = useModalDialog({ open, busy, onClose })
-
-  if (!open) return null
-
-  const gridStep = snapTicks(project, tempoModel, selectedVisible[0]?.tick ?? 0)
-  const canvasWidth = Math.min(
-    MAX_CANVAS_WIDTH,
-    Math.max(MIN_CANVAS_WIDTH, project.lengthTicks * pxPerTick + 40),
-  )
+  const scope = useMemo(() => filterPianoRollMarkers(project, filterMode, externalSelection, currentTrackId).markers,
+    [project, filterMode, externalSelection, currentTrackId])
+  const markers = useMemo(() => edits.size ? scope.map(marker => edits.get(marker.id) ?? marker) : scope, [scope, edits])
+  const tickIndex = useMemo(() => createMarkerTickIndex(markers), [markers])
+  const selectedVisible = useMemo(() => {
+    const selected: Marker[] = []
+    for (const id of localSelection) {
+      const marker = edits.get(id) ?? originalById.get(id)
+      if (marker && (filterMode === 'track' ? marker.trackId === currentTrackId : externalSelection.has(id))) selected.push(marker)
+    }
+    return selected
+  }, [originalById, edits, localSelection, filterMode, currentTrackId, externalSelection])
+  const selectedEditable = useMemo(() => selectedVisible.filter(marker => !lockedTrackIds.has(marker.trackId)), [selectedVisible, lockedTrackIds])
+  const view = usePianoRollViewport(project.lengthTicks, markers, selectedVisible[0])
+  const { pxPerTick, rowHeight, canvasWidth, windowStart, windowEnd, origin } = view
   const canvasHeight = PIANO_ROLL_KEY_COUNT * rowHeight
-  const gridEndTick = Math.min(project.lengthTicks, canvasWidth / pxPerTick)
-  const gridLines = buildPianoRollTickGrid(0, gridEndTick, project.settings, effectiveTempoMap)
-  const keys = Array.from(
-    { length: PIANO_ROLL_KEY_COUNT },
-    (_, index) => PIANO_ROLL_MAX_MIDI_NOTE - index,
-  )
-  const template = selectedVisible[0] ?? visible.markers[0]
+  const gridStep = snapTicks(project, tempoModel, selectedVisible[0]?.tick ?? 0)
+  const gridLines = useMemo(() => buildPianoRollTickGrid(
+    windowStart / pxPerTick, Math.min(project.lengthTicks, windowEnd / pxPerTick),
+    project.settings, effectiveTempoMap, Math.max(12, Math.ceil((windowEnd - windowStart) / 8)), tempoModel,
+  ), [windowStart, windowEnd, pxPerTick, project.lengthTicks, project.settings, effectiveTempoMap, tempoModel])
+  const windowMarkers = useMemo(() => {
+    const result: Marker[] = []
+    // One-shots have an eight-pixel hit target even though their stored duration is zero.
+    forEachMarkerInTickRange(tickIndex, (windowStart - 8) / pxPerTick, windowEnd / pxPerTick, marker => result.push(marker))
+    return result
+  }, [tickIndex, windowStart, windowEnd, pxPerTick])
+  const drawnMarkers = useMemo(() => {
+    if (!preview) return windowMarkers
+    const notes = windowMarkers.filter(marker => !preview.has(marker.id))
+    for (const marker of preview.values()) {
+      const left = marker.tick * pxPerTick
+      if (left <= windowEnd && left + Math.max(8, getPianoRollSpanTicks(marker) * pxPerTick) >= windowStart) notes.push(marker)
+    }
+    return notes
+  }, [preview, windowMarkers, windowStart, windowEnd, pxPerTick])
+  const dense = drawnMarkers.length > PIANO_ROLL_DOM_NOTE_LIMIT
+  const template = selectedVisible[0] ?? markers[0]
+  const changedCount = edits.size
 
-  const selectMarker = (event: React.MouseEvent | React.PointerEvent, marker: Marker) => {
-    const additive = event.ctrlKey || event.metaKey || event.shiftKey
-    setLocalSelection((current) => {
-      if (!additive) return new Set([marker.id])
-      const next = new Set(current)
-      if ((event.ctrlKey || event.metaKey) && next.has(marker.id)) next.delete(marker.id)
-      else next.add(marker.id)
+  useLayoutEffect(() => {
+    if (!focusRequest.current) return
+    const button = Array.from(gridRef.current?.querySelectorAll<HTMLElement>('[data-piano-roll-note]') ?? [])
+      .find(element => element.dataset.pianoRollNote === focusRequest.current)
+    if (button) {
+      button.focus({ preventScroll: true })
+      focusRequest.current = null
+    }
+  }, [focusId, drawnMarkers])
+
+  const commitMarkers = useCallback((changed: readonly Marker[]) => {
+    if (!changed.length) return
+    setEdits((previous) => {
+      const next = new Map(previous)
+      for (const marker of changed) {
+        const original = originalById.get(marker.id)
+        if (original && editableFieldsChanged(original, marker)) next.set(marker.id, marker)
+        else next.delete(marker.id)
+      }
       return next
     })
-  }
+  }, [originalById])
 
-  const audition = (marker: Marker | undefined, note?: number) => {
+  function audition(marker: Marker | undefined, note?: number) {
     if (!marker || !onAudition) return
     const candidate = note === undefined ? marker : { ...marker, pitch: pianoRollNoteToPitch(note) }
     void Promise.resolve(onAudition(candidate)).catch(caught => setError(String(caught)))
   }
 
-  const beginNoteDrag = (event: React.PointerEvent, marker: Marker) => {
-    event.stopPropagation()
-    selectMarker(event, marker)
-    if (lockedTrackIds.has(marker.trackId)) return
-    const ids = localSelection.has(marker.id) ? new Set(localSelection) : new Set([marker.id])
-    const editableIds = new Set([...ids].filter((id) => {
-      const candidate = draftMarkers.find(item => item.id === id)
-      return candidate && !lockedTrackIds.has(candidate.trackId) && visibleIds.has(id)
-    }))
+  function canvasPoint(event: React.MouseEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    return { x: event.clientX - bounds.left + origin, y: event.clientY - bounds.top }
+  }
+
+  function targetNote(target: EventTarget | null) {
+    const id = target instanceof Element ? target.closest<HTMLElement>('[data-piano-roll-note]')?.dataset.pianoRollNote : undefined
+    return id ? edits.get(id) ?? originalById.get(id) : undefined
+  }
+
+  function hitNote(event: React.MouseEvent<HTMLDivElement>) {
+    const button = targetNote(event.target)
+    if (button && !dense) return button
+    const { x, y } = canvasPoint(event)
+    let hit: Marker | undefined
+    forEachMarkerInTickRange(tickIndex, (x - 8) / pxPerTick, x / pxPerTick, (marker) => {
+      const rect = getPianoRollMarkerRect(marker, { startTick: 0, pxPerTick, rowHeight })
+      if (x <= rect.left + rect.width && y >= rect.top && y <= rect.top + rect.height) hit = marker
+    })
+    return hit
+  }
+
+  function beginGesture(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button > 0 || drag || rectangle) return
+    const marker = hitNote(event)
+    const { x, y } = canvasPoint(event)
+    if (!marker) {
+      if (event.pointerType === 'touch') return
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+      setRectangle({ pointerId: event.pointerId, startX: x, startY: y, currentX: x, currentY: y,
+        baseSelection: event.ctrlKey || event.metaKey || event.shiftKey ? localSelection : new Set() })
+      return
+    }
+    let selection: Set<string>
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      selection = new Set(localSelection)
+      if ((event.ctrlKey || event.metaKey) && selection.has(marker.id)) selection.delete(marker.id)
+      else selection.add(marker.id)
+    }
+    else selection = localSelection.has(marker.id) ? localSelection : new Set([marker.id])
+    setLocalSelection(selection)
+    setFocusId(marker.id)
+    if (dense) event.currentTarget.focus({ preventScroll: true })
+    if (!selection.has(marker.id) || lockedTrackIds.has(marker.trackId)) return
+    const baseMarkers: Marker[] = []
+    for (const id of selection) {
+      const note = edits.get(id) ?? originalById.get(id)
+      if (note && !lockedTrackIds.has(note.trackId)) baseMarkers.push(note)
+    }
     event.currentTarget.setPointerCapture?.(event.pointerId)
-    setDrag({
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      baseMarkers: draftMarkers,
-      markerIds: editableIds,
-    })
+    setDrag({ pointerId: event.pointerId, startX: x, startY: y, baseMarkers, markerIds: selection })
   }
 
-  const moveNoteDrag = (event: React.PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointerId) return
-    const moved = movePianoRollMarkers(drag.baseMarkers, {
-      markerIds: drag.markerIds,
-      deltaTick: (event.clientX - drag.startX) / pxPerTick,
-      deltaSemitones: (drag.startY - event.clientY) / rowHeight,
-      snapTicks: gridStep,
-      lengthTicks: project.lengthTicks,
-      lockedTrackIds,
-      settings: project.settings,
-      tempoModel,
-    })
-    setDraftMarkers(moved.markers)
+  function draggedNotes(gesture: DragState, x: number, y: number) {
+    if (Math.abs(x - gesture.startX) < 3 && Math.abs(y - gesture.startY) < 3) return gesture.baseMarkers
+    return movePianoRollMarkers(gesture.baseMarkers, {
+      markerIds: gesture.markerIds, deltaTick: (x - gesture.startX) / pxPerTick,
+      deltaSemitones: (gesture.startY - y) / rowHeight, snapTicks: gridStep,
+      lengthTicks: project.lengthTicks, lockedTrackIds, settings: project.settings, tempoModel,
+    }).markers
   }
 
-  const moveSelectionByKeyboard = (
-    marker: Marker,
-    tickDelta: number,
-    semitoneDelta: number,
-    beatDelta?: number,
-  ) => {
-    if (lockedTrackIds.has(marker.trackId)) return
-    const ids = localSelection.has(marker.id) ? localSelection : new Set([marker.id])
-    setLocalSelection(new Set(ids))
-    setDraftMarkers(current => movePianoRollMarkers(current, {
-      markerIds: ids,
-      deltaTick: tickDelta,
-      deltaSemitones: semitoneDelta,
-      snapTicks: gridStep,
-      lengthTicks: project.lengthTicks,
-      lockedTrackIds,
-      deltaBeats: beatDelta,
-      settings: project.settings,
-      tempoModel,
-    }).markers)
+  function moveGesture(event: React.PointerEvent<HTMLDivElement>) {
+    if (!drag && !rectangle) return
+    const { x, y } = canvasPoint(event)
+    if (drag && event.pointerId === drag.pointerId) {
+      setPreview(new Map(draggedNotes(drag, x, y).map(marker => [marker.id, marker])))
+    }
+    if (rectangle && event.pointerId === rectangle.pointerId) setRectangle({ ...rectangle, currentX: x, currentY: y })
   }
 
-  const handleNoteKey = (event: React.KeyboardEvent, marker: Marker) => {
+  const cancelGesture = useCallback(() => {
+    setDrag(null)
+    setPreview(null)
+    setRectangle(null)
+  }, [])
+
+  const changeFilter = useCallback((mode: PianoRollFilterMode) => {
+    cancelGesture()
+    setFocusId(null)
+    setFilterMode(mode)
+    setLocalSelection(mode === 'selected' ? new Set(externalSelection) : new Set())
+  }, [cancelGesture, externalSelection])
+
+  function endGesture(event: React.PointerEvent<HTMLDivElement>) {
+    const { x, y } = canvasPoint(event)
+    if (drag && event.pointerId === drag.pointerId) {
+      const notes = draggedNotes(drag, x, y)
+      if (notes !== drag.baseMarkers) commitMarkers(notes)
+      cancelGesture()
+    }
+    if (rectangle && event.pointerId === rectangle.pointerId) {
+      const candidates: Marker[] = []
+      forEachMarkerInTickRange(tickIndex, (Math.min(rectangle.startX, x) - 8) / pxPerTick,
+        Math.max(rectangle.startX, x) / pxPerTick, marker => candidates.push(marker))
+      setLocalSelection(selectPianoRollMarkersInRect(candidates,
+        { left: rectangle.startX, top: rectangle.startY, right: x, bottom: y },
+        { startTick: 0, pxPerTick, rowHeight }, rectangle.baseSelection))
+      cancelGesture()
+    }
+  }
+
+  function handleNoteKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const marker = targetNote(event.target) ?? (focusId ? edits.get(focusId) ?? originalById.get(focusId) : undefined)
+    if (!marker) return
+    if (event.key === 'Tab') {
+      const index = tickIndex.entries.findIndex(entry => entry.marker.id === marker.id)
+      const next = tickIndex.entries[index + (event.shiftKey ? -1 : 1)]?.marker
+      if (index >= 0 && next) {
+        event.preventDefault()
+        view.revealNote(next)
+        focusRequest.current = next.id
+        setFocusId(next.id)
+      }
+      return
+    }
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       audition(marker)
+      return
     }
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      event.preventDefault()
-      const direction = event.key === 'ArrowLeft' ? -1 : 1
-      if (project.settings.snap.mode === 'beat') {
-        moveSelectionByKeyboard(
-          marker,
-          0,
-          0,
-          direction * 4 / project.settings.snap.beatDivision,
-        )
-      }
-      else moveSelectionByKeyboard(marker, direction * gridStep, 0)
-    }
-    else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault()
-      moveSelectionByKeyboard(marker, 0, event.key === 'ArrowUp' ? 1 : -1)
-    }
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(event.key)) return
+    event.preventDefault()
+    if (lockedTrackIds.has(marker.trackId)) return
+    const group = localSelection.has(marker.id) ? selectedEditable : [marker]
+    if (!localSelection.has(marker.id)) setLocalSelection(new Set([marker.id]))
+    const horizontal = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0
+    const musical = horizontal !== 0 && project.settings.snap.mode === 'beat'
+    commitMarkers(movePianoRollMarkers(group, {
+      markerIds: new Set(group.map(note => note.id)), lockedTrackIds, lengthTicks: project.lengthTicks,
+      deltaTick: musical ? 0 : horizontal * gridStep,
+      deltaBeats: musical ? horizontal * 4 / project.settings.snap.beatDivision : undefined,
+      deltaSemitones: event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : 0,
+      snapTicks: gridStep, settings: project.settings, tempoModel,
+    }).markers)
   }
 
-  const canvasPoint = (event: React.PointerEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect()
-    return { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
-  }
-
-  const beginRectangle = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return
-    const point = canvasPoint(event)
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    setRectangle({
-      pointerId: event.pointerId,
-      startX: point.x,
-      startY: point.y,
-      currentX: point.x,
-      currentY: point.y,
-      baseSelection: event.ctrlKey || event.metaKey ? new Set(localSelection) : new Set(),
-    })
-  }
-
-  const moveRectangle = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!rectangle || event.pointerId !== rectangle.pointerId) return
-    const point = canvasPoint(event)
-    setRectangle(current => current && ({ ...current, currentX: point.x, currentY: point.y }))
-  }
-
-  const endRectangle = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!rectangle || event.pointerId !== rectangle.pointerId) return
-    const point = canvasPoint(event)
-    setLocalSelection(selectPianoRollMarkersInRect(
-      visible.markers,
-      { left: rectangle.startX, top: rectangle.startY, right: point.x, bottom: point.y },
-      { startTick: 0, pxPerTick, rowHeight },
-      rectangle.baseSelection,
-    ))
-    setRectangle(null)
-  }
-
-  const updateSelected = (patch: Parameters<typeof updatePianoRollMarkerFields>[2]) => {
-    setDraftMarkers(current => updatePianoRollMarkerFields(
-      current,
-      new Set(selectedEditable.map(marker => marker.id)),
-      patch,
-      lockedTrackIds,
-    ).markers)
-  }
+  const updateSelected = useCallback((patch: Parameters<typeof updatePianoRollMarkerFields>[2]) => {
+    commitMarkers(updatePianoRollMarkerFields(selectedEditable, localSelection, patch, lockedTrackIds).markers)
+  }, [commitMarkers, selectedEditable, localSelection, lockedTrackIds])
 
   const apply = async () => {
-    const result = applyPianoRollEdits(project, draftMarkers, effectiveTempoMap)
+    const result = applyPianoRollEdits(project, [...edits.values()], effectiveTempoMap)
     if (result.changedIds.length === 0) return
     setBusy(true)
     setError('')
@@ -359,10 +332,9 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
     }
   }
 
-  const firstEditable = selectedEditable[0]
   const rectangleStyle = rectangle
     ? {
-        left: Math.min(rectangle.startX, rectangle.currentX),
+        left: Math.min(rectangle.startX, rectangle.currentX) - origin,
         top: Math.min(rectangle.startY, rectangle.currentY),
         width: Math.abs(rectangle.currentX - rectangle.startX),
         height: Math.abs(rectangle.currentY - rectangle.startY),
@@ -380,210 +352,76 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
         w="min(1180px, calc(100vw - 24px))" h="min(820px, calc(100vh - 24px))"
         bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="4" display="flex" flexDirection="column"
       >
-        <Flex align="center" gap="3">
-          <Box>
-            <Text fontSize="xl" fontWeight="bold">{t('studio.piano_roll_title')}</Text>
-            <Text fontSize="xs" color="var(--studio-muted)">{t('studio.piano_roll_description')}</Text>
-          </Box>
-          <Box flex="1" />
-          <Select.Root
-            rootProps={{ w: '220px' }} value={filterMode}
-            items={[
-              { value: 'selected', label: t('studio.piano_roll_filter_selected') },
-              { value: 'track', label: t('studio.piano_roll_filter_track', {
-                name: project.tracks.find(track => track.id === currentTrackId)?.name ?? '—',
-              }) },
-            ]}
-            aria-label={t('studio.piano_roll_filter')}
-            onChange={(value) => {
-              const mode = value as PianoRollFilterMode
-              setFilterMode(mode)
-              setLocalSelection(mode === 'selected' ? new Set(externalSelection) : new Set())
-            }}
-          />
-          <Button size="sm" onClick={() => setPxPerTick(value => Math.max(PIANO_ROLL_MIN_PX_PER_TICK, value / 1.5))}>
-            {t('studio.piano_roll_zoom_out')}
-          </Button>
-          <Button size="sm" onClick={() => setPxPerTick(value => Math.min(PIANO_ROLL_MAX_PX_PER_TICK, value * 1.5))}>
-            {t('studio.piano_roll_zoom_in')}
-          </Button>
-          <Button size="sm" onClick={() => setRowHeight(value => Math.max(PIANO_ROLL_MIN_ROW_HEIGHT, value - 4))}>Y−</Button>
-          <Button size="sm" onClick={() => setRowHeight(value => Math.min(PIANO_ROLL_MAX_ROW_HEIGHT, value + 4))}>Y＋</Button>
-          <Button size="sm" onClick={() => setPxPerTick(fitPianoRollPxPerTick(visible.markers, MIN_CANVAS_WIDTH, project.lengthTicks))}>
-            {t('studio.piano_roll_fit')}
-          </Button>
-          <StudioDialogClose onClick={onClose} disabled={busy} />
-        </Flex>
+        <PianoRollToolbar
+          trackName={project.tracks.find(track => track.id === currentTrackId)?.name ?? '—'}
+          filterMode={filterMode} onFilter={changeFilter} markers={markers}
+          onZoom={view.changeZoom} onClose={onClose} busy={busy}
+        />
 
         <Flex mt="3" gap="3" fontSize="xs" color="var(--studio-muted)">
-          <Text>{t('studio.piano_roll_visible_count', { count: visible.total })}</Text>
+          <Text>{t('studio.piano_roll_visible_count', { count: markers.length })}</Text>
           <Text>{t('studio.piano_roll_selected_count', { count: localSelection.size })}</Text>
           <Text>{t('studio.piano_roll_changed_count', { count: changedCount })}</Text>
           <Text>{t('studio.piano_roll_grid_step', { count: gridStep })}</Text>
-          {visible.truncated && <Text color="var(--studio-warning)">{t('studio.piano_roll_limit_warning')}</Text>}
           {lockedTrackIds.size > 0 && <Text color="var(--studio-warning)">{t('studio.piano_roll_locked_hint')}</Text>}
         </Flex>
 
-        <Box mt="3" flex="1" minH="0" overflow="auto" bg="var(--studio-canvas)" border="1px solid" borderColor="var(--studio-line)">
-          <Flex align="start" w={`${88 + canvasWidth}px`} minH={`${canvasHeight}px`}>
-            <Box position="sticky" left="0" zIndex="4" w="88px" flexShrink="0" boxShadow="2px 0 4px rgba(0,0,0,.45)">
+        <Box ref={view.scrollerRef} onScroll={view.updateViewport} data-testid="piano-roll-scroll" mt="3" flex="1" minH="0" overflow="auto" overscrollBehavior="contain" bg="var(--studio-canvas)" border="1px solid" borderColor="var(--studio-line)">
+          <div className="piano-roll-content" style={{ width: PIANO_KEY_WIDTH + canvasWidth, minHeight: canvasHeight }}>
+            <div className="piano-roll-keyboard" style={{ width: PIANO_KEY_WIDTH }}>
               {keys.map(note => (
-                <Button
-                  key={note} w="88px" h={`${rowHeight}px`} minH="0" p="0 5px" borderRadius="0"
-                  justifyContent="flex-end" fontSize="xs"
-                  color={isBlackKey(note) ? 'white' : 'gray.900'}
-                  bg={isBlackKey(note) ? 'gray.700' : 'gray.100'}
-                  _hover={{ bg: isBlackKey(note) ? 'gray.600' : 'gray.300' }}
-                  aria-label={t('studio.piano_roll_audition_key', { note: formatMidiNote(note) })}
-                  disabled={!onAudition || !template}
-                  onClick={() => audition(template, note)}
+                <button
+                  type="button" key={note} className="piano-roll-key" data-black={isBlackKey(note)}
+                  style={{ height: rowHeight }} aria-label={t('studio.piano_roll_audition_key', { note: formatMidiNote(note) })}
+                  disabled={!onAudition || !template} onClick={() => audition(template, note)}
                 >
                   {formatMidiNote(note)}
-                </Button>
+                </button>
               ))}
-            </Box>
-            <Box
-              position="relative" w={`${canvasWidth}px`} h={`${canvasHeight}px`} flexShrink="0"
+            </div>
+            <div
+              ref={gridRef} className="piano-roll-grid" tabIndex={-1}
+              style={{ width: canvasWidth, height: canvasHeight }}
               role="group" aria-label={t('studio.piano_roll_grid')}
               data-testid="piano-roll-grid"
-              onPointerDown={beginRectangle}
-              onPointerMove={moveRectangle}
-              onPointerUp={endRectangle}
+              data-px-per-tick={pxPerTick}
+              onPointerDown={beginGesture} onPointerMove={moveGesture} onPointerUp={endGesture}
+              onPointerCancel={cancelGesture} onLostPointerCapture={cancelGesture}
+              onDoubleClick={event => audition(hitNote(event))}
+              onKeyDown={handleNoteKey}
+              onFocus={(event) => {
+                const note = targetNote(event.target)
+                if (note) setFocusId(note.id)
+              }}
             >
               {keys.map((note, index) => (
-                <Box
-                  key={`row-${note}`} position="absolute" pointerEvents="none"
-                  left="0" right="0" top={`${index * rowHeight}px`} h={`${rowHeight}px`}
-                  bg={isBlackKey(note) ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.02)'}
-                  borderBottom="1px solid" borderColor="var(--studio-lane-grid)"
+                <div
+                  key={note} className="piano-roll-row" data-black={isBlackKey(note)}
+                  style={{ top: index * rowHeight, height: rowHeight }}
                 />
               ))}
               {gridLines.map(line => (
-                <Box
-                  key={`${line.kind}-${line.tick}`} position="absolute" pointerEvents="none"
-                  top="0" bottom="0" left={`${line.tick * pxPerTick}px`}
-                  borderLeft="1px solid"
-                  borderColor={line.kind === 'bar' ? 'var(--knead-accent-line)' : line.kind === 'beat' ? 'var(--studio-grid)' : 'var(--studio-lane-grid)'}
+                <div
+                  key={line.tick} className="piano-roll-grid-line" data-kind={line.kind}
+                  style={{ left: line.tick * pxPerTick - origin }}
                 >
-                  {line.kind !== 'tick' && (
-                    <Text ml="1" fontSize="10px" color="var(--studio-muted)">{Math.round(line.tick)}</Text>
-                  )}
-                </Box>
+                  {line.kind === 'bar' && <span>{Math.round(line.tick)}</span>}
+                </div>
               ))}
-
-              {visible.markers.map((marker) => {
-                const note = formatPianoRollPitch(marker.pitch)
-                const rect = getPianoRollMarkerRect(marker, { startTick: 0, pxPerTick, rowHeight })
-                if (rect.left > canvasWidth || rect.left + rect.width < 0) return null
-                const selected = localSelection.has(marker.id)
-                const locked = lockedTrackIds.has(marker.trackId)
-                const span = getPianoRollSpanTicks(marker)
-                const interval = span > 0 ? marker.retriggerInterval ?? 0 : 0
-                const retriggers = interval > 0
-                  ? Array.from({ length: Math.min(64, Math.floor(span / interval)) }, (_, index) => (index + 1) * interval)
-                  : []
-                const markerPan = marker.pan ?? 0
-                return (
-                  <Box
-                    key={marker.id} position="absolute" overflow="hidden" cursor={locked ? 'not-allowed' : 'grab'}
-                    left={`${rect.left}px`} top={`${rect.top}px`} w={`${rect.width}px`} h={`${rect.height}px`}
-                    bg={panColor(markerPan)} opacity={0.35 + marker.volume * 0.65}
-                    border="2px solid" borderColor={selected ? 'white' : locked ? 'gray.500' : 'whiteAlpha.500'}
-                    borderRadius="sm" boxShadow={selected ? '0 0 0 2px var(--knead-focus)' : undefined}
-                    role="button" tabIndex={0} aria-pressed={selected}
-                    aria-disabled={locked}
-                    aria-label={t('studio.piano_roll_note_label', {
-                      sound: marker.soundId,
-                      note,
-                      tick: marker.tick,
-                      velocity: Math.round(marker.volume * 100),
-                      pan: Math.round(markerPan * 100),
-                    })}
-                    data-piano-roll-note={marker.id} data-volume={marker.volume} data-pan={markerPan}
-                    onClick={event => selectMarker(event, marker)}
-                    onDoubleClick={() => audition(marker)}
-                    onPointerDown={event => beginNoteDrag(event, marker)}
-                    onPointerMove={moveNoteDrag}
-                    onPointerUp={(event) => { if (drag?.pointerId === event.pointerId) setDrag(null) }}
-                    onKeyDown={event => handleNoteKey(event, marker)}
-                  >
-                    <Text px="1" fontSize="10px" fontWeight="bold" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
-                      {note}
-                      {' · '}
-                      {marker.soundId}
-                    </Text>
-                    {retriggers.map(tick => (
-                      <Box
-                        key={tick} position="absolute" pointerEvents="none" top="0" bottom="0"
-                        left={`${tick * pxPerTick}px`} borderLeft="1px dashed rgba(0,0,0,.65)"
-                      />
-                    ))}
-                    <Box
-                      position="absolute" pointerEvents="none" bottom="0" h="3px"
-                      left={markerPan < 0 ? `${50 + markerPan * 50}%` : '50%'}
-                      w={`${Math.max(2, Math.abs(markerPan) * 50)}%`} bg="blackAlpha.600"
-                    />
-                  </Box>
-                )
-              })}
+              <PianoRollNotes
+                markers={drawnMarkers} selection={localSelection} lockedTracks={lockedTrackIds}
+                focusId={focusId} pxPerTick={pxPerTick} rowHeight={rowHeight} origin={origin}
+                windowStart={windowStart} windowEnd={windowEnd}
+              />
 
               {rectangleStyle && (
-                <Box
-                  position="absolute" pointerEvents="none" zIndex="5"
-                  left={`${rectangleStyle.left}px`} top={`${rectangleStyle.top}px`}
-                  w={`${rectangleStyle.width}px`} h={`${rectangleStyle.height}px`}
-                  border="1px solid" borderColor="var(--knead-focus)" bg="var(--studio-selection-fill)"
-                  data-testid="piano-roll-selection-rectangle"
-                />
+                <div className="piano-roll-selection" style={rectangleStyle} data-testid="piano-roll-selection-rectangle" />
               )}
-            </Box>
-          </Flex>
+            </div>
+          </div>
         </Box>
 
-        <Flex mt="3" gap="3" align="center" wrap="wrap">
-          <Text fontSize="sm" minW="150px">
-            {firstEditable
-              ? t('studio.piano_roll_inspector_count', { count: selectedEditable.length })
-              : t('studio.piano_roll_inspector_empty')}
-          </Text>
-          <Flex align="center" gap="2">
-            <Text fontSize="xs">{t('studio.piano_roll_velocity')}</Text>
-            <CommitNumberInput
-              aria-label={t('studio.piano_roll_velocity')}
-              value={Math.round((firstEditable?.volume ?? 0) * 100)} min={0} max={100} step={1} precision={0}
-              size="sm" w="92px" disabled={!firstEditable}
-              onCommit={value => updateSelected({ volume: value / 100 })}
-            />
-          </Flex>
-          <Flex align="center" gap="2">
-            <Text fontSize="xs">{t('studio.piano_roll_pan')}</Text>
-            <CommitNumberInput
-              aria-label={t('studio.piano_roll_pan')}
-              value={Math.round((firstEditable?.pan ?? 0) * 100)} min={-100} max={100} step={1} precision={0}
-              size="sm" w="92px" disabled={!firstEditable}
-              onCommit={value => updateSelected({ pan: value / 100 })}
-            />
-          </Flex>
-          <Flex align="center" gap="2">
-            <Text fontSize="xs">{t('studio.piano_roll_duration')}</Text>
-            <CommitNumberInput
-              aria-label={t('studio.piano_roll_duration')}
-              value={firstEditable?.duration ?? 0} min={0} max={1_000_000} step={1} precision={0}
-              size="sm" w="105px" disabled={!firstEditable}
-              onCommit={value => updateSelected({ duration: value })}
-            />
-          </Flex>
-          <Flex align="center" gap="2">
-            <Text fontSize="xs">{t('studio.piano_roll_retrigger')}</Text>
-            <CommitNumberInput
-              aria-label={t('studio.piano_roll_retrigger')}
-              value={firstEditable?.retriggerInterval ?? 1} min={1} max={1_000_000} step={1} precision={0}
-              size="sm" w="105px" disabled={!firstEditable}
-              onCommit={value => updateSelected({ retriggerInterval: value })}
-            />
-          </Flex>
-        </Flex>
-
+        <PianoRollInspector selectedEditable={selectedEditable} updateSelected={updateSelected} />
         {error && <Text mt="2" role="alert" color="var(--studio-error)">{t('studio.piano_roll_error', { error })}</Text>}
         <Flex mt="3" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
@@ -595,3 +433,102 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
     </Box>
   )
 }
+
+const PianoRollToolbar = React.memo(function PianoRollToolbar({
+  trackName, filterMode, onFilter, onZoom, markers, onClose, busy,
+}: {
+  trackName: string
+  filterMode: PianoRollFilterMode
+  onFilter: (mode: PianoRollFilterMode) => void
+  onZoom: ReturnType<typeof usePianoRollViewport>['changeZoom']
+  markers: readonly Marker[]
+  onClose: () => void
+  busy: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <Flex align="center" gap="2" wrap="wrap">
+      <Box>
+        <Text fontSize="xl" fontWeight="bold">{t('studio.piano_roll_title')}</Text>
+        <Text fontSize="xs" color="var(--studio-muted)">{t('studio.piano_roll_description')}</Text>
+      </Box>
+      <Box flex="1" />
+      <Select.Root
+        rootProps={{ w: '220px' }} value={filterMode}
+        items={[
+          { value: 'selected', label: t('studio.piano_roll_filter_selected') },
+          { value: 'track', label: t('studio.piano_roll_filter_track', {
+            name: trackName,
+          }) },
+        ]}
+        aria-label={t('studio.piano_roll_filter')}
+        onChange={value => onFilter(value as PianoRollFilterMode)}
+      />
+      <Button size="sm" onClick={() => onZoom({ factor: 1 / 1.5 })}>
+        {t('studio.piano_roll_zoom_out')}
+      </Button>
+      <Button size="sm" onClick={() => onZoom({ factor: 1.5 })}>
+        {t('studio.piano_roll_zoom_in')}
+      </Button>
+      <Button size="sm" onClick={() => onZoom({ rows: -4 })}>Y−</Button>
+      <Button size="sm" onClick={() => onZoom({ rows: 4 })}>Y＋</Button>
+      <Button size="sm" onClick={() => onZoom({ fit: markers })}>
+        {t('studio.piano_roll_fit')}
+      </Button>
+      <StudioDialogClose onClick={onClose} disabled={busy} />
+    </Flex>
+  )
+})
+
+const PianoRollInspector = React.memo(function PianoRollInspector({ selectedEditable, updateSelected }: {
+  selectedEditable: readonly Marker[]
+  updateSelected: (patch: Parameters<typeof updatePianoRollMarkerFields>[2]) => void
+}) {
+  const { t } = useTranslation()
+  const firstEditable = selectedEditable[0]
+  return (
+    <Flex mt="3" gap="3" align="center" wrap="wrap">
+      <Text fontSize="sm" minW="150px">
+        {firstEditable
+          ? t('studio.piano_roll_inspector_count', { count: selectedEditable.length })
+          : t('studio.piano_roll_inspector_empty')}
+      </Text>
+      <Flex align="center" gap="2">
+        <Text fontSize="xs">{t('studio.piano_roll_velocity')}</Text>
+        <CommitNumberInput
+          aria-label={t('studio.piano_roll_velocity')}
+          value={Math.round((firstEditable?.volume ?? 0) * 100)} min={0} max={100} step={1} precision={0}
+          size="sm" w="92px" disabled={!firstEditable}
+          onCommit={value => updateSelected({ volume: value / 100 })}
+        />
+      </Flex>
+      <Flex align="center" gap="2">
+        <Text fontSize="xs">{t('studio.piano_roll_pan')}</Text>
+        <CommitNumberInput
+          aria-label={t('studio.piano_roll_pan')}
+          value={Math.round((firstEditable?.pan ?? 0) * 100)} min={-100} max={100} step={1} precision={0}
+          size="sm" w="92px" disabled={!firstEditable}
+          onCommit={value => updateSelected({ pan: value / 100 })}
+        />
+      </Flex>
+      <Flex align="center" gap="2">
+        <Text fontSize="xs">{t('studio.piano_roll_duration')}</Text>
+        <CommitNumberInput
+          aria-label={t('studio.piano_roll_duration')}
+          value={firstEditable?.duration ?? 0} min={0} max={1_000_000} step={1} precision={0}
+          size="sm" w="105px" disabled={!firstEditable}
+          onCommit={value => updateSelected({ duration: value })}
+        />
+      </Flex>
+      <Flex align="center" gap="2">
+        <Text fontSize="xs">{t('studio.piano_roll_retrigger')}</Text>
+        <CommitNumberInput
+          aria-label={t('studio.piano_roll_retrigger')}
+          value={firstEditable?.retriggerInterval ?? 1} min={1} max={1_000_000} step={1} precision={0}
+          size="sm" w="105px" disabled={!firstEditable}
+          onCommit={value => updateSelected({ retriggerInterval: value })}
+        />
+      </Flex>
+    </Flex>
+  )
+})
