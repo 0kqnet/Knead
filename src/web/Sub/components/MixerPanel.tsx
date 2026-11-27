@@ -1,61 +1,60 @@
 import React, { useEffect, useRef } from 'react'
 import { Box, Button, Flex, Slider, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { usePlaybackMeter, type PlaybackStatusStore } from '../hooks/useTimelinePlayback'
 import type { MasterBus, ReferenceAudioTrack, Track } from '../types/timeline'
-
-interface MeterValue {
-  peak: number
-  rms: number
-}
 
 interface Props {
   tracks: Track[]
   selectedTrackId: string
   referenceAudio?: ReferenceAudioTrack[]
   master: MasterBus
-  trackMeters: Record<string, MeterValue>
-  referenceAudioMeters?: Record<string, MeterValue>
-  masterMeter: MeterValue
+  playbackStatus: PlaybackStatusStore
   onTrackChange: (id: string, patch: Partial<Omit<Track, 'id'>>) => void
   onReferenceAudioChange?: (id: string, patch: Partial<ReferenceAudioTrack>) => void
   onMasterChange: (patch: Partial<MasterBus>) => void
 }
 
-const Meter: React.FC<{ value?: MeterValue }> = ({ value }) => (
-  <Flex
-    h="64px"
-    w="12px"
-    bg="var(--studio-canvas)"
-    borderRadius="full"
-    overflow="hidden"
-    alignItems="flex-end"
-    title={`Peak ${((value?.peak ?? 0) * 100).toFixed(0)}% / RMS ${((value?.rms ?? 0) * 100).toFixed(0)}%`}
-  >
-    <Box
-      w="50%"
-      h={`${Math.min(100, (value?.peak ?? 0) * 100)}%`}
-      bg={(value?.peak ?? 0) > 0.9 ? 'red.400' : 'green.400'}
-    />
-    <Box
-      w="50%"
-      h={`${Math.min(100, (value?.rms ?? 0) * 100)}%`}
-      bg="blue.400"
-    />
-  </Flex>
-)
+function Meter({ status, kind, id }: {
+  status: PlaybackStatusStore
+  kind: 'track' | 'reference' | 'master'
+  id?: string
+}) {
+  const value = usePlaybackMeter(status, kind, id)
+  return (
+    <Flex
+      h="64px"
+      w="12px"
+      bg="var(--studio-canvas)"
+      borderRadius="full"
+      overflow="hidden"
+      alignItems="flex-end"
+      title={`Peak ${((value?.peak ?? 0) * 100).toFixed(0)}% / RMS ${((value?.rms ?? 0) * 100).toFixed(0)}%`}
+    >
+      <Box
+        w="50%"
+        h={`${Math.min(100, (value?.peak ?? 0) * 100)}%`}
+        bg={(value?.peak ?? 0) > 0.9 ? 'red.400' : 'green.400'}
+      />
+      <Box
+        w="50%"
+        h={`${Math.min(100, (value?.rms ?? 0) * 100)}%`}
+        bg="blue.400"
+      />
+    </Flex>
+  )
+}
 
-export const MixerPanel: React.FC<Props> = ({
+export const MixerPanel = React.memo(function MixerPanel({
   tracks,
   selectedTrackId,
   referenceAudio = [],
   master,
-  trackMeters,
-  referenceAudioMeters = {},
-  masterMeter,
+  playbackStatus,
   onTrackChange,
   onReferenceAudioChange,
   onMasterChange,
-}) => {
+}: Props) {
   const { t } = useTranslation()
   const channelsRef = useRef<HTMLDivElement>(null)
   const selectedChannelRef = useRef<HTMLDivElement>(null)
@@ -96,7 +95,7 @@ export const MixerPanel: React.FC<Props> = ({
           >
             <Text fontSize="xs" w="95px" flexShrink="0" textAlign="center" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">{track.name}</Text>
             <Flex gap="2" align="center">
-              <Meter value={trackMeters[track.id]} />
+              <Meter status={playbackStatus} kind="track" id={track.id} />
               <Box w="84px">
                 <Text fontSize="xs" color="var(--studio-muted)" whiteSpace="nowrap">
                   {t('studio.mixer_gain')}
@@ -151,7 +150,7 @@ export const MixerPanel: React.FC<Props> = ({
               {track.name}
             </Text>
             <Flex gap="2" align="center">
-              <Meter value={referenceAudioMeters[track.id]} />
+              <Meter status={playbackStatus} kind="reference" id={track.id} />
               <Box w="84px">
                 <Text fontSize="xs" color="var(--studio-muted)" whiteSpace="nowrap">
                   {t('studio.mixer_gain')}
@@ -195,7 +194,7 @@ export const MixerPanel: React.FC<Props> = ({
       <Flex className="studio-mixer-master" direction="column" align="center" minW="120px" p="2" gap="1" bg="var(--studio-raised)">
         <Text fontSize="sm" fontWeight="bold">{t('studio.mixer_master')}</Text>
         <Flex gap="2" align="center">
-          <Meter value={masterMeter} />
+          <Meter status={playbackStatus} kind="master" />
           <Box w="80px">
             <Text fontSize="xs" color="var(--studio-muted)" whiteSpace="nowrap">
               {t('studio.mixer_gain')}
@@ -223,4 +222,4 @@ export const MixerPanel: React.FC<Props> = ({
       </Flex>
     </Flex>
   )
-}
+})

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   DEFAULT_RETRIGGER_INTERVAL,
   MAX_MARKER_PITCH,
@@ -15,6 +15,7 @@ import {
 } from '../types/timeline'
 import type { useAudioBufferCache } from './useAudioBufferCache'
 import { sampleCurve } from '../utils/curveSampling'
+import { createMarkerTickIndex, forEachMarkerInTickRange } from '../utils/markerTickIndex'
 import { stableVariantIndex } from '../utils/studioMath'
 import {
   buildTempoMap,
@@ -24,6 +25,11 @@ import {
   tickToSeconds,
   type TempoMapModel,
 } from '../utils/tempoMap'
+
+const LOOKAHEAD_SECONDS = 0.12
+const BUFFER_RETRY_SECONDS = 0.04
+const STATUS_UPDATE_INTERVAL_MS = 100
+const EMPTY_REFERENCE_AUDIO: ReferenceAudioTrack[] = []
 
 /** Resolve the exact WebAudio/offline rate without silently changing pitch. */
 export function resolveMarkerPlaybackRate(markerPitch: number, basePitch: number): number | null {
@@ -118,6 +124,53 @@ interface MeterValue {
   rms: number
 }
 
+interface PlaybackStatus {
+  currentTick: number
+  trackMeters: Record<string, MeterValue>
+  referenceAudioMeters: Record<string, MeterValue>
+  masterMeter: MeterValue
+}
+
+export interface PlaybackStatusStore {
+  getSnapshot: () => PlaybackStatus
+  subscribe: (listener: () => void) => () => void
+}
+
+function noStatusSubscription(): () => void {
+  return () => undefined
+}
+
+export function usePlaybackStatus(status: PlaybackStatusStore, enabled: boolean): PlaybackStatus {
+  return useSyncExternalStore(
+    enabled ? status.subscribe : noStatusSubscription,
+    enabled ? status.getSnapshot : () => INITIAL_STATUS,
+  )
+}
+
+export function usePlaybackPosition(status: PlaybackStatusStore): number {
+  return useSyncExternalStore(status.subscribe, () => status.getSnapshot().currentTick)
+}
+
+export function usePlaybackMeter(
+  status: PlaybackStatusStore | undefined,
+  kind: 'track' | 'reference' | 'master',
+  trackId = '',
+): MeterValue | undefined {
+  return useSyncExternalStore(status?.subscribe ?? noStatusSubscription, () => {
+    if (!status) return undefined
+    const snapshot = status.getSnapshot()
+    if (kind === 'master') return snapshot.masterMeter
+    return (kind === 'track' ? snapshot.trackMeters : snapshot.referenceAudioMeters)[trackId]
+  })
+}
+
+const INITIAL_STATUS: PlaybackStatus = {
+  currentTick: 0,
+  trackMeters: {},
+  referenceAudioMeters: {},
+  masterMeter: { peak: 0, rms: 0 },
+}
+
 interface TrackBus {
   gain: GainNode
   pan: StereoPannerNode
@@ -191,30 +244,41 @@ export function resolveMetronomeEvents(
   return [...byTick.values()].sort((left, right) => left.tick - right.tick)
 }
 
-export function enumerateMarkerFirings(marker: Marker): TimelineFiring[] {
-  if (isSoundStopMarker(marker)) return []
-  const duration = marker.duration ?? 0
-  const interval = marker.retriggerInterval && marker.retriggerInterval > 0
+function markerFiringInterval(marker: Marker): number {
+  return marker.retriggerInterval && marker.retriggerInterval > 0
     ? marker.retriggerInterval
     : DEFAULT_RETRIGGER_INTERVAL
-  const count = duration > 0 ? Math.floor(duration / interval) + 1 : 1
+}
+
+function markerFiringCount(marker: Marker, interval: number): number {
+  const duration = marker.duration ?? 0
+  return duration > 0 ? Math.floor(duration / interval) + 1 : 1
+}
+
+function createFiring(marker: Marker, firingIndex: number, interval: number, key: string): TimelineFiring {
+  const offset = firingIndex * interval
   const gateTicks = Math.trunc(marker.gateTicks ?? 0)
-  return Array.from({ length: count }, (_, firingIndex) => {
-    const offset = duration > 0 ? firingIndex * interval : 0
-    return {
-      key: `${marker.id}#${firingIndex}`,
-      markerId: marker.id,
-      firingIndex,
-      trackId: marker.trackId,
-      soundId: marker.soundId,
-      variantIndex: marker.variantIndex,
-      tick: marker.tick + offset,
-      volume: sampleCurve(marker.volumeCurve, offset, marker.volume),
-      pitch: sampleCurve(marker.pitchCurve, offset, marker.pitch),
-      pan: Math.max(-1, Math.min(1, marker.pan ?? 0)),
-      gateTicks: gateTicks > 0 ? gateTicks : undefined,
-    }
-  })
+  return {
+    key,
+    markerId: marker.id,
+    firingIndex,
+    trackId: marker.trackId,
+    soundId: marker.soundId,
+    variantIndex: marker.variantIndex,
+    tick: marker.tick + offset,
+    volume: sampleCurve(marker.volumeCurve, offset, marker.volume),
+    pitch: sampleCurve(marker.pitchCurve, offset, marker.pitch),
+    pan: clampPan(marker.pan ?? 0),
+    gateTicks: gateTicks > 0 ? gateTicks : undefined,
+  }
+}
+
+export function enumerateMarkerFirings(marker: Marker): TimelineFiring[] {
+  if (isSoundStopMarker(marker)) return []
+  const interval = markerFiringInterval(marker)
+  return Array.from({ length: markerFiringCount(marker, interval) }, (_, firingIndex) => (
+    createFiring(marker, firingIndex, interval, `${marker.id}#${firingIndex}`)
+  ))
 }
 
 /**
@@ -248,16 +312,80 @@ function readMeter(analyser: AnalyserNode, scratch: Float32Array<ArrayBuffer>): 
   return { peak, rms: Math.sqrt(squareSum / scratch.length) }
 }
 
+function readTrackMeters(
+  buses: ReadonlyMap<string, TrackBus>,
+  previous: Record<string, MeterValue>,
+  scratch: Float32Array<ArrayBuffer>,
+): Record<string, MeterValue> {
+  const meters: Record<string, MeterValue> = {}
+  for (const [id, bus] of buses) {
+    const meter = readMeter(bus.analyser, scratch)
+    const cached = previous[id]
+    meters[id] = cached?.peak === meter.peak && cached.rms === meter.rms ? cached : meter
+  }
+  return meters
+}
+
+function createTrackBus(context: AudioContext, output: AudioNode): TrackBus {
+  const gain = context.createGain()
+  const pan = context.createStereoPanner()
+  const analyser = context.createAnalyser()
+  analyser.fftSize = 256
+  gain.connect(pan).connect(analyser).connect(output)
+  return { gain, pan, analyser }
+}
+
+function disconnectTrackBus(bus: TrackBus): void {
+  bus.gain.disconnect()
+  bus.pan.disconnect()
+  bus.analyser.disconnect()
+}
+
+function trackGain(track: Track | ReferenceAudioTrack, hasSolo: boolean): number {
+  return !track.muted && (!hasSolo || track.solo) ? dbToGain(track.gainDb) : 0
+}
+
 export function useTimelinePlayback({
   markers, tracks, lengthTicks, settings, master, randomSeed, cache,
-  referenceAudio = [], tempoMap,
+  referenceAudio = EMPTY_REFERENCE_AUDIO, tempoMap,
 }: Params) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
-  const [currentTick, setCurrentTick] = useState(0)
-  const [trackMeters, setTrackMeters] = useState<Record<string, MeterValue>>({})
-  const [referenceAudioMeters, setReferenceAudioMeters] = useState<Record<string, MeterValue>>({})
-  const [masterMeter, setMasterMeter] = useState<MeterValue>({ peak: 0, rms: 0 })
+  const statusRef = useRef(INITIAL_STATUS)
+  const statusListenersRef = useRef(new Set<() => void>())
+  const status = useMemo<PlaybackStatusStore>(() => ({
+    getSnapshot: () => statusRef.current,
+    subscribe: (listener) => {
+      const listeners = statusListenersRef.current
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+  }), [])
+  const publishStatus = useCallback((snapshot: PlaybackStatus) => {
+    statusRef.current = snapshot
+    for (const listener of statusListenersRef.current) listener()
+  }, [])
+  const publishPosition = useCallback((tick: number) => {
+    if (statusRef.current.currentTick !== tick) publishStatus({ ...statusRef.current, currentTick: tick })
+  }, [publishStatus])
+
+  const currentTickRef = useRef(0)
+  const tickListenersRef = useRef(new Set<(tick: number) => void>())
+  const getCurrentTick = useCallback(() => currentTickRef.current, [])
+  const subscribeTick = useCallback((listener: (tick: number) => void) => {
+    const listeners = tickListenersRef.current
+    listeners.add(listener)
+    return () => {
+      listeners.delete(listener)
+    }
+  }, [])
+  const publishTick = useCallback((tick: number) => {
+    if (currentTickRef.current === tick) return
+    currentTickRef.current = tick
+    for (const listener of tickListenersRef.current) listener(tick)
+  }, [])
 
   const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
     bpm: settings.bpm,
@@ -274,17 +402,26 @@ export function useTimelinePlayback({
     settings.timeSignature.numerator,
     tempoMap,
   ])
+  const trackById = useMemo(() => new Map(tracks.map((track, index) => (
+    [track.id, { track, index }]
+  ))), [tracks])
+  const hasSolo = useMemo(
+    () => tracks.some(track => track.solo) || referenceAudio.some(track => track.solo),
+    [tracks, referenceAudio],
+  )
   const latestRef = useRef({
-    markers, tracks, lengthTicks, settings, master, randomSeed, cache, referenceAudio, tempoModel,
+    markers, tracks, trackById, hasSolo, lengthTicks, settings, master, randomSeed, cache, referenceAudio, tempoModel,
   })
   latestRef.current = {
-    markers, tracks, lengthTicks, settings, master, randomSeed, cache, referenceAudio, tempoModel,
+    markers, tracks, trackById, hasSolo, lengthTicks, settings, master, randomSeed, cache, referenceAudio, tempoModel,
   }
   const playStartAudioTimeRef = useRef(0)
   const startTickRef = useRef(0)
   const metronomeScanTickRef = useRef(0)
+  const scheduledThroughRef = useRef<number | null>(null)
+  const markerIndexRef = useRef<{ markers: Marker[], index: ReturnType<typeof createMarkerTickIndex> } | null>(null)
   const scheduledKeysRef = useRef<Set<string>>(new Set())
-  const activeSourcesRef = useRef<ActiveScheduledSource[]>([])
+  const activeSourcesRef = useRef<Set<ActiveScheduledSource>>(new Set())
   const activeReferenceSourcesRef = useRef<AudioBufferSourceNode[]>([])
   const rafRef = useRef<number | null>(null)
   const playingRef = useRef(false)
@@ -295,12 +432,13 @@ export function useTimelinePlayback({
   const masterGainRef = useRef<GainNode | null>(null)
   const limiterRef = useRef<DynamicsCompressorNode | null>(null)
   const masterAnalyserRef = useRef<AnalyserNode | null>(null)
-  const lastMeterAtRef = useRef(0)
+  const lastStatusAtRef = useRef(0)
 
   const ensureGraph = useCallback(() => {
     const {
       cache: currentCache,
-      tracks: currentTracks,
+      trackById: currentTrackById,
+      hasSolo: currentHasSolo,
       master: currentMaster,
       settings: currentSettings,
       referenceAudio: currentReferenceAudio,
@@ -325,21 +463,15 @@ export function useTimelinePlayback({
       limiter.attack.value = 0.005
       limiter.release.value = 0.05
     }
-    const hasSolo = currentTracks.some(track => track.solo)
-      || currentReferenceAudio.some(track => track.solo)
-    for (const track of currentTracks) {
-      let bus = trackBusesRef.current.get(track.id)
-      if (!bus) {
-        const gain = ctx.createGain()
-        const pan = ctx.createStereoPanner()
-        const analyser = ctx.createAnalyser()
-        analyser.fftSize = 256
-        gain.connect(pan).connect(analyser).connect(masterGainRef.current)
-        bus = { gain, pan, analyser }
-        trackBusesRef.current.set(track.id, bus)
+    for (const [id, bus] of trackBusesRef.current) {
+      const track = currentTrackById.get(id)?.track
+      if (!track) {
+        disconnectTrackBus(bus)
+        trackBusesRef.current.delete(id)
+        continue
       }
       bus.gain.gain.setTargetAtTime(
-        !track.muted && (!hasSolo || track.solo) ? dbToGain(track.gainDb) : 0,
+        trackGain(track, currentHasSolo),
         ctx.currentTime,
         0.01,
       )
@@ -349,36 +481,24 @@ export function useTimelinePlayback({
         0.01,
       )
     }
-    for (const [id, bus] of trackBusesRef.current) {
-      if (currentTracks.some(track => track.id === id)) continue
-      bus.gain.disconnect()
-      bus.pan.disconnect()
-      bus.analyser.disconnect()
-      trackBusesRef.current.delete(id)
-    }
+    const referenceIds = new Set<string>()
     for (const track of currentReferenceAudio) {
+      referenceIds.add(track.id)
       let bus = referenceBusesRef.current.get(track.id)
       if (!bus) {
-        const gain = ctx.createGain()
-        const pan = ctx.createStereoPanner()
-        const analyser = ctx.createAnalyser()
-        analyser.fftSize = 256
-        gain.connect(pan).connect(analyser).connect(masterGainRef.current)
-        bus = { gain, pan, analyser }
+        bus = createTrackBus(ctx, masterGainRef.current)
         referenceBusesRef.current.set(track.id, bus)
       }
       bus.gain.gain.setTargetAtTime(
-        !track.muted && (!hasSolo || track.solo) ? dbToGain(track.gainDb) : 0,
+        trackGain(track, currentHasSolo),
         ctx.currentTime,
         0.01,
       )
       bus.pan.pan.setTargetAtTime(track.pan, ctx.currentTime, 0.01)
     }
     for (const [id, bus] of referenceBusesRef.current) {
-      if (currentReferenceAudio.some(track => track.id === id)) continue
-      bus.gain.disconnect()
-      bus.pan.disconnect()
-      bus.analyser.disconnect()
+      if (referenceIds.has(id)) continue
+      disconnectTrackBus(bus)
       referenceBusesRef.current.delete(id)
     }
     return ctx
@@ -412,15 +532,13 @@ export function useTimelinePlayback({
   const scheduleFiring = useCallback((firing: TimelineFiring): boolean => {
     const {
       cache: currentCache,
-      tracks: currentTracks,
+      trackById: currentTrackById,
+      hasSolo: currentHasSolo,
       settings: currentSettings,
       tempoModel: currentTempoModel,
     } = latestRef.current
-    const track = currentTracks.find(item => item.id === firing.trackId)
-    const bus = trackBusesRef.current.get(firing.trackId)
-    const hasSolo = currentTracks.some(item => item.solo)
-      || latestRef.current.referenceAudio.some(item => item.solo)
-    if (!track || !bus || track.muted || (hasSolo && !track.solo)) return true
+    const track = currentTrackById.get(firing.trackId)?.track
+    if (!track || track.muted || (currentHasSolo && !track.solo)) return true
     const variantIndex = resolveVariant(firing)
     if (variantIndex < 0) return false
     const buffer = currentCache.getBuffer(firing.soundId, variantIndex)
@@ -430,7 +548,14 @@ export function useTimelinePlayback({
       currentCache.getBasePitch(firing.soundId, variantIndex),
     )
     if (playbackRate === null) return true
-    const ctx = ensureGraph()
+    const ctx = currentCache.getAudioContext()
+    let bus = trackBusesRef.current.get(firing.trackId)
+    if (!bus) {
+      bus = createTrackBus(ctx, masterGainRef.current!)
+      bus.gain.gain.value = trackGain(track, currentHasSolo)
+      bus.pan.pan.value = currentSettings.panLaw === 'nbs-average' ? 0 : track.pan
+      trackBusesRef.current.set(firing.trackId, bus)
+    }
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.playbackRate.value = playbackRate
@@ -449,20 +574,19 @@ export function useTimelinePlayback({
       trackId: firing.trackId,
       soundId: firing.soundId,
     }
-    activeSourcesRef.current.push(active)
+    activeSourcesRef.current.add(active)
     if (firing.gateTicks && firing.gateTicks > 0) {
       // Gate time is tied to AudioContext/timeline time, never playbackRate.
       const duration = tickRangeToSeconds(firing.tick, firing.tick + firing.gateTicks, currentTempoModel)
       scheduleEarliestSourceStop(active, startWhen + duration)
     }
     source.onended = () => {
-      const index = activeSourcesRef.current.findIndex(active => active.node === source)
-      if (index >= 0) activeSourcesRef.current.splice(index, 1)
+      activeSourcesRef.current.delete(active)
       markerGain.disconnect()
       markerPan.disconnect()
     }
     return true
-  }, [ensureGraph, resolveVariant])
+  }, [resolveVariant])
 
   const scheduleSoundStop = useCallback((marker: Marker) => {
     if (!isSoundStopMarker(marker)) return
@@ -481,9 +605,9 @@ export function useTimelinePlayback({
   }, [])
 
   const scheduleMetronome = useCallback((tick: number, accent: boolean) => {
-    const { settings: currentSettings, tempoModel: currentTempoModel } = latestRef.current
+    const { cache: currentCache, settings: currentSettings, tempoModel: currentTempoModel } = latestRef.current
     if (!currentSettings.metronomeEnabled) return
-    const ctx = ensureGraph()
+    const ctx = currentCache.getAudioContext()
     const oscillator = ctx.createOscillator()
     const gain = ctx.createGain()
     oscillator.frequency.value = accent ? 1400 : 900
@@ -497,13 +621,13 @@ export function useTimelinePlayback({
     oscillator.connect(gain).connect(masterGainRef.current!)
     oscillator.start(when)
     oscillator.stop(when + 0.04)
-    activeSourcesRef.current.push({ node: oscillator, kind: 'metronome', tick })
+    const active: ActiveScheduledSource = { node: oscillator, kind: 'metronome', tick }
+    activeSourcesRef.current.add(active)
     oscillator.onended = () => {
-      const index = activeSourcesRef.current.findIndex(active => active.node === oscillator)
-      if (index >= 0) activeSourcesRef.current.splice(index, 1)
+      activeSourcesRef.current.delete(active)
       gain.disconnect()
     }
-  }, [ensureGraph])
+  }, [])
 
   const stopReferenceSources = useCallback(() => {
     for (const source of activeReferenceSourcesRef.current) {
@@ -524,15 +648,13 @@ export function useTimelinePlayback({
     stopReferenceSources()
     const {
       cache: currentCache,
-      tracks: currentTracks,
+      hasSolo: currentHasSolo,
       referenceAudio: currentReferenceAudio,
       tempoModel: currentTempoModel,
     } = latestRef.current
-    const hasSolo = currentTracks.some(track => track.solo)
-      || currentReferenceAudio.some(track => track.solo)
-    const ctx = ensureGraph()
+    const ctx = currentCache.getAudioContext()
     for (const track of currentReferenceAudio) {
-      if (track.muted || (hasSolo && !track.solo)) continue
+      if (track.muted || (currentHasSolo && !track.solo)) continue
       const buffer = currentCache.getReferenceBuffer(track.id)
       const bus = referenceBusesRef.current.get(track.id)
       if (!buffer || !bus || buffer.duration <= 0) continue
@@ -562,7 +684,7 @@ export function useTimelinePlayback({
         catch { /* noop */ }
       }
     }
-  }, [ensureGraph, stopReferenceSources])
+  }, [stopReferenceSources])
 
   const stopSources = useCallback(() => {
     stopReferenceSources()
@@ -576,24 +698,21 @@ export function useTimelinePlayback({
       }
       catch { /* noop */ }
     }
-    activeSourcesRef.current = []
+    activeSourcesRef.current.clear()
     scheduledKeysRef.current.clear()
+    scheduledThroughRef.current = null
   }, [stopReferenceSources])
 
-  const updateMeters = useCallback((timestamp: number) => {
-    if (timestamp - lastMeterAtRef.current < 50) return
-    lastMeterAtRef.current = timestamp
+  const updateStatus = useCallback((currentTick: number) => {
     const scratch = new Float32Array(256)
-    const next: Record<string, MeterValue> = {}
-    for (const [id, bus] of trackBusesRef.current) next[id] = readMeter(bus.analyser, scratch)
-    setTrackMeters(next)
-    const nextReference: Record<string, MeterValue> = {}
-    for (const [id, bus] of referenceBusesRef.current) {
-      nextReference[id] = readMeter(bus.analyser, scratch)
-    }
-    setReferenceAudioMeters(nextReference)
-    if (masterAnalyserRef.current) setMasterMeter(readMeter(masterAnalyserRef.current, scratch))
-  }, [])
+    const previous = statusRef.current
+    publishStatus({
+      currentTick,
+      trackMeters: readTrackMeters(trackBusesRef.current, previous.trackMeters, scratch),
+      referenceAudioMeters: readTrackMeters(referenceBusesRef.current, previous.referenceAudioMeters, scratch),
+      masterMeter: masterAnalyserRef.current ? readMeter(masterAnalyserRef.current, scratch) : previous.masterMeter,
+    })
+  }, [publishStatus])
 
   const stopInternal = useCallback((letNotesFinish = false) => {
     playingRef.current = false
@@ -611,6 +730,7 @@ export function useTimelinePlayback({
       cache: currentCache,
       settings: currentSettings,
       markers: currentMarkers,
+      trackById: currentTrackById,
       lengthTicks: currentLength,
       tempoModel: currentTempoModel,
     } = latestRef.current
@@ -632,31 +752,43 @@ export function useTimelinePlayback({
         scheduleReferenceAudio(loop.startTick, loop.endTick)
       }
       else {
-        setCurrentTick(currentLength)
+        publishTick(currentLength)
+        publishPosition(currentLength)
         stopInternal(!loop.enabled && currentTempoModel.ticksPerQuarter !== undefined)
         return
       }
     }
-    setCurrentTick(effectiveCurrent)
-
-    const lookahead = secondsToTick(currentSeconds + 0.12, currentTempoModel)
-    const trackIndexById = new Map(latestRef.current.tracks.map((track, index) => [track.id, index]))
+    const lookahead = secondsToTick(currentSeconds + LOOKAHEAD_SECONDS, currentTempoModel)
+    const retryFrom = secondsToTick(Math.max(0, currentSeconds - BUFFER_RETRY_SECONDS), currentTempoModel)
+    // Catch up if a frame was delayed. Keep retrying undecoded sounds only
+    // around their playback time, so a missing sound cannot build a backlog.
+    const scanStart = Math.max(startTickRef.current, Math.min(scheduledThroughRef.current ?? startTickRef.current, retryFrom))
+    const scanEnd = Math.min(lookahead, endTick)
+    if (markerIndexRef.current?.markers !== currentMarkers) {
+      markerIndexRef.current = { markers: currentMarkers, index: createMarkerTickIndex(currentMarkers) }
+    }
     const scheduleEvents: TimelineScheduleEvent[] = []
-    for (const marker of currentMarkers) {
-      const trackIndex = trackIndexById.get(marker.trackId) ?? Number.MAX_SAFE_INTEGER
+    forEachMarkerInTickRange(markerIndexRef.current.index, scanStart, scanEnd, (marker) => {
+      const trackIndex = currentTrackById.get(marker.trackId)?.index ?? Number.MAX_SAFE_INTEGER
       if (isSoundStopMarker(marker)) {
         const key = `${marker.id}#sound-stop`
-        if (scheduledKeysRef.current.has(key)) continue
-        if (marker.tick < startTickRef.current || marker.tick > lookahead || marker.tick >= endTick) continue
-        scheduleEvents.push({ type: 'sound-stop', key, tick: marker.tick, trackIndex, marker })
-        continue
+        if (marker.tick < endTick && !scheduledKeysRef.current.has(key)) {
+          scheduleEvents.push({ type: 'sound-stop', key, tick: marker.tick, trackIndex, marker })
+        }
+        return
       }
-      for (const firing of enumerateMarkerFirings(marker)) {
-        if (scheduledKeysRef.current.has(firing.key)) continue
-        if (firing.tick < startTickRef.current || firing.tick > lookahead || firing.tick >= endTick) continue
-        scheduleEvents.push({ type: 'firing', key: firing.key, tick: firing.tick, trackIndex, firing })
+      const interval = markerFiringInterval(marker)
+      const first = Math.max(0, Math.ceil((scanStart - marker.tick) / interval))
+      const last = Math.min(markerFiringCount(marker, interval) - 1, Math.floor((scanEnd - marker.tick) / interval))
+      for (let firingIndex = first; firingIndex <= last; firingIndex++) {
+        const key = `${marker.id}#${firingIndex}`
+        const tick = marker.tick + firingIndex * interval
+        if (tick >= endTick || scheduledKeysRef.current.has(key)) continue
+        const firing = createFiring(marker, firingIndex, interval, key)
+        scheduleEvents.push({ type: 'firing', key, tick, trackIndex, firing })
       }
-    }
+    })
+    scheduledThroughRef.current = lookahead
     scheduleEvents.sort((left, right) => (
       left.tick - right.tick
       || left.trackIndex - right.trackIndex
@@ -688,16 +820,24 @@ export function useTimelinePlayback({
     else {
       metronomeScanTickRef.current = lookahead + 1e-6
     }
-    updateMeters(timestamp)
+    publishTick(effectiveCurrent)
+    // The playhead follows every frame. Numeric readouts and meters update
+    // together at a slower rate so they do not repaint the editor every frame.
+    if (timestamp - lastStatusAtRef.current >= STATUS_UPDATE_INTERVAL_MS) {
+      lastStatusAtRef.current = timestamp
+      updateStatus(effectiveCurrent)
+    }
     rafRef.current = requestAnimationFrame(tick)
   }, [
+    publishPosition,
+    publishTick,
     scheduleFiring,
     scheduleMetronome,
     scheduleReferenceAudio,
     scheduleSoundStop,
     stopInternal,
     stopSources,
-    updateMeters,
+    updateStatus,
   ])
 
   const play = useCallback(() => {
@@ -706,7 +846,8 @@ export function useTimelinePlayback({
     const ctx = ensureGraph()
     void ctx.resume()
     stopSources()
-    let start = currentTick >= currentLength ? 0 : currentTick
+    const position = currentTickRef.current
+    let start = position >= currentLength ? 0 : position
     if (currentSettings.loop.enabled && (start < currentSettings.loop.startTick || start >= currentSettings.loop.endTick)) {
       start = currentSettings.loop.startTick
     }
@@ -717,7 +858,8 @@ export function useTimelinePlayback({
     startTickRef.current = start
     metronomeScanTickRef.current = start
     scheduledKeysRef.current.clear()
-    setCurrentTick(start)
+    publishTick(start)
+    publishPosition(start)
     setIsPlaying(true)
     setIsPaused(false)
     scheduleReferenceAudio(
@@ -725,7 +867,7 @@ export function useTimelinePlayback({
       currentSettings.loop.enabled ? currentSettings.loop.endTick : currentLength,
     )
     tick(performance.now())
-  }, [currentTick, ensureGraph, scheduleReferenceAudio, stopSources, tick])
+  }, [ensureGraph, publishPosition, publishTick, scheduleReferenceAudio, stopSources, tick])
 
   const pause = useCallback(() => {
     if (!playingRef.current || pausedRef.current) return
@@ -733,9 +875,10 @@ export function useTimelinePlayback({
     void latestRef.current.cache.getAudioContext().suspend()
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
+    publishPosition(currentTickRef.current)
     setIsPlaying(false)
     setIsPaused(true)
-  }, [])
+  }, [publishPosition])
 
   const resume = useCallback(() => {
     if (!pausedRef.current) return
@@ -748,11 +891,9 @@ export function useTimelinePlayback({
 
   const stop = useCallback(() => {
     stopInternal()
-    setCurrentTick(0)
-    setTrackMeters({})
-    setReferenceAudioMeters({})
-    setMasterMeter({ peak: 0, rms: 0 })
-  }, [stopInternal])
+    publishTick(0)
+    publishStatus(INITIAL_STATUS)
+  }, [publishStatus, publishTick, stopInternal])
 
   const seek = useCallback((tickValue: number) => {
     const wasPlaying = playingRef.current
@@ -761,7 +902,8 @@ export function useTimelinePlayback({
     completedLoopCountRef.current = 0
     rafRef.current = replaceTransportAnimationFrame(rafRef.current, false, tick)
     stopSources()
-    setCurrentTick(clamped)
+    publishTick(clamped)
+    publishPosition(clamped)
     startTickRef.current = clamped
     metronomeScanTickRef.current = clamped
     playStartAudioTimeRef.current = ctx.currentTime
@@ -775,7 +917,7 @@ export function useTimelinePlayback({
       )
       if (!pausedRef.current) tick(performance.now())
     }
-  }, [scheduleReferenceAudio, stopSources, tick])
+  }, [publishPosition, publishTick, scheduleReferenceAudio, stopSources, tick])
 
   useEffect(() => {
     if (!playingRef.current) return
@@ -794,32 +936,31 @@ export function useTimelinePlayback({
 
   useEffect(() => () => {
     stopInternal()
-    for (const bus of trackBusesRef.current.values()) {
-      bus.gain.disconnect()
-      bus.pan.disconnect()
-      bus.analyser.disconnect()
-    }
-    for (const bus of referenceBusesRef.current.values()) {
-      bus.gain.disconnect()
-      bus.pan.disconnect()
-      bus.analyser.disconnect()
-    }
+    for (const bus of trackBusesRef.current.values()) disconnectTrackBus(bus)
+    for (const bus of referenceBusesRef.current.values()) disconnectTrackBus(bus)
+    trackBusesRef.current.clear()
+    referenceBusesRef.current.clear()
+    masterGainRef.current?.disconnect()
+    limiterRef.current?.disconnect()
+    masterAnalyserRef.current?.disconnect()
+    masterGainRef.current = null
+    limiterRef.current = null
+    masterAnalyserRef.current = null
   }, [stopInternal])
 
   return useMemo(() => ({
     isPlaying,
     isPaused,
-    currentTick,
-    trackMeters,
-    referenceAudioMeters,
-    masterMeter,
+    status,
+    getCurrentTick,
+    subscribeTick,
     play,
     pause,
     resume,
     stop,
     seek,
   }), [
-    isPlaying, isPaused, currentTick, trackMeters, referenceAudioMeters, masterMeter,
+    isPlaying, isPaused, status, getCurrentTick, subscribeTick,
     play, pause, resume, stop, seek,
   ])
 }

@@ -17,6 +17,8 @@ import {
 } from '../types/timeline'
 import { pxDeltaToTick, pxToTick, tickToPx } from '../utils/tickPixel'
 import { buildTempoMap, snapTickToTempoMap, type TempoMapModel } from '../utils/tempoMap'
+import { createMarkerTickIndex, forEachMarkerInTickRange } from '../utils/markerTickIndex'
+import type { OverviewRange } from '../utils/arrangementOverview'
 import { ResizeEdge, TimelineMarker } from './TimelineMarker'
 import type { MarkerVisualIcon } from '../../../../@types/global'
 
@@ -30,6 +32,7 @@ interface Props {
   markers: Marker[]
   lengthTicks: number
   pxPerTick: number
+  visibleTicks?: OverviewRange
   settings: TimelineSettings
   tempoMap?: readonly TempoMapEvent[]
   tempoModel?: TempoMapModel
@@ -65,13 +68,15 @@ interface DragState {
   editing: boolean
 }
 
-export const TimelineTrack: React.FC<Props> = ({
-  track, markers, lengthTicks, pxPerTick, settings, tempoMap, selectedIds, validSoundIds,
+const EMPTY_MARKER_ICONS: Record<string, MarkerVisualIcon> = {}
+
+export const TimelineTrack = React.memo(function TimelineTrack({
+  track, markers, lengthTicks, pxPerTick, visibleTicks, settings, tempoMap, selectedIds, validSoundIds,
   tempoModel: suppliedTempoModel,
-  markerIcons = {},
+  markerIcons = EMPTY_MARKER_ICONS,
   onSelectMarker, onClearSelection, onRectangleSelect, onBeginEdit, onEndEdit,
   onMoveSelection, onResizeMarker, onDuplicateForDrag, onAddMarker,
-}) => {
+}: Props) {
   const { t } = useTranslation()
   const rowRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -83,16 +88,41 @@ export const TimelineTrack: React.FC<Props> = ({
     () => suppliedTempoModel ?? buildTempoMap(tempoMap, settings, Math.max(0, lengthTicks - 1)),
     [lengthTicks, settings, suppliedTempoModel, tempoMap],
   )
+  const clipToViewport = visibleTicks !== undefined && !track.collapsed
+  const markerIndex = useMemo(
+    () => clipToViewport ? createMarkerTickIndex(markers) : null,
+    [clipToViewport, markers],
+  )
+  const renderedMarkers = useMemo(() => {
+    if (!visibleTicks || !markerIndex) return markers
+    // Include markers whose endpoint overlaps the window, including rounded
+    // pixel positions at fractional zoom levels.
+    const margin = (TIMELINE_MARKER_HEIGHT / 2 + 1) / pxPerTick
+    const indices: number[] = []
+    forEachMarkerInTickRange(
+      markerIndex,
+      visibleTicks.startTick - margin,
+      visibleTicks.endTick + margin,
+      (_, index) => indices.push(index),
+    )
+    // Preserve paint order for overlapping markers.
+    return indices.sort((left, right) => left - right).map(index => markers[index])
+  }, [markerIndex, markers, pxPerTick, visibleTicks])
 
   const markerYById = useMemo(() => {
     const result = new Map<string, number>()
+    if (track.collapsed) return result
+    const height = TRACK_HEIGHT
+    for (const marker of markers) {
+      if (marker.laneY !== undefined) result.set(marker.id, laneYToMarkerCenterY(marker.laneY, height))
+    }
+    if (result.size === markers.length) return result
     const groups = new Map<number, Marker[]>()
     for (const marker of markers) {
       const group = groups.get(marker.tick)
       if (group) group.push(marker)
       else groups.set(marker.tick, [marker])
     }
-    const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
     const center = height / 2
     const half = TIMELINE_MARKER_HEIGHT / 2
     const laneSpan = Math.max(1, height - TIMELINE_MARKER_HEIGHT)
@@ -103,20 +133,21 @@ export const TimelineTrack: React.FC<Props> = ({
     if (candidates.at(-1) !== height - half) candidates.push(height - half)
     candidates.sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b)
     for (const group of groups.values()) {
-      const assigned: number[] = []
+      let available = candidates
+      const occupy = (y: number) => {
+        if (available.length > 0) {
+          available = available.filter(candidate => Math.abs(y - candidate) >= TIMELINE_MARKER_HEIGHT + 2)
+        }
+      }
       for (const marker of group) {
-        if (marker.laneY === undefined) continue
-        const y = laneYToMarkerCenterY(marker.laneY, height)
-        result.set(marker.id, y)
-        assigned.push(y)
+        const y = result.get(marker.id)
+        if (y !== undefined) occupy(y)
       }
       for (const marker of group) {
         if (marker.laneY !== undefined) continue
-        const y = candidates.find(candidate => (
-          assigned.every(existing => Math.abs(existing - candidate) >= TIMELINE_MARKER_HEIGHT + 2)
-        )) ?? center
+        const y = available[0] ?? center
         result.set(marker.id, y)
-        assigned.push(y)
+        occupy(y)
       }
     }
     return result
@@ -188,6 +219,12 @@ export const TimelineTrack: React.FC<Props> = ({
     markerYById, markers, onDuplicateForDrag, onSelectMarker, selectedIds,
     track.collapsed, track.locked,
   ])
+
+  const markerPointerDownRef = useRef(handleMarkerPointerDown)
+  markerPointerDownRef.current = handleMarkerPointerDown
+  const startMarkerDrag = useCallback((marker: Marker, edge: ResizeEdge | null, event: React.PointerEvent) => {
+    markerPointerDownRef.current(marker, edge, event)
+  }, [])
 
   const handlePointerMove = useCallback((event: React.PointerEvent) => {
     const drag = dragRef.current
@@ -329,7 +366,7 @@ export const TimelineTrack: React.FC<Props> = ({
         ), track.id)
       }}
     >
-      {!track.collapsed && markers.map((marker) => {
+      {!track.collapsed && renderedMarkers.map((marker) => {
         const soundStop = isSoundStopMarker(marker)
         return (
           <TimelineMarker
@@ -351,7 +388,7 @@ export const TimelineTrack: React.FC<Props> = ({
               : undefined}
             resizeCursor={ctrlPressed && !soundStop}
             topPx={markerYById.get(marker.id) ?? height / 2}
-            onPointerDown={(edge, event) => handleMarkerPointerDown(marker, edge, event)}
+            onPointerDown={startMarkerDrag}
           />
         )
       })}
@@ -371,4 +408,4 @@ export const TimelineTrack: React.FC<Props> = ({
       )}
     </Box>
   )
-}
+})

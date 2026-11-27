@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Box, Flex, IconButton, MaximizeIcon, MinusIcon, Modal, PlusIcon, Text } from '@yamada-ui/react'
 import {
   TRACK_HEADER_WIDTH,
@@ -14,7 +14,7 @@ import {
 } from '../types/timeline'
 import { useTimeline, type TimelineController } from '../hooks/useTimeline'
 import { useAudioBufferCache } from '../hooks/useAudioBufferCache'
-import { resolveMarkerPlaybackRate, useTimelinePlayback } from '../hooks/useTimelinePlayback'
+import { resolveMarkerPlaybackRate, usePlaybackStatus, useTimelinePlayback } from '../hooks/useTimelinePlayback'
 import { DEFAULT_PX_PER_TICK, tickToPx } from '../utils/tickPixel'
 import {
   nbsTargetVersionForState,
@@ -113,6 +113,28 @@ interface ConfirmationRequest {
 }
 
 const EMPTY_REFERENCE_AUDIO: NonNullable<ReturnType<typeof useTimeline>['state']['referenceAudio']> = []
+const EMPTY_MARKERS: Marker[] = []
+const EMPTY_VARIANTS: { path: string, hash: string, pitch: number }[] = []
+const EMPTY_COMMANDS: CommandPaletteCommand[] = []
+const RULER_HEIGHT = 32
+const HORIZONTAL_OVERSCAN_PX = 128
+
+function firstTrackStartingAfter(rows: readonly { top: number }[], y: number): number {
+  let low = 0
+  let high = rows.length
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2)
+    if (rows[middle].top <= y) low = middle + 1
+    else high = middle
+  }
+  return low
+}
+
+function trackIdAtTarget(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null
+  const row = target.closest<HTMLElement>('[data-track-id], [data-track-header-id]')
+  return row?.dataset.trackId ?? row?.dataset.trackHeaderId ?? null
+}
 
 function omitMarkerId(marker: Marker): Omit<Marker, 'id'> {
   const { id, ...rest } = marker
@@ -151,10 +173,11 @@ export const TimelineEditor: React.FC<Props> = ({
   const { soundIdList, soundMap } = useAudioLibrary()
   const cache = useAudioBufferCache()
   const preloadReferenceAudio = cache.preloadReferenceAudio
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(
-    initialSelection?.markerIds.filter(id => timeline.state.markers.some(marker => marker.id === id))
-    ?? [],
-  ))
+  const [selectedIds, setSelectedIds] = useState(() => {
+    if (!initialSelection?.markerIds.length) return new Set<string>()
+    const markerIds = new Set(timeline.state.markers.map(marker => marker.id))
+    return new Set(initialSelection.markerIds.filter(id => markerIds.has(id)))
+  })
   const [selectedTrackId, setSelectedTrackId] = useState(() => (
     initialSelection && timeline.state.tracks.some(track => track.id === initialSelection.trackId)
       ? initialSelection.trackId
@@ -177,7 +200,10 @@ export const TimelineEditor: React.FC<Props> = ({
   const [mixerOpen, setMixerOpen] = useState(false)
   const [markerIconsEnabled, setMarkerIconsEnabled] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(true)
-  const [viewportRange, setViewportRange] = useState<OverviewRange>({ startTick: 0, endTick: 0 })
+  const [viewport, setViewport] = useState({ left: 0, top: 0, width: 0, height: 0 })
+  const [focusedTrackId, setFocusedTrackId] = useState<string | null>(null)
+  const [capturedTrackId, setCapturedTrackId] = useState<string | null>(null)
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [commandExportOpen, setCommandExportOpen] = useState(false)
   const [noteBlockBuildOpen, setNoteBlockBuildOpen] = useState(false)
@@ -209,6 +235,8 @@ export const TimelineEditor: React.FC<Props> = ({
   const clipboardRef = useRef<ClipboardItem[]>([])
   const selectionAnchorRef = useRef<string | null>(initialSelection?.anchorMarkerId ?? null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const viewportRef = useRef(viewport)
+  const overviewViewportRef = useRef<HTMLDivElement>(null)
   const moveOriginsRef = useRef<Map<string, MoveOrigin>>(new Map())
   const pendingDuplicateOriginsRef = useRef<Map<string, MoveOrigin> | null>(null)
   const confirmationResolverRef = useRef<((accepted: boolean) => void) | null>(null)
@@ -264,8 +292,15 @@ export const TimelineEditor: React.FC<Props> = ({
     referenceAudio,
     tempoMap: timeline.state.tempoMap,
   })
-  const playbackTickRef = useRef(playback.currentTick)
-  playbackTickRef.current = playback.currentTick
+  const { getCurrentTick, seek: seekPlayback, subscribeTick } = playback
+  const getMidiRecordTick = useCallback(
+    () => snapTickToTempoMap(getCurrentTick(), stateRef.current.settings, tempoModel),
+    [getCurrentTick, tempoModel],
+  )
+  const dialogPlaybackStatus = usePlaybackStatus(
+    playback.status,
+    playerModeOpen || nbpOpen || tempoMapOpen || midiOpen,
+  )
 
   useEffect(() => {
     if (!initialView) return
@@ -290,9 +325,9 @@ export const TimelineEditor: React.FC<Props> = ({
       pxPerTick: pxPerTickRef.current,
       scrollLeft: currentScroll?.scrollLeft ?? 0,
       scrollTop: currentScroll?.scrollTop ?? 0,
-      transportTick: playbackTickRef.current,
+      transportTick: getCurrentTick(),
     })
-  }, [])
+  }, [getCurrentTick])
 
   const auditionMarker = useCallback(async (marker: Marker): Promise<void> => {
     if (isSoundStopMarker(marker)) throw new Error(t('studio.piano_roll_audition_unavailable'))
@@ -416,10 +451,21 @@ export const TimelineEditor: React.FC<Props> = ({
     () => new Map(timeline.state.tracks.map((track, index) => [track.id, index])),
     [timeline.state.tracks],
   )
-  const sortedMarkers = useMemo(() => [...timeline.state.markers].sort((a, b) => (
-    (trackOrder.get(a.trackId) ?? 0) - (trackOrder.get(b.trackId) ?? 0)
-    || a.tick - b.tick
-  )), [timeline.state.markers, trackOrder])
+  const lockedTrackIds = useMemo(
+    () => new Set(timeline.state.tracks.filter(track => track.locked).map(track => track.id)),
+    [timeline.state.tracks],
+  )
+  const { markerById, markersByTrack } = useMemo(() => {
+    const markerById = new Map<string, Marker>()
+    const markersByTrack = new Map<string, Marker[]>()
+    for (const marker of timeline.state.markers) {
+      markerById.set(marker.id, marker)
+      const group = markersByTrack.get(marker.trackId)
+      if (group) group.push(marker)
+      else markersByTrack.set(marker.trackId, [marker])
+    }
+    return { markerById, markersByTrack }
+  }, [timeline.state.markers])
   const validSoundIds = useMemo(() => new Set(soundIdList), [soundIdList])
   const markerIconVersion = timeline.state.targetVersion || currentTargetVersion
   const markerIconSoundIds = useMemo(
@@ -462,15 +508,24 @@ export const TimelineEditor: React.FC<Props> = ({
     })
   }, [])
 
-  const addAtTick = useCallback((tick: number, trackId = selectedTrackId) => {
+  const { addMarker, updateMarker, setSettings } = timeline
+  const addAtTick = useCallback((tick: number, trackId = selectedTrackIdRef.current) => {
     const track = stateRef.current.tracks.find(item => item.id === trackId)
     if (!track || track.locked) return
-    const id = timeline.addMarker({ tick, trackId, soundId: defaultSoundId ?? '' })
+    const id = addMarker({ tick, trackId, soundId: defaultSoundId ?? '' })
     setSelectedIds(new Set([id]))
     selectionAnchorRef.current = id
     setSelectedTrackId(trackId)
     setSoundFocusRequest(value => value + 1)
-  }, [defaultSoundId, selectedTrackId, timeline])
+  }, [addMarker, defaultSoundId])
+
+  const resizeMarker = useCallback((id: string, tick: number, duration: number) => {
+    updateMarker(id, { tick, duration })
+  }, [updateMarker])
+
+  const changeLoopRange = useCallback((startTick: number, endTick: number) => {
+    setSettings({ loop: { ...stateRef.current.settings.loop, startTick, endTick } })
+  }, [setSettings])
 
   const addSoundStopAtTick = useCallback((tick: number, trackId = selectedTrackId) => {
     const currentState = stateRef.current
@@ -495,7 +550,7 @@ export const TimelineEditor: React.FC<Props> = ({
   }, [selectedTrackId, timeline])
 
   const handleMarkerSelect = useCallback((id: string, modifiers: SelectModifiers) => {
-    const marker = stateRef.current.markers.find(item => item.id === id)
+    const marker = markerById.get(id)
     if (marker) setSelectedTrackId(marker.trackId)
     setSelectedIds((previous) => {
       if (modifiers.ctrl) {
@@ -506,6 +561,10 @@ export const TimelineEditor: React.FC<Props> = ({
         return next
       }
       if (modifiers.shift && selectionAnchorRef.current) {
+        const sortedMarkers = [...stateRef.current.markers].sort((left, right) => (
+          (trackOrder.get(left.trackId) ?? 0) - (trackOrder.get(right.trackId) ?? 0)
+          || left.tick - right.tick
+        ))
         const anchorIndex = sortedMarkers.findIndex(item => item.id === selectionAnchorRef.current)
         const index = sortedMarkers.findIndex(item => item.id === id)
         if (anchorIndex >= 0 && index >= 0) {
@@ -516,7 +575,7 @@ export const TimelineEditor: React.FC<Props> = ({
       selectionAnchorRef.current = id
       return new Set([id])
     })
-  }, [sortedMarkers])
+  }, [markerById, trackOrder])
 
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set())
@@ -528,6 +587,12 @@ export const TimelineEditor: React.FC<Props> = ({
     selectionAnchorRef.current = ids.at(-1) ?? null
   }, [])
 
+  const selectAllEditable = useCallback(() => {
+    setSelectedIds(new Set(stateRef.current.markers.filter(marker => (
+      !lockedTrackIds.has(marker.trackId)
+    )).map(marker => marker.id)))
+  }, [lockedTrackIds])
+
   const captureMoveOrigins = useCallback((primaryId: string) => {
     if (pendingDuplicateOriginsRef.current?.has(primaryId)) {
       moveOriginsRef.current = pendingDuplicateOriginsRef.current
@@ -535,17 +600,15 @@ export const TimelineEditor: React.FC<Props> = ({
     }
     else {
       const ids = selectedIdsRef.current.has(primaryId) ? selectedIdsRef.current : new Set([primaryId])
-      moveOriginsRef.current = new Map(
-        stateRef.current.markers
-          .filter(marker => ids.has(marker.id))
-          .map(marker => [marker.id, {
-            tick: marker.tick,
-            trackIndex: stateRef.current.tracks.findIndex(track => track.id === marker.trackId),
-          }]),
-      )
+      const origins = new Map<string, MoveOrigin>()
+      for (const id of ids) {
+        const marker = markerById.get(id)
+        if (marker) origins.set(id, { tick: marker.tick, trackIndex: trackOrder.get(marker.trackId) ?? -1 })
+      }
+      moveOriginsRef.current = origins
     }
     timeline.beginTransaction()
-  }, [timeline])
+  }, [markerById, timeline, trackOrder])
 
   const moveSelection = useCallback((
     primaryId: string,
@@ -556,9 +619,10 @@ export const TimelineEditor: React.FC<Props> = ({
     const origins = moveOriginsRef.current
     const primary = origins.get(primaryId)
     if (!primary) return
-    const targetIndex = stateRef.current.tracks.findIndex(track => track.id === targetTrackId)
+    const targetIndex = trackOrder.get(targetTrackId) ?? -1
     if (targetIndex < 0 || stateRef.current.tracks[targetIndex].locked) return
-    const minTick = Math.min(...Array.from(origins.values()).map(origin => origin.tick))
+    let minTick = primary.tick
+    for (const origin of origins.values()) minTick = Math.min(minTick, origin.tick)
     const deltaTick = Math.max(-minTick, tick - primary.tick)
     const deltaTrack = targetIndex - primary.trackIndex
     const positions = new Map<string, { tick: number, trackId: string, laneY?: number }>()
@@ -573,7 +637,7 @@ export const TimelineEditor: React.FC<Props> = ({
       })
     }
     timeline.moveMarkersToTracks(positions)
-  }, [timeline])
+  }, [timeline, trackOrder])
 
   const duplicateForDrag = useCallback((primaryId: string): string => {
     const sourceIds = selectedIdsRef.current.has(primaryId) ? selectedIdsRef.current : new Set([primaryId])
@@ -582,7 +646,7 @@ export const TimelineEditor: React.FC<Props> = ({
     const origins = new Map<string, MoveOrigin>()
     source.forEach((marker, index) => origins.set(ids[index], {
       tick: marker.tick,
-      trackIndex: stateRef.current.tracks.findIndex(track => track.id === marker.trackId),
+      trackIndex: trackOrder.get(marker.trackId) ?? -1,
     }))
     pendingDuplicateOriginsRef.current = origins
     setSelectedIds(new Set(ids))
@@ -590,17 +654,16 @@ export const TimelineEditor: React.FC<Props> = ({
     const nextPrimary = ids[Math.max(0, sourceIndex)]
     selectionAnchorRef.current = nextPrimary
     return nextPrimary
-  }, [timeline])
+  }, [timeline, trackOrder])
 
   const deleteSelected = useCallback(() => {
     if (selectedIdsRef.current.size === 0) return
     const unlocked = stateRef.current.markers
-      .filter(marker => selectedIdsRef.current.has(marker.id))
-      .filter(marker => !stateRef.current.tracks.find(track => track.id === marker.trackId)?.locked)
+      .filter(marker => selectedIdsRef.current.has(marker.id) && !lockedTrackIds.has(marker.trackId))
       .map(marker => marker.id)
     timeline.removeMarkers(unlocked)
     clearSelection()
-  }, [clearSelection, timeline])
+  }, [clearSelection, lockedTrackIds, timeline])
 
   const copy = useCallback(() => {
     const selected = stateRef.current.markers.filter(marker => selectedIdsRef.current.has(marker.id))
@@ -609,7 +672,7 @@ export const TimelineEditor: React.FC<Props> = ({
       onCopyMarkers(selected.map(marker => marker.id))
       return
     }
-    const minTick = Math.min(...selected.map(marker => marker.tick))
+    const minTick = selected.reduce((earliest, marker) => Math.min(earliest, marker.tick), Infinity)
     clipboardRef.current = selected.map((marker) => {
       const { tick, ...data } = omitMarkerId(marker)
       return { tickOffset: tick - minTick, data }
@@ -617,7 +680,7 @@ export const TimelineEditor: React.FC<Props> = ({
   }, [onCopyMarkers])
 
   const paste = useCallback(() => {
-    const baseTick = Math.round(playback.currentTick)
+    const baseTick = Math.round(getCurrentTick())
     if (onPasteMarkers) {
       const ids = [...onPasteMarkers(baseTick, selectedTrackId)]
       if (ids.length === 0) return
@@ -638,7 +701,7 @@ export const TimelineEditor: React.FC<Props> = ({
     })))
     setSelectedIds(new Set(ids))
     selectionAnchorRef.current = ids.at(-1) ?? null
-  }, [onPasteMarkers, playback.currentTick, selectedTrackId, timeline])
+  }, [getCurrentTick, onPasteMarkers, selectedTrackId, timeline])
 
   const duplicateSelected = useCallback(() => {
     const lockedTrackIds = new Set(stateRef.current.tracks.filter(track => track.locked).map(track => track.id))
@@ -1074,7 +1137,7 @@ export const TimelineEditor: React.FC<Props> = ({
     if (!track) return ''
     const id = timeline.addMarker({
       trackId: track.id,
-      tick: snapTickToTempoMap(playback.currentTick, currentState.settings, tempoModel),
+      tick: snapTickToTempoMap(getCurrentTick(), currentState.settings, tempoModel),
       soundId: note.soundId,
       variantIndex: -1,
       volume: note.velocity,
@@ -1085,7 +1148,7 @@ export const TimelineEditor: React.FC<Props> = ({
     setSelectedIds(new Set([id]))
     selectionAnchorRef.current = id
     return id
-  }, [playback.currentTick, selectedTrackId, tempoModel, timeline])
+  }, [getCurrentTick, selectedTrackId, tempoModel, timeline])
 
   const addTrack = useCallback(() => {
     const id = timeline.addTrack(selectedTrackId)
@@ -1123,6 +1186,11 @@ export const TimelineEditor: React.FC<Props> = ({
     }
   }, [cache, t, timeline])
 
+  const { duplicateTrack, removeTrack: removeTimelineTrack } = timeline
+  const duplicateTrackAndSelect = useCallback((id: string) => {
+    setSelectedTrackId(duplicateTrack(id))
+  }, [duplicateTrack])
+
   const removeTrack = useCallback(async (trackId: string) => {
     const track = stateRef.current.tracks.find(item => item.id === trackId)
     if (!track || stateRef.current.tracks.length <= 1) return
@@ -1133,10 +1201,10 @@ export const TimelineEditor: React.FC<Props> = ({
       confirmLabel: t('studio.delete'),
     }))) return
     const nextTrackId = stateRef.current.tracks.find(item => item.id !== trackId)?.id
-    timeline.removeTrack(trackId)
-    if (selectedTrackId === trackId && nextTrackId) setSelectedTrackId(nextTrackId)
+    removeTimelineTrack(trackId)
+    if (selectedTrackIdRef.current === trackId && nextTrackId) setSelectedTrackId(nextTrackId)
     clearSelection()
-  }, [clearSelection, requestConfirmation, selectedTrackId, t, timeline])
+  }, [clearSelection, removeTimelineTrack, requestConfirmation, t])
 
   const fitRange = useCallback((startTick: number, endTick: number) => {
     const viewport = scrollRef.current
@@ -1150,7 +1218,7 @@ export const TimelineEditor: React.FC<Props> = ({
     requestAnimationFrame(() => {
       viewport.scrollLeft = Math.max(
         0,
-        TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX + tickToPx(startTick, nextZoom) - 16,
+        TIMELINE_LEADING_PADDING_PX + tickToPx(startTick, nextZoom) - 16,
       )
     })
   }, [])
@@ -1166,47 +1234,68 @@ export const TimelineEditor: React.FC<Props> = ({
     return () => observer.disconnect()
   }, [selectedTrackId])
 
-  const syncViewportRange = useCallback(() => {
-    const viewport = scrollRef.current
-    if (!viewport) return
-    setViewportRange(timelineViewportRange(
-      viewport.scrollLeft,
-      viewport.clientWidth,
-      pxPerTick,
-      TRACK_HEADER_WIDTH,
-      TIMELINE_LEADING_PADDING_PX,
-      stateRef.current.lengthTicks,
-    ))
-  }, [pxPerTick])
+  const updateOverviewViewport = useCallback(() => {
+    const indicator = overviewViewportRef.current
+    if (!indicator) return
+    const { left, width } = viewportRef.current
+    const length = Math.max(1, stateRef.current.lengthTicks)
+    const range = timelineViewportRange(
+      left, width, pxPerTickRef.current, TRACK_HEADER_WIDTH, TIMELINE_LEADING_PADDING_PX, length,
+    )
+    indicator.style.left = `${range.startTick / length * 100}%`
+    indicator.style.width = `${(range.endTick - range.startTick) / length * 100}%`
+  }, [])
 
-  useEffect(() => {
+  const syncViewport = useCallback(() => {
+    const element = scrollRef.current
+    if (!element) return
+    const next = { left: element.scrollLeft, top: element.scrollTop, width: element.clientWidth, height: element.clientHeight }
+    const current = viewportRef.current
+    if (next.left === current.left && next.top === current.top && next.width === current.width && next.height === current.height) return
+    viewportRef.current = next
+    updateOverviewViewport()
+    const left = Math.floor(next.left / HORIZONTAL_OVERSCAN_PX) * HORIZONTAL_OVERSCAN_PX
+    if (
+      left !== Math.floor(current.left / HORIZONTAL_OVERSCAN_PX) * HORIZONTAL_OVERSCAN_PX
+      || next.top !== current.top || next.width !== current.width || next.height !== current.height
+    ) setViewport({ ...next, left })
+  }, [updateOverviewViewport])
+
+  useLayoutEffect(() => {
     const viewport = scrollRef.current
     if (!viewport) return
-    syncViewportRange()
-    const observer = new ResizeObserver(syncViewportRange)
+    syncViewport()
+    const observer = new ResizeObserver(syncViewport)
     observer.observe(viewport)
     return () => observer.disconnect()
-  }, [syncViewportRange, timeline.state.lengthTicks])
+  }, [syncViewport])
+
+  useLayoutEffect(() => {
+    updateOverviewViewport()
+  }, [navigatorOpen, pxPerTick, timeline.state.lengthTicks, updateOverviewViewport])
 
   const navigateOverview = useCallback((tick: number) => {
     const viewport = scrollRef.current
-    playback.seek(tick)
+    seekPlayback(tick)
     if (!viewport) return
     const timelineWidth = Math.max(0, viewport.clientWidth - TRACK_HEADER_WIDTH)
     viewport.scrollLeft = Math.max(
       0,
-      TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX + tickToPx(tick, pxPerTick) - timelineWidth / 2,
+      TIMELINE_LEADING_PADDING_PX + tickToPx(tick, pxPerTick) - timelineWidth / 2,
     )
-    requestAnimationFrame(syncViewportRange)
-  }, [playback, pxPerTick, syncViewportRange])
+  }, [pxPerTick, seekPlayback])
 
   const fitSelection = useCallback(() => {
-    const markers = stateRef.current.markers.filter(marker => selectedIdsRef.current.has(marker.id))
-    if (markers.length === 0) return
-    const startTick = Math.min(...markers.map(marker => marker.tick))
-    const endTick = Math.max(...markers.map(marker => marker.tick + Math.max(1, marker.duration ?? 1)))
-    fitRange(startTick, endTick)
-  }, [fitRange])
+    let startTick = Infinity
+    let endTick = 0
+    for (const id of selectedIdsRef.current) {
+      const marker = markerById.get(id)
+      if (!marker) continue
+      startTick = Math.min(startTick, marker.tick)
+      endTick = Math.max(endTick, marker.tick + Math.max(1, marker.duration ?? 1))
+    }
+    if (startTick < Infinity) fitRange(startTick, endTick)
+  }, [fitRange, markerById])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -1239,9 +1328,7 @@ export const TimelineEditor: React.FC<Props> = ({
       }
       else if (mod && key === 'a') {
         event.preventDefault()
-        setSelectedIds(new Set(stateRef.current.markers.filter(marker => (
-          !stateRef.current.tracks.find(track => track.id === marker.trackId)?.locked
-        )).map(marker => marker.id)))
+        selectAllEditable()
       }
       else if (mod && key === 'x') {
         event.preventDefault()
@@ -1285,62 +1372,116 @@ export const TimelineEditor: React.FC<Props> = ({
       }
       else if (key === 'l') timeline.setSettings({ loop: { ...stateRef.current.settings.loop, enabled: !stateRef.current.settings.loop.enabled } })
       else if (key === 'm') timeline.setSettings({ metronomeEnabled: !stateRef.current.settings.metronomeEnabled })
-      else if (key === 'i') timeline.setSettings({ loop: { ...stateRef.current.settings.loop, startTick: Math.floor(playback.currentTick) } })
-      else if (key === 'o') timeline.setSettings({ loop: { ...stateRef.current.settings.loop, endTick: Math.max(stateRef.current.settings.loop.startTick + 1, Math.floor(playback.currentTick)) } })
+      else if (key === 'i') timeline.setSettings({ loop: { ...stateRef.current.settings.loop, startTick: Math.floor(getCurrentTick()) } })
+      else if (key === 'o') timeline.setSettings({ loop: { ...stateRef.current.settings.loop, endTick: Math.max(stateRef.current.settings.loop.startTick + 1, Math.floor(getCurrentTick())) } })
       else if (event.key === 'Escape') clearSelection()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [
-    blockingDialogOpen, clearSelection, commandPaletteOpen, copy, deleteSelected, duplicateSelected, handleOpen, newProject,
-    paste, playback, save, saveAs, timeline,
+    blockingDialogOpen, clearSelection, commandPaletteOpen, copy, deleteSelected, duplicateSelected, getCurrentTick, handleOpen, newProject,
+    paste, playback, save, saveAs, selectAllEditable, timeline,
   ])
 
   useEffect(() => {
-    if (!playback.isPlaying || !scrollRef.current) return
-    const x = TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX
-      + tickToPx(playback.currentTick, pxPerTick)
-    const element = scrollRef.current
-    const margin = 80
-    if (x < element.scrollLeft + TRACK_HEADER_WIDTH + margin) {
-      element.scrollLeft = Math.max(0, x - TRACK_HEADER_WIDTH - margin)
+    if (!playback.isPlaying) return
+    const follow = (tick: number) => {
+      const element = scrollRef.current
+      if (!element) return
+      const { left, width } = viewportRef.current
+      const x = TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX + tickToPx(tick, pxPerTick)
+      const margin = 80
+      if (x < left + TRACK_HEADER_WIDTH + margin) {
+        if (left > 0) element.scrollLeft = Math.max(0, x - TRACK_HEADER_WIDTH - margin)
+      }
+      else if (x > left + width - margin) {
+        element.scrollLeft = x - width + margin
+      }
     }
-    else if (x > element.scrollLeft + element.clientWidth - margin) {
-      element.scrollLeft = x - element.clientWidth + margin
-    }
-  }, [playback.currentTick, playback.isPlaying, pxPerTick])
+    follow(getCurrentTick())
+    return subscribeTick(follow)
+  }, [getCurrentTick, playback.isPlaying, pxPerTick, subscribeTick])
 
   const selectedMarkers = useMemo(
-    () => timeline.state.markers.filter(marker => selectedIds.has(marker.id)),
+    () => selectedIds.size > 0
+      ? timeline.state.markers.filter(marker => selectedIds.has(marker.id))
+      : EMPTY_MARKERS,
     [selectedIds, timeline.state.markers],
-  )
-  const lockedTrackIds = useMemo(
-    () => new Set(timeline.state.tracks.filter(track => track.locked).map(track => track.id)),
-    [timeline.state.tracks],
   )
   const editableSelectedMarkers = useMemo(
     () => selectedMarkers.filter(marker => !lockedTrackIds.has(marker.trackId)),
     [lockedTrackIds, selectedMarkers],
   )
   const hasEditableSelection = editableSelectedMarkers.length > 0
-  const hasEditableMarkers = timeline.state.markers.some(marker => !lockedTrackIds.has(marker.trackId))
-  const singleSelected = editableSelectedMarkers.length === 1 ? editableSelectedMarkers[0] : null
-  const commonSound = editableSelectedMarkers.length > 0
-    && editableSelectedMarkers.every(marker => marker.soundId === editableSelectedMarkers[0].soundId)
-    ? editableSelectedMarkers[0].soundId
-    : null
-  const variants = commonSound ? (soundMap[commonSound] ?? []) : []
-  const noteTrackHeight = timeline.state.tracks.reduce(
-    (sum, track) => sum + (track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT),
-    0,
+  const hasEditableMarkers = useMemo(
+    () => timeline.state.markers.some(marker => !lockedTrackIds.has(marker.trackId)),
+    [lockedTrackIds, timeline.state.markers],
   )
-  const referenceAudioHeight = referenceAudio.reduce(
+  const singleSelected = editableSelectedMarkers.length === 1 ? editableSelectedMarkers[0] : null
+  const commonSound = useMemo(() => {
+    const first = editableSelectedMarkers[0]
+    return first && editableSelectedMarkers.every(marker => marker.soundId === first.soundId)
+      ? first.soundId
+      : null
+  }, [editableSelectedMarkers])
+  const variants = (commonSound ? soundMap[commonSound] : undefined) ?? EMPTY_VARIANTS
+  const { updateMarkers, moveMarkers } = timeline
+  const updateSelection = useCallback((patch: Partial<Marker>) => {
+    updateMarkers(editableSelectedMarkers.map(marker => marker.id), patch)
+  }, [editableSelectedMarkers, updateMarkers])
+  const shiftSelection = useCallback((delta: number) => {
+    if (editableSelectedMarkers.length === 0) return
+    const minTick = editableSelectedMarkers.reduce((earliest, marker) => Math.min(earliest, marker.tick), Infinity)
+    const clamped = Math.max(-minTick, delta)
+    moveMarkers(new Map(editableSelectedMarkers.map(marker => [marker.id, marker.tick + clamped])))
+  }, [editableSelectedMarkers, moveMarkers])
+  const handleSoundFocus = useCallback(() => setSoundFocusRequest(0), [])
+  const { trackRows, noteTrackHeight } = useMemo(() => {
+    let top = 0
+    const trackRows = timeline.state.tracks.map((track) => {
+      const row = { track, top }
+      top += track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
+      return row
+    })
+    return { trackRows, noteTrackHeight: top }
+  }, [timeline.state.tracks])
+  const referenceAudioHeight = useMemo(() => referenceAudio.reduce(
     (sum, track) => sum + (track.collapsed
       ? REFERENCE_AUDIO_TRACK_HEIGHT_COLLAPSED
       : REFERENCE_AUDIO_TRACK_HEIGHT),
     0,
-  )
+  ), [referenceAudio])
   const totalTrackHeight = noteTrackHeight + referenceAudioHeight
+  const renderRange = timelineViewportRange(
+    viewport.left,
+    viewport.width + HORIZONTAL_OVERSCAN_PX,
+    pxPerTick,
+    TRACK_HEADER_WIDTH,
+    TIMELINE_LEADING_PADDING_PX,
+    timeline.state.lengthTicks,
+  )
+  // Round the render window to chunks so following the playhead does not
+  // update every row for each pixel of horizontal scrolling.
+  const startChunk = Math.floor(renderRange.startTick * pxPerTick / HORIZONTAL_OVERSCAN_PX) - 1
+  const endChunk = Math.ceil(renderRange.endTick * pxPerTick / HORIZONTAL_OVERSCAN_PX) + 1
+  const visibleTicks = useMemo<OverviewRange>(() => ({
+    startTick: Math.max(0, startChunk * HORIZONTAL_OVERSCAN_PX / pxPerTick),
+    endTick: Math.min(timeline.state.lengthTicks, endChunk * HORIZONTAL_OVERSCAN_PX / pxPerTick),
+  }), [endChunk, pxPerTick, startChunk, timeline.state.lengthTicks])
+  const trackTop = viewport.top - referenceAudioHeight
+  const trackBottom = trackTop + Math.max(0, viewport.height - RULER_HEIGHT)
+  const firstTrackIndex = Math.max(0, firstTrackStartingAfter(trackRows, trackTop - TRACK_HEIGHT) - 1)
+  const endTrackIndex = firstTrackStartingAfter(trackRows, trackBottom + TRACK_HEIGHT)
+  const visibleTrackIndices = useMemo(() => {
+    const indices = new Set<number>()
+    for (let index = firstTrackIndex; index < endTrackIndex; index++) indices.add(index)
+    // Keep rows involved in selection, focus, or a drag mounted as the view scrolls.
+    for (const id of [selectedTrackId, focusedTrackId, capturedTrackId, draggedTrackId]) {
+      const index = id === null ? undefined : trackOrder.get(id)
+      if (index !== undefined) indices.add(index)
+    }
+    return [...indices].sort((left, right) => left - right)
+  }, [capturedTrackId, draggedTrackId, endTrackIndex, firstTrackIndex, focusedTrackId, selectedTrackId, trackOrder])
   const contentWidth = TIMELINE_LEADING_PADDING_PX
     + tickToPx(timeline.state.lengthTicks, pxPerTick)
   const exportName = (filePath?.replace(/^.*[\\/]/, '').replace(/\.kp$/i, '') || 'knead-mix')
@@ -1390,7 +1531,7 @@ export const TimelineEditor: React.FC<Props> = ({
     await new Promise<void>(resolve => window.setTimeout(resolve, 0))
     await action()
   }
-  const commandPaletteCommands: CommandPaletteCommand[] = [
+  const getCommandPaletteCommands = (): CommandPaletteCommand[] => [
     command('file.new', t('studio.new'), commandCategories.file, runAfterClosingPalette(newProject), 'Ctrl/Cmd+N'),
     command('file.open', t('studio.open'), commandCategories.file, runAfterClosingPalette(handleOpen), 'Ctrl/Cmd+O'),
     command('file.save', t('studio.save'), commandCategories.file, runAfterClosingPalette(save), 'Ctrl/Cmd+S'),
@@ -1403,15 +1544,11 @@ export const TimelineEditor: React.FC<Props> = ({
     command('exchange.midi', t('studio.midi_short'), commandCategories.file, runAfterClosingPalette(() => setMidiOpen(true))),
     command('edit.undo', t('studio.command_palette_undo'), commandCategories.edit, timeline.undo, 'Ctrl/Cmd+Z', !timeline.canUndo, t('studio.command_palette_nothing_to_undo')),
     command('edit.redo', t('studio.command_palette_redo'), commandCategories.edit, timeline.redo, 'Ctrl/Cmd+Y', !timeline.canRedo, t('studio.command_palette_nothing_to_redo')),
-    command('edit.select-all', t('studio.command_palette_select_all'), commandCategories.edit, () => {
-      setSelectedIds(new Set(stateRef.current.markers.filter(marker => (
-        !stateRef.current.tracks.find(track => track.id === marker.trackId)?.locked
-      )).map(marker => marker.id)))
-    }, 'Ctrl/Cmd+A', !hasEditableMarkers, t('studio.command_palette_no_editable_markers')),
+    command('edit.select-all', t('studio.command_palette_select_all'), commandCategories.edit, selectAllEditable, 'Ctrl/Cmd+A', !hasEditableMarkers, t('studio.command_palette_no_editable_markers')),
     command('edit.duplicate', t('studio.command_palette_duplicate'), commandCategories.edit, duplicateSelected, 'Ctrl/Cmd+D', !hasEditableSelection, t('studio.command_palette_editable_selection_required')),
     command('edit.delete', t('studio.delete'), commandCategories.edit, deleteSelected, 'Delete', !hasEditableSelection, t('studio.command_palette_editable_selection_required')),
     command('edit.add-sound-stopper', t('studio.add_sound_stopper'), commandCategories.edit, () => addSoundStopAtTick(
-      snapTickToTempoMap(playback.currentTick, stateRef.current.settings, tempoModel),
+      snapTickToTempoMap(getCurrentTick(), stateRef.current.settings, tempoModel),
       selectedTrackId,
     ), undefined, stateRef.current.tracks.find(track => track.id === selectedTrackId)?.locked === true),
     command('edit.nbs-macros', t('studio.nbs_macros_short'), commandCategories.edit, runAfterClosingPalette(() => setNbsMacrosOpen(true)), undefined, !hasEditableSelection, t('studio.command_palette_editable_selection_required')),
@@ -1481,11 +1618,11 @@ export const TimelineEditor: React.FC<Props> = ({
         onMidi={() => setMidiOpen(true)}
         onExtensions={() => setExtensionsOpen(true)}
         onAddMarker={() => addAtTick(
-          snapTickToTempoMap(playback.currentTick, timeline.state.settings, tempoModel),
+          snapTickToTempoMap(getCurrentTick(), timeline.state.settings, tempoModel),
           selectedTrackId,
         )}
         onAddSoundStopper={() => addSoundStopAtTick(
-          snapTickToTempoMap(playback.currentTick, timeline.state.settings, tempoModel),
+          snapTickToTempoMap(getCurrentTick(), timeline.state.settings, tempoModel),
           selectedTrackId,
         )}
         canAddMarker={timeline.state.tracks.some(track => track.id === selectedTrackId && !track.locked)}
@@ -1497,7 +1634,7 @@ export const TimelineEditor: React.FC<Props> = ({
         onStop={playback.stop}
         isPlaying={playback.isPlaying}
         isPaused={playback.isPaused}
-        currentTick={playback.currentTick}
+        playbackStatus={playback.status}
         preloading={cache.preloading}
         onUndo={timeline.undo}
         onRedo={timeline.redo}
@@ -1526,7 +1663,13 @@ export const TimelineEditor: React.FC<Props> = ({
         ref={scrollRef}
         className="studio-timeline-viewport"
         overflow="auto"
-        onScroll={syncViewportRange}
+        onScroll={syncViewport}
+        onFocus={event => setFocusedTrackId(trackIdAtTarget(event.target))}
+        onBlur={event => setFocusedTrackId(trackIdAtTarget(event.relatedTarget))}
+        onGotPointerCapture={event => setCapturedTrackId(trackIdAtTarget(event.target))}
+        onLostPointerCapture={() => setCapturedTrackId(null)}
+        onDragStart={event => setDraggedTrackId(trackIdAtTarget(event.target))}
+        onDragEnd={() => setDraggedTrackId(null)}
         onWheel={(event) => {
           if (!(event.ctrlKey || event.metaKey)) return
           event.preventDefault()
@@ -1536,7 +1679,7 @@ export const TimelineEditor: React.FC<Props> = ({
         <Box position="relative" w={`${TRACK_HEADER_WIDTH + contentWidth}px`} minW="100%" minH="100%">
           <Box
             aria-hidden="true"
-            position="absolute" top="32px" bottom="0" left={`${TRACK_HEADER_WIDTH}px`} right="0"
+            position="absolute" top={`${RULER_HEIGHT}px`} bottom="0" left={`${TRACK_HEADER_WIDTH}px`} right="0"
             pointerEvents="none"
             backgroundImage="linear-gradient(to right, var(--studio-lane-grid) 1px, transparent 1px)"
             backgroundPosition={`${TIMELINE_LEADING_PADDING_PX}px 0`}
@@ -1545,7 +1688,7 @@ export const TimelineEditor: React.FC<Props> = ({
           <Flex position="sticky" top="0" zIndex="20">
             <Flex
               position="sticky" left="0" zIndex="22"
-              w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`} h="32px"
+              w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`} h={`${RULER_HEIGHT}px`}
               align="center" px="3" bg="var(--studio-frame)" borderRight="1px solid" borderBottom="1px solid"
               borderColor="var(--studio-line)"
             >
@@ -1581,12 +1724,11 @@ export const TimelineEditor: React.FC<Props> = ({
             <TimelineRuler
               lengthTicks={timeline.state.lengthTicks}
               pxPerTick={pxPerTick}
+              visibleTicks={visibleTicks}
               settings={timeline.state.settings}
               tempoModel={tempoModel}
               onSeek={playback.seek}
-              onLoopChange={(startTick, endTick) => timeline.setSettings({
-                loop: { ...timeline.state.settings.loop, startTick, endTick },
-              })}
+              onLoopChange={changeLoopRange}
             />
           </Flex>
           {referenceAudio.map(track => (
@@ -1595,7 +1737,7 @@ export const TimelineEditor: React.FC<Props> = ({
               track={track}
               waveform={cache.getReferenceWaveform(track.id)}
               error={cache.getReferenceError(track.id)}
-              meter={playback.referenceAudioMeters[track.id]}
+              playbackStatus={playback.status}
               lengthTicks={timeline.state.lengthTicks}
               pxPerTick={pxPerTick}
               settings={timeline.state.settings}
@@ -1607,57 +1749,68 @@ export const TimelineEditor: React.FC<Props> = ({
               onSeek={playback.seek}
             />
           ))}
-          {timeline.state.tracks.map((track, index) => (
-            <Flex key={track.id}>
-              <Box position="sticky" left="0" zIndex="12" w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`}>
-                <TrackHeader
-                  track={track}
-                  index={index}
-                  selected={selectedTrackId === track.id}
-                  meter={playback.trackMeters[track.id]}
-                  canDelete={timeline.state.tracks.length > 1}
-                  onSelect={() => setSelectedTrackId(track.id)}
-                  onChange={patch => timeline.updateTrack(track.id, patch)}
-                  onDuplicate={() => setSelectedTrackId(timeline.duplicateTrack(track.id))}
-                  onDelete={() => void removeTrack(track.id)}
-                  onMove={(draggedId, toIndex) => timeline.reorderTrack(draggedId, toIndex)}
-                />
-              </Box>
-              <TimelineTrack
-                track={track}
-                markers={timeline.state.markers.filter(marker => marker.trackId === track.id)}
-                lengthTicks={timeline.state.lengthTicks}
-                pxPerTick={pxPerTick}
-                settings={timeline.state.settings}
-                tempoModel={tempoModel}
-                selectedIds={selectedIds}
-                validSoundIds={validSoundIds}
-                markerIcons={markerIcons.icons}
-                onSelectMarker={handleMarkerSelect}
-                onClearSelection={clearSelection}
-                onRectangleSelect={rectangleSelect}
-                onBeginEdit={captureMoveOrigins}
-                onEndEdit={timeline.commitTransaction}
-                onMoveSelection={moveSelection}
-                onResizeMarker={(id, tick, duration) => timeline.updateMarker(id, { tick, duration })}
-                onDuplicateForDrag={duplicateForDrag}
-                onAddMarker={addAtTick}
-              />
-            </Flex>
-          ))}
+          <Box position="relative" h={`${noteTrackHeight}px`}>
+            {visibleTrackIndices.map((index) => {
+              const { track, top } = trackRows[index]
+              return (
+                <Flex key={track.id} position="absolute" top={`${top}px`} left="0" right="0">
+                  <Box position="sticky" left="0" zIndex="12" w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`}>
+                    <TrackHeader
+                      track={track}
+                      index={index}
+                      selected={selectedTrackId === track.id}
+                      playbackStatus={playback.status}
+                      canDelete={timeline.state.tracks.length > 1}
+                      onSelect={setSelectedTrackId}
+                      onChange={timeline.updateTrack}
+                      onDuplicate={duplicateTrackAndSelect}
+                      onDelete={removeTrack}
+                      onMove={timeline.reorderTrack}
+                    />
+                  </Box>
+                  <TimelineTrack
+                    track={track}
+                    markers={markersByTrack.get(track.id) ?? EMPTY_MARKERS}
+                    lengthTicks={timeline.state.lengthTicks}
+                    pxPerTick={pxPerTick}
+                    visibleTicks={visibleTicks}
+                    settings={timeline.state.settings}
+                    tempoModel={tempoModel}
+                    selectedIds={selectedIds}
+                    validSoundIds={validSoundIds}
+                    markerIcons={markerIcons.icons}
+                    onSelectMarker={handleMarkerSelect}
+                    onClearSelection={clearSelection}
+                    onRectangleSelect={rectangleSelect}
+                    onBeginEdit={captureMoveOrigins}
+                    onEndEdit={timeline.commitTransaction}
+                    onMoveSelection={moveSelection}
+                    onResizeMarker={resizeMarker}
+                    onDuplicateForDrag={duplicateForDrag}
+                    onAddMarker={addAtTick}
+                  />
+                </Flex>
+              )
+            })}
+          </Box>
           <Box position="absolute" left={`${TRACK_HEADER_WIDTH}px`} top="0" pointerEvents="none">
             {timeline.state.settings.loop.enabled && (
               <Box
                 position="absolute"
                 left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(timeline.state.settings.loop.startTick, pxPerTick)}px`}
-                top="32px"
+                top={`${RULER_HEIGHT}px`}
                 h={`${totalTrackHeight}px`}
                 w={`${tickToPx(timeline.state.settings.loop.endTick - timeline.state.settings.loop.startTick, pxPerTick)}px`}
                 bg="var(--studio-loop-track-fill)"
                 borderX="1px solid rgba(74,222,128,.35)"
               />
             )}
-            <TimelinePlayhead currentTick={playback.currentTick} pxPerTick={pxPerTick} heightPx={32 + totalTrackHeight} />
+            <TimelinePlayhead
+              getCurrentTick={getCurrentTick}
+              subscribeTick={subscribeTick}
+              pxPerTick={pxPerTick}
+              heightPx={RULER_HEIGHT + totalTrackHeight}
+            />
           </Box>
         </Box>
       </Box>
@@ -1668,9 +1821,7 @@ export const TimelineEditor: React.FC<Props> = ({
           selectedTrackId={selectedTrackId}
           referenceAudio={referenceAudio}
           master={timeline.state.master}
-          trackMeters={playback.trackMeters}
-          referenceAudioMeters={playback.referenceAudioMeters}
-          masterMeter={playback.masterMeter}
+          playbackStatus={playback.status}
           onTrackChange={timeline.updateTrack}
           onReferenceAudioChange={timeline.updateReferenceAudio}
           onMasterChange={timeline.setMaster}
@@ -1685,8 +1836,8 @@ export const TimelineEditor: React.FC<Props> = ({
           settings={timeline.state.settings}
           tempoModel={tempoModel}
           lengthTicks={timeline.state.lengthTicks}
-          currentTick={playback.currentTick}
-          viewport={viewportRange}
+          playbackStatus={playback.status}
+          viewportRef={overviewViewportRef}
           onSeek={navigateOverview}
           label={t('studio.navigator')}
         />
@@ -1699,23 +1850,12 @@ export const TimelineEditor: React.FC<Props> = ({
         tracks={timeline.state.tracks}
         soundIdList={soundIdList}
         variants={variants}
-        onChange={patch => timeline.updateMarkers(editableSelectedMarkers.map(marker => marker.id), patch)}
-        onShiftTick={(delta) => {
-          const currentLockedTrackIds = new Set(
-            stateRef.current.tracks.filter(track => track.locked).map(track => track.id),
-          )
-          const selected = stateRef.current.markers.filter(marker => (
-            selectedIdsRef.current.has(marker.id) && !currentLockedTrackIds.has(marker.trackId)
-          ))
-          if (selected.length === 0) return
-          const min = Math.min(...selected.map(marker => marker.tick))
-          const clamped = Math.max(-min, delta)
-          timeline.moveMarkers(new Map(selected.map(marker => [marker.id, marker.tick + clamped])))
-        }}
+        onChange={updateSelection}
+        onShiftTick={shiftSelection}
         onBeginEdit={timeline.beginTransaction}
         onEndEdit={timeline.commitTransaction}
         soundFocusRequest={soundFocusRequest}
-        onSoundFocusHandled={() => setSoundFocusRequest(0)}
+        onSoundFocusHandled={handleSoundFocus}
       />
 
       <ExportDialog
@@ -1751,7 +1891,7 @@ export const TimelineEditor: React.FC<Props> = ({
         project={timeline.state}
         selectedIds={selectedIds}
         defaultName={exportName}
-        currentTick={playback.currentTick}
+        currentTick={dialogPlaybackStatus.currentTick}
         targetVersion={currentTargetVersion ?? timeline.state.targetVersion ?? ''}
         onInsert={(nextState, nextSelectedIds) => applyExtensionState(nextState, nextSelectedIds)}
         onReplace={importNbpProject}
@@ -1783,14 +1923,14 @@ export const TimelineEditor: React.FC<Props> = ({
         open={playerModeOpen}
         title={exportName}
         lengthTicks={timeline.state.lengthTicks}
-        currentTick={playback.currentTick}
+        currentTick={dialogPlaybackStatus.currentTick}
         settings={timeline.state.settings}
         tempoMap={timeline.state.tempoMap}
         tracks={timeline.state.tracks}
         referenceAudio={referenceAudio}
-        trackMeters={playback.trackMeters}
-        referenceAudioMeters={playback.referenceAudioMeters}
-        masterMeter={playback.masterMeter}
+        trackMeters={dialogPlaybackStatus.trackMeters}
+        referenceAudioMeters={dialogPlaybackStatus.referenceAudioMeters}
+        masterMeter={dialogPlaybackStatus.masterMeter}
         isPlaying={playback.isPlaying}
         isPaused={playback.isPaused}
         preloading={cache.preloading}
@@ -1819,7 +1959,7 @@ export const TimelineEditor: React.FC<Props> = ({
         events={timeline.state.tempoMap}
         settings={timeline.state.settings}
         lengthTicks={timeline.state.lengthTicks}
-        currentTick={playback.currentTick}
+        currentTick={dialogPlaybackStatus.currentTick}
         onApply={(events) => {
           playback.stop()
           timeline.setTempoMap(events)
@@ -1851,13 +1991,14 @@ export const TimelineEditor: React.FC<Props> = ({
       />
       <CommandPaletteDialog
         open={commandPaletteOpen}
-        commands={commandPaletteCommands}
+        commands={commandPaletteOpen ? getCommandPaletteCommands() : EMPTY_COMMANDS}
         onClose={() => setCommandPaletteOpen(false)}
       />
       <MidiDialog
         open={midiOpen}
         targetVersion={currentTargetVersion ?? timeline.state.targetVersion}
-        currentTick={snapTickToTempoMap(playback.currentTick, timeline.state.settings, tempoModel)}
+        currentTick={snapTickToTempoMap(dialogPlaybackStatus.currentTick, timeline.state.settings, tempoModel)}
+        getCurrentTick={getMidiRecordTick}
         tempoModel={tempoModel}
         canRecord={timeline.state.tracks.some(track => !track.locked)}
         soundIds={soundIdList}

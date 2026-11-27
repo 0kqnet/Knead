@@ -88,6 +88,21 @@ describe('TimelineTrack legacy editing gestures', () => {
     expect(callbacks.onAddMarker).toHaveBeenCalledWith(0, 'track')
   })
 
+  it('keeps an overlapping duration visible when the marker head is outside the viewport', () => {
+    const { container } = renderTrack({
+      visibleTicks: { startTick: 100, endTick: 120 },
+      markers: [
+        { ...marker, id: 'inside', tick: 110 },
+        { ...marker, id: 'before', tick: 5 },
+        { ...marker, id: 'overlap', tick: 10, duration: 105 },
+        { ...marker, id: 'after', tick: 125 },
+      ],
+    })
+    expect([...container.querySelectorAll<HTMLElement>('[data-marker-id]')].map(node => node.dataset.markerId))
+      .toEqual(['inside', 'overlap'])
+    expect(container.querySelector('[data-marker-id="overlap"] [data-marker-edge="end"]')).not.toBeNull()
+  })
+
   it('adds markers on the active tempo-map beat grid', () => {
     const settings = structuredClone(DEFAULT_SETTINGS)
     settings.snap = { mode: 'beat', tickStep: 1, beatDivision: 4 }

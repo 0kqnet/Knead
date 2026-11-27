@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MarkerVisualIcon } from '../../../../@types/global'
 
+const EMPTY_ICONS: Record<string, MarkerVisualIcon> = {}
+
 interface MarkerIconCache {
   version: string
   icons: Record<string, MarkerVisualIcon>
@@ -61,7 +63,7 @@ export function useMarkerIcons(
   }, [enabled, uniqueSoundIds, version])
 
   return {
-    icons: enabled && cacheRef.current.version === version ? icons : {},
+    icons: enabled && cacheRef.current.version === version ? icons : EMPTY_ICONS,
     loading,
   }
 }

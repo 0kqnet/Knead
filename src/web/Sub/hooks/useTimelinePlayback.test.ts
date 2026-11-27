@@ -138,6 +138,79 @@ describe('transport animation loop', () => {
     expect(start.mock.calls[1][0]).toBeCloseTo(10 + 2 / 37 + 1 / 60, 12)
     unmount()
   })
+
+  it('seeks into a long retrigger span and schedules its notes and stopper once per loop pass', () => {
+    const node = { connect: <T>(next: T) => next, disconnect: vi.fn() }
+    const parameter = () => ({ value: 0, setTargetAtTime: vi.fn() })
+    const start = vi.fn()
+    const stop = vi.fn()
+    const context = {
+      currentTime: 10,
+      resume: vi.fn(),
+      destination: node,
+      createGain: () => ({ ...node, gain: parameter() }),
+      createStereoPanner: () => ({ ...node, pan: parameter() }),
+      createDynamicsCompressor: () => ({
+        ...node, threshold: parameter(), knee: parameter(), ratio: parameter(), attack: parameter(), release: parameter(),
+      }),
+      createAnalyser: vi.fn(() => ({ ...node, fftSize: 256, getFloatTimeDomainData: vi.fn() })),
+      createBufferSource: () => ({ ...node, playbackRate: parameter(), start, stop }),
+    }
+    const cache = {
+      getAudioContext: () => context,
+      getBuffer: () => ({}),
+      getBasePitch: () => 1,
+    } as unknown as Parameters<typeof useTimelinePlayback>[0]['cache']
+    let frame: FrameRequestCallback = () => undefined
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frame = callback
+      return 1
+    })
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
+    const note: Marker = {
+      id: 'long-note', trackId: 'track', tick: 0, soundId: 'block.note_block.harp',
+      variantIndex: 0, volume: 1, pitch: 1, duration: 10_000_000, retriggerInterval: 2,
+    }
+    const params: Parameters<typeof useTimelinePlayback>[0] = {
+      cache,
+      randomSeed: 1,
+      master: DEFAULT_MASTER,
+      lengthTicks: 10_000_001,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        loop: { enabled: true, startTick: 100_000, endTick: 100_008, maxLoopCount: 1 },
+      },
+      tracks: [createDefaultTrack('track'), createDefaultTrack('stopper'), createDefaultTrack('silent')],
+      markers: [
+        note,
+        { ...note, id: 'stop', trackId: 'stopper', tick: 100_006, action: { type: 'sound-stop', scope: 'all' } },
+      ],
+    }
+    const { result, unmount } = renderHook(() => useTimelinePlayback(params))
+    act(() => result.current.seek(100_003))
+    act(() => result.current.play())
+    expect(start).toHaveBeenCalledTimes(1)
+    expect(start.mock.calls[0][0]).toBeCloseTo(10.05)
+    expect(context.createAnalyser).toHaveBeenCalledTimes(2)
+
+    context.currentTime = 10.07
+    act(() => frame(200))
+    expect(start).toHaveBeenCalledTimes(2)
+    expect(start.mock.calls[1][0]).toBeCloseTo(10.15)
+    expect(stop.mock.calls.map(([time]) => time)).toEqual([10.15, 10.15])
+    expect(result.current.getCurrentTick()).toBeCloseTo(100_004.4)
+    act(() => frame(210))
+    expect(start).toHaveBeenCalledTimes(2)
+
+    context.currentTime = 10.26
+    act(() => frame(400))
+    expect(result.current.getCurrentTick()).toBe(100_000)
+    expect(start).toHaveBeenCalledTimes(4)
+    expect(start.mock.calls[2][0]).toBeCloseTo(10.26)
+    expect(start.mock.calls[3][0]).toBeCloseTo(10.36)
+    unmount()
+  })
 })
 
 describe('finite NBS loop count', () => {

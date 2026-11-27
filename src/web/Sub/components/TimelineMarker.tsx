@@ -25,7 +25,7 @@ interface Props {
   soundStopTitle?: string
   resizeCursor: boolean
   topPx: number
-  onPointerDown: (edge: ResizeEdge | null, event: React.PointerEvent) => void
+  onPointerDown: (marker: Marker, edge: ResizeEdge | null, event: React.PointerEvent) => void
 }
 
 const COLOR_MAP: Record<Track['color'], string> = {
@@ -39,10 +39,10 @@ const COLOR_MAP: Record<Track['color'], string> = {
   purple: '#a855f7',
 }
 
-export const TimelineMarker: React.FC<Props> = ({
+export const TimelineMarker = React.memo(function TimelineMarker({
   marker, track, pxPerTick, selected, invalidSound, resizeCursor, topPx, onPointerDown,
   markerIcon, soundStopTitle, tempoModel,
-}) => {
+}: Props) {
   const size = TIMELINE_MARKER_HEIGHT
   const soundStop = isSoundStopMarker(marker)
   const durationPx = !soundStop && marker.duration && marker.duration > 0
@@ -78,7 +78,7 @@ export const TimelineMarker: React.FC<Props> = ({
       h={`${size}px`}
       cursor={resizeCursor ? 'ew-resize' : 'grab'}
       _active={{ cursor: resizeCursor ? 'ew-resize' : 'grabbing' }}
-      onPointerDown={event => onPointerDown(edge, event)}
+      onPointerDown={event => onPointerDown(marker, edge, event)}
     >
       {soundStop
         ? (
@@ -167,7 +167,7 @@ export const TimelineMarker: React.FC<Props> = ({
       _active={{ cursor: 'grabbing' }}
       userSelect="none"
       zIndex={selected ? 4 : 2}
-      onPointerDown={event => onPointerDown(null, event)}
+      onPointerDown={event => onPointerDown(marker, null, event)}
       title={`${track.name} · t=${marker.tick} · ${actionTitle}`}
     >
       {durationPx > 0 && (
@@ -213,4 +213,4 @@ export const TimelineMarker: React.FC<Props> = ({
       )}
     </Box>
   )
-}
+})

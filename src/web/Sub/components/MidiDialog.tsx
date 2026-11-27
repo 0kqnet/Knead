@@ -77,6 +77,7 @@ interface Props {
   open: boolean
   targetVersion: string
   currentTick: number
+  getCurrentTick?: () => number
   tempoModel?: TempoMapModel
   canRecord: boolean
   soundIds: readonly string[]
@@ -116,6 +117,7 @@ export const MidiDialog: React.FC<Props> = ({
   open,
   targetVersion,
   currentTick,
+  getCurrentTick,
   tempoModel,
   canRecord,
   soundIds,
@@ -306,7 +308,7 @@ export const MidiDialog: React.FC<Props> = ({
       note: event.note,
       channel: event.channel,
       released: false,
-      startedAtTick: currentTickRef.current,
+      startedAtTick: getCurrentTick?.() ?? currentTickRef.current,
       startedAtTimestampMs: event.timestampMs,
       tempoModel,
       generation: recordingGenerationRef.current,
@@ -314,7 +316,7 @@ export const MidiDialog: React.FC<Props> = ({
     })
     activeRef.current.set(key, voices)
     setActiveNoteCount(activeVoiceCount(activeRef.current))
-  }, [channelFilter, defaultSoundId, finishVoiceAt, liveSoundId, onRecordNote, onUpdateRecordedNote, rootNote, tempoModel])
+  }, [channelFilter, defaultSoundId, finishVoiceAt, getCurrentTick, liveSoundId, onRecordNote, onUpdateRecordedNote, rootNote, tempoModel])
 
   const liveMidi = useLiveMidi({ onMessage: handleMidiMessage })
   const setMidiArmed = liveMidi.setArmed

@@ -6,6 +6,7 @@ import {
   type TimelineSettings,
 } from '../types/timeline'
 import { pxToTick, tickToPx } from '../utils/tickPixel'
+import type { OverviewRange } from '../utils/arrangementOverview'
 import {
   buildTempoMap,
   enumerateTempoGridLines,
@@ -18,6 +19,7 @@ import {
 interface Props {
   lengthTicks: number
   pxPerTick: number
+  visibleTicks?: OverviewRange
   settings: TimelineSettings
   tempoMap?: readonly TempoMapEvent[]
   tempoModel?: TempoMapModel
@@ -31,20 +33,22 @@ function formatLabel(tick: number, settings: TimelineSettings, tempoModel: Tempo
   return `${Math.round(tick)}`
 }
 
-export const TimelineRuler: React.FC<Props> = ({
-  lengthTicks, pxPerTick, settings, tempoMap, tempoModel: suppliedTempoModel, onSeek, onLoopChange,
-}) => {
+export const TimelineRuler = React.memo(function TimelineRuler({
+  lengthTicks, pxPerTick, visibleTicks, settings, tempoMap, tempoModel: suppliedTempoModel, onSeek, onLoopChange,
+}: Props) {
   const rulerRef = useRef<HTMLDivElement | null>(null)
   const tempoModel = useMemo(
     () => suppliedTempoModel ?? buildTempoMap(tempoMap, settings, Math.max(0, lengthTicks - 1)),
     [lengthTicks, settings, suppliedTempoModel, tempoMap],
   )
   const marks = useMemo(() => {
-    const musical = enumerateTempoGridLines(0, lengthTicks, tempoModel, 5_000)
+    const startTick = visibleTicks?.startTick ?? 0
+    const endTick = visibleTicks?.endTick ?? lengthTicks
+    const musical = enumerateTempoGridLines(startTick, endTick, tempoModel, 5_000)
     if (settings.timeDisplay === 'bars') return musical
     const byTick = new Map<number, { tick: number, major: boolean }>()
     const step = Math.max(1, pxPerTick < 3 ? 20 : pxPerTick < 6 ? 10 : 5)
-    for (let tick = 0; tick <= lengthTicks + 0.001; tick += step) {
+    for (let tick = Math.ceil(startTick / step) * step; tick <= endTick + 0.001; tick += step) {
       byTick.set(Math.round(tick * 1_000_000), { tick, major: false })
     }
     for (const line of musical) {
@@ -52,7 +56,7 @@ export const TimelineRuler: React.FC<Props> = ({
       byTick.set(Math.round(line.tick * 1_000_000), { tick: line.tick, major: true })
     }
     return [...byTick.values()].sort((left, right) => left.tick - right.tick)
-  }, [lengthTicks, pxPerTick, settings.timeDisplay, tempoModel])
+  }, [lengthTicks, pxPerTick, settings.timeDisplay, tempoModel, visibleTicks])
 
   const startHandleDrag = (edge: 'start' | 'end', event: React.PointerEvent) => {
     event.stopPropagation()
@@ -153,4 +157,4 @@ export const TimelineRuler: React.FC<Props> = ({
       )}
     </Box>
   )
-}
+})

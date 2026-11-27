@@ -22,8 +22,9 @@ export function timelineViewportRange(
   lengthTicks: number,
 ): OverviewRange {
   const usableWidth = Math.max(0, clientWidth - headerWidth)
-  const timelineScroll = Math.max(0, scrollLeft - headerWidth - leadingPadding)
-  const startTick = clampOverviewTick(timelineScroll / Math.max(0.001, pxPerTick), lengthTicks)
-  const endTick = clampOverviewTick(startTick + usableWidth / Math.max(0.001, pxPerTick), lengthTicks)
+  const timelineScroll = scrollLeft - leadingPadding
+  const scale = Math.max(0.001, pxPerTick)
+  const startTick = clampOverviewTick(timelineScroll / scale, lengthTicks)
+  const endTick = clampOverviewTick((timelineScroll + usableWidth) / scale, lengthTicks)
   return { startTick, endTick: Math.max(startTick, endTick) }
 }

@@ -6,6 +6,7 @@ import {
 } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
+import { usePlaybackPosition, type PlaybackStatusStore } from '../hooks/useTimelinePlayback'
 import type { TimelineSettings } from '../types/timeline'
 import { tempoBpmLimits, tickToSeconds, type TempoMapModel } from '../utils/tempoMap'
 
@@ -43,7 +44,7 @@ interface Props {
   onStop: () => void
   isPlaying: boolean
   isPaused: boolean
-  currentTick: number
+  playbackStatus: PlaybackStatusStore
   preloading: boolean
   onUndo: () => void
   onRedo: () => void
@@ -78,13 +79,47 @@ const ToolbarMenu = ({ label, children }: { label: string, children: React.React
   </Menu.Root>
 )
 
+function TransportPosition({ status, active, onStop, tempoModel }: {
+  status: PlaybackStatusStore
+  active: boolean
+  onStop: () => void
+  tempoModel?: TempoMapModel
+}) {
+  const { t } = useTranslation()
+  const tick = usePlaybackPosition(status)
+  return (
+    <>
+      <IconButton
+        {...toolButton}
+        icon={<SquareIcon boxSize="3.5" />}
+        aria-label={t('studio.stop')}
+        title={t('studio.stop')}
+        onClick={onStop}
+        disabled={!active && tick <= 0}
+      />
+      <Text as="span" className="studio-time-readout">
+        <span>
+          {tickToSeconds(tick, tempoModel).toFixed(2)}
+          {' '}
+          s
+        </span>
+        <small>
+          {Math.floor(tick)}
+          {' '}
+          t
+        </small>
+      </Text>
+    </>
+  )
+}
+
 export const TimelineToolbar: React.FC<Props> = ({
   onNew, onOpen, onCommandPalette, onSave, onSaveAs, onAudioExport, onCommandExport,
   onNoteBlockBuild, onNbs, onNbp, onNbsMacros, onResourcePack, onRecovery, recoverySaving,
   recoveryError, onPlayerMode, onPianoRoll, onTempoMap, onSongMetadata, onCustomInstruments,
   onMidi, onExtensions, onAddMarker, onAddSoundStopper, onAddTrack, onAddReferenceAudio,
   canAddMarker, onDeleteSelected, canDelete, onTogglePlay, onStop, isPlaying, isPaused,
-  currentTick, preloading, onUndo, onRedo, canUndo, canRedo, settings, tempoModel, onSettingsChange,
+  playbackStatus, preloading, onUndo, onRedo, canUndo, canRedo, settings, tempoModel, onSettingsChange,
   onReroll, onFitSelection, canFitSelection, mixerOpen,
   onToggleMixer, markerIconsEnabled, markerIconsLoading, onToggleMarkerIcons, navigatorOpen,
   onToggleNavigator,
@@ -168,26 +203,12 @@ export const TimelineToolbar: React.FC<Props> = ({
           >
             {playLabel}
           </Button>
-          <IconButton
-            {...toolButton}
-            icon={<SquareIcon boxSize="3.5" />}
-            aria-label={t('studio.stop')}
-            title={t('studio.stop')}
-            onClick={onStop}
-            disabled={!isPlaying && !isPaused && currentTick <= 0}
+          <TransportPosition
+            status={playbackStatus}
+            active={isPlaying || isPaused}
+            onStop={onStop}
+            tempoModel={tempoModel}
           />
-          <Text as="span" className="studio-time-readout">
-            <span>
-              {tickToSeconds(currentTick, tempoModel).toFixed(2)}
-              {' '}
-              s
-            </span>
-            <small>
-              {Math.floor(currentTick)}
-              {' '}
-              t
-            </small>
-          </Text>
           <IconButton
             {...toolButton}
             icon={<RepeatIcon boxSize="4" />}

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Text, useColorModeValue } from '@yamada-ui/react'
+import { usePlaybackPosition, type PlaybackStatusStore } from '../hooks/useTimelinePlayback'
 import type { Marker, ReferenceAudioTrack, TimelineSettings, Track } from '../types/timeline'
 import { referenceAudioEndTick, type TempoMapModel } from '../utils/tempoMap'
-import { overviewXToTick, type OverviewRange } from '../utils/arrangementOverview'
+import { overviewXToTick } from '../utils/arrangementOverview'
 
 interface Props {
   tracks: Track[]
@@ -11,8 +12,8 @@ interface Props {
   settings: TimelineSettings
   tempoModel?: TempoMapModel
   lengthTicks: number
-  currentTick: number
-  viewport: OverviewRange
+  playbackStatus: PlaybackStatusStore
+  viewportRef: React.Ref<HTMLDivElement>
   onSeek: (tick: number) => void
   label: string
 }
@@ -29,11 +30,12 @@ const COLORS: Record<Track['color'], string> = {
 }
 
 export const ArrangementOverview: React.FC<Props> = ({
-  tracks, markers, referenceAudio = [], settings, tempoModel, lengthTicks, currentTick, viewport, onSeek, label,
+  tracks, markers, referenceAudio = [], settings, tempoModel, lengthTicks, playbackStatus, viewportRef, onSeek, label,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ width: 1, height: 64 })
+  const currentTick = usePlaybackPosition(playbackStatus)
   const rowDivider = useColorModeValue('rgba(124,151,134,.18)', 'rgba(160,160,160,.18)')
   const loopFill = useColorModeValue('rgba(74,222,128,.13)', 'rgba(200,200,200,.13)')
   const tickPercent = (tick: number) => `${tick / Math.max(1, lengthTicks) * 100}%`
@@ -153,10 +155,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       }}
     >
       <canvas ref={canvasRef} aria-hidden="true" />
-      <div
-        aria-hidden="true" className="studio-navigator-viewport"
-        style={{ left: tickPercent(viewport.startTick), width: tickPercent(viewport.endTick - viewport.startTick) }}
-      />
+      <div ref={viewportRef} aria-hidden="true" className="studio-navigator-viewport" />
       <div aria-hidden="true" className="studio-navigator-playhead" style={{ left: tickPercent(currentTick) }} />
       <Text position="absolute" top="1" left="2" fontSize="xs" color="var(--studio-text)" px="1" bg="var(--studio-frame)" borderRadius="sm" pointerEvents="none">
         {label}

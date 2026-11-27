@@ -13,6 +13,7 @@ import type { WaveformPeaks } from '../utils/waveformPeaks'
 import { tickToPx } from '../utils/tickPixel'
 import { buildTempoMap, referenceAudioEndTick, snapTickToTempoMap, type TempoMapModel } from '../utils/tempoMap'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
+import { usePlaybackMeter, type PlaybackStatusStore } from '../hooks/useTimelinePlayback'
 import { WaveformCanvas } from './WaveformCanvas'
 
 interface MeterValue {
@@ -25,6 +26,7 @@ interface Props {
   waveform?: WaveformPeaks
   error?: string
   meter?: MeterValue
+  playbackStatus?: PlaybackStatusStore
   lengthTicks: number
   pxPerTick: number
   settings: TimelineSettings
@@ -42,11 +44,25 @@ const COLOR_HEX: Record<ReferenceAudioTrack['color'], string> = {
   orange: '#f97316', red: '#ef4444', pink: '#ec4899', purple: '#a855f7',
 }
 
+function ReferenceMeter({ status, trackId, meter }: {
+  status?: PlaybackStatusStore
+  trackId: string
+  meter?: MeterValue
+}) {
+  const value = usePlaybackMeter(status, 'reference', trackId) ?? meter
+  return (
+    <Box flex="1" h="4px" bg="var(--studio-canvas)" borderRadius="full" overflow="hidden">
+      <Box h="100%" w={`${Math.min(100, (value?.peak ?? 0) * 100)}%`} bg={(value?.peak ?? 0) > 0.9 ? 'red.400' : 'cyan.400'} />
+    </Box>
+  )
+}
+
 export const ReferenceAudioTrackRow: React.FC<Props> = ({
   track,
   waveform,
   error,
   meter,
+  playbackStatus,
   lengthTicks,
   pxPerTick,
   settings,
@@ -157,9 +173,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                   offsetTicks: snapTickToTempoMap(offsetTicks, settings, tempoModel),
                 })}
               />
-              <Box flex="1" h="4px" bg="var(--studio-canvas)" borderRadius="full" overflow="hidden">
-                <Box h="100%" w={`${Math.min(100, (meter?.peak ?? 0) * 100)}%`} bg={(meter?.peak ?? 0) > 0.9 ? 'red.400' : 'cyan.400'} />
-              </Box>
+              <ReferenceMeter status={playbackStatus} trackId={track.id} meter={meter} />
             </Flex>
             <Flex align="center" gap="1">
               <Text fontSize="9px" minW="38px">

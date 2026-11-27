@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useReducer, type Dispatch } from 'react'
-import { castDraft, produce, Draft } from 'immer'
+import { castDraft, original, produce, Draft } from 'immer'
 import { v4 as uuidv4 } from 'uuid'
 import {
   DEFAULT_MASTER,
@@ -118,9 +118,9 @@ function normalizeMarkerFields(marker: Draft<Marker>): void {
   marker.pitchCurve = undefined
 }
 
-function extendTimeline(draft: Draft<TimelineState>): void {
+function extendTimeline(draft: Draft<TimelineState>, markers: readonly Marker[] = draft.markers): void {
   draft.lengthTicks = getTimelineLengthTicks(
-    draft.markers,
+    markers,
     draft.lengthTicks,
     draft.settings,
     draft.referenceAudio ?? [],
@@ -339,13 +339,17 @@ export function useTimelineController(
 
   const updateMarker = useCallback((id: string, patch: Partial<Marker>) => {
     mutate((draft) => {
-      const marker = draft.markers.find(item => item.id === id)
-      if (!marker) return
+      const base = original(draft) ?? draft
+      const index = base.markers.findIndex(item => item.id === id)
+      if (index < 0) return
+      const marker = draft.markers[index]
       if (changesDuration(patch, marker)) resizeMarkerCurves(marker, patch.duration ?? 0)
       Object.assign(marker, patch.action ? { ...patch, action: { ...patch.action } } : patch)
       normalizeMarkerFields(marker)
-      if (!draft.tracks.some(track => track.id === marker.trackId)) marker.trackId = draft.tracks[0].id
-      extendTimeline(draft)
+      if (!base.tracks.some(track => track.id === marker.trackId)) marker.trackId = base.tracks[0].id
+      const markers = base.markers.slice()
+      markers[index] = marker
+      extendTimeline(draft, markers)
     })
   }, [mutate])
 
@@ -378,14 +382,24 @@ export function useTimelineController(
     positions: Map<string, { tick: Tick, trackId: string, laneY?: number }>,
   ) => {
     mutate((draft) => {
-      for (const marker of draft.markers) {
-        const next = positions.get(marker.id)
-        if (!next) continue
-        marker.tick = Math.max(0, Math.trunc(next.tick))
-        if (draft.tracks.some(track => track.id === next.trackId)) marker.trackId = next.trackId
-        if (next.laneY !== undefined) marker.laneY = snapLaneY(next.laneY)
-      }
-      extendTimeline(draft)
+      const base = original(draft) ?? draft
+      const trackIds = new Set(base.tracks.map(track => track.id))
+      // Read untouched markers from the original state so Immer only drafts
+      // the markers that this pointer move actually modifies.
+      const markers = base.markers.map((current, index) => {
+        const next = positions.get(current.id)
+        if (!next) return current
+        const tick = Math.max(0, Math.trunc(next.tick))
+        const trackId = trackIds.has(next.trackId) ? next.trackId : current.trackId
+        const laneY = next.laneY === undefined ? current.laneY : snapLaneY(next.laneY)
+        if (tick === current.tick && trackId === current.trackId && laneY === current.laneY) return current
+        const marker = draft.markers[index]
+        marker.tick = tick
+        marker.trackId = trackId
+        if (laneY !== undefined) marker.laneY = laneY
+        return marker
+      })
+      extendTimeline(draft, markers)
     })
   }, [mutate])
 
@@ -527,7 +541,7 @@ export function useTimelineController(
         draft.settings.bpm = normalized[0].bpm
         draft.settings.timeSignature = castDraft({ ...normalized[0].meter! })
       }
-      extendTimeline(draft)
+      extendTimeline(draft, original(draft)?.markers ?? draft.markers)
     })
   }, [mutate])
 

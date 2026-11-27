@@ -10,8 +10,12 @@ describe('arrangement overview math', () => {
 
   it('derives the visible timeline range after the sticky header', () => {
     expect(timelineViewportRange(368, 1248, 8, 248, 20, 400)).toEqual({
-      startTick: 12.5,
-      endTick: 137.5,
+      startTick: 43.5,
+      endTick: 168.5,
+    })
+    expect(timelineViewportRange(0, 1248, 8, 248, 20, 400)).toEqual({
+      startTick: 0,
+      endTick: 122.5,
     })
   })
 

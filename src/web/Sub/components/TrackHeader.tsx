@@ -4,6 +4,7 @@ import {
   LockOpenIcon, Slider, Text, TrashIcon,
 } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { usePlaybackMeter, type PlaybackStatusStore } from '../hooks/useTimelinePlayback'
 import {
   TRACK_COLORS,
   TRACK_HEIGHT,
@@ -11,21 +12,16 @@ import {
   type Track,
 } from '../types/timeline'
 
-interface MeterValue {
-  peak: number
-  rms: number
-}
-
 interface Props {
   track: Track
   index: number
   selected: boolean
-  meter?: MeterValue
+  playbackStatus: PlaybackStatusStore
   canDelete: boolean
-  onSelect: () => void
-  onChange: (patch: Partial<Omit<Track, 'id'>>) => void
-  onDuplicate: () => void
-  onDelete: () => void
+  onSelect: (id: string) => void
+  onChange: (id: string, patch: Partial<Omit<Track, 'id'>>) => void
+  onDuplicate: (id: string) => void
+  onDelete: (id: string) => void
   onMove: (draggedId: string, toIndex: number) => void
 }
 
@@ -34,9 +30,36 @@ const COLOR_HEX: Record<Track['color'], string> = {
   orange: '#f97316', red: '#ef4444', pink: '#ec4899', purple: '#a855f7',
 }
 
-export const TrackHeader: React.FC<Props> = ({
-  track, index, selected, meter, canDelete, onSelect, onChange, onDuplicate, onDelete, onMove,
-}) => {
+function TrackMeter({ status, trackId }: { status: PlaybackStatusStore, trackId: string }) {
+  const meter = usePlaybackMeter(status, 'track', trackId)
+  const peak = (meter?.peak ?? 0) * 100
+  const rms = (meter?.rms ?? 0) * 100
+  return (
+    <Box
+      flex="1"
+      h="5px"
+      bg="var(--studio-canvas)"
+      borderRadius="full"
+      overflow="hidden"
+      position="relative"
+      title={`Peak ${peak.toFixed(0)}% / RMS ${rms.toFixed(0)}%`}
+    >
+      <Box h="100%" w={`${Math.min(100, peak)}%`} bg={peak > 90 ? 'red.400' : 'green.400'} />
+      <Box
+        position="absolute"
+        left={`${Math.min(100, rms)}%`}
+        top="0"
+        h="100%"
+        w="2px"
+        bg="blue.200"
+      />
+    </Box>
+  )
+}
+
+export const TrackHeader = React.memo(function TrackHeader({
+  track, index, selected, playbackStatus, canDelete, onSelect, onChange, onDuplicate, onDelete, onMove,
+}: Props) {
   const { t } = useTranslation()
   const collapseLabel = t(track.collapsed ? 'studio.track_expand' : 'studio.track_collapse')
   const height = track.collapsed ? TRACK_HEIGHT_COLLAPSED : TRACK_HEIGHT
@@ -52,7 +75,7 @@ export const TrackHeader: React.FC<Props> = ({
       borderRight="1px solid"
       borderColor="var(--studio-line)"
       overflow="hidden"
-      onClick={onSelect}
+      onClick={() => onSelect(track.id)}
       onDragStart={event => event.dataTransfer.setData('application/x-knead-track', track.id)}
       onDragOver={event => event.preventDefault()}
       onDrop={(event) => {
@@ -73,7 +96,7 @@ export const TrackHeader: React.FC<Props> = ({
           onClick={(event) => {
             event.stopPropagation()
             const index = TRACK_COLORS.indexOf(track.color)
-            onChange({ color: TRACK_COLORS[(index + 1) % TRACK_COLORS.length] })
+            onChange(track.id, { color: TRACK_COLORS[(index + 1) % TRACK_COLORS.length] })
           }}
         />
         <Input
@@ -82,7 +105,7 @@ export const TrackHeader: React.FC<Props> = ({
           fontSize="xs"
           h="24px"
           onClick={event => event.stopPropagation()}
-          onChange={event => onChange({ name: event.target.value })}
+          onChange={event => onChange(track.id, { name: event.target.value })}
           aria-label={t('studio.track_name')}
         />
         <IconButton
@@ -93,7 +116,7 @@ export const TrackHeader: React.FC<Props> = ({
           title={collapseLabel}
           onClick={(event) => {
             event.stopPropagation()
-            onChange({ collapsed: !track.collapsed })
+            onChange(track.id, { collapsed: !track.collapsed })
           }}
         />
       </Flex>
@@ -105,7 +128,7 @@ export const TrackHeader: React.FC<Props> = ({
             colorScheme={track.muted ? 'red' : 'gray'}
             onClick={(event) => {
               event.stopPropagation()
-              onChange({ muted: !track.muted })
+              onChange(track.id, { muted: !track.muted })
             }}
             aria-label={t('studio.track_mute')}
             aria-pressed={track.muted}
@@ -119,7 +142,7 @@ export const TrackHeader: React.FC<Props> = ({
             colorScheme={track.solo ? 'yellow' : 'gray'}
             onClick={(event) => {
               event.stopPropagation()
-              onChange({ solo: !track.solo })
+              onChange(track.id, { solo: !track.solo })
             }}
             aria-label={t('studio.track_solo')}
             aria-pressed={track.solo}
@@ -137,7 +160,7 @@ export const TrackHeader: React.FC<Props> = ({
             title={t('studio.track_lock')}
             onClick={(event) => {
               event.stopPropagation()
-              onChange({ locked: !track.locked })
+              onChange(track.id, { locked: !track.locked })
             }}
           />
           <IconButton
@@ -147,7 +170,7 @@ export const TrackHeader: React.FC<Props> = ({
             title={t('studio.track_duplicate')}
             onClick={(event) => {
               event.stopPropagation()
-              onDuplicate()
+              onDuplicate(track.id)
             }}
           />
           <IconButton
@@ -158,28 +181,10 @@ export const TrackHeader: React.FC<Props> = ({
             disabled={!canDelete}
             onClick={(event) => {
               event.stopPropagation()
-              onDelete()
+              onDelete(track.id)
             }}
           />
-          <Box
-            flex="1"
-            h="5px"
-            bg="var(--studio-canvas)"
-            borderRadius="full"
-            overflow="hidden"
-            position="relative"
-            title={`Peak ${((meter?.peak ?? 0) * 100).toFixed(0)}% / RMS ${((meter?.rms ?? 0) * 100).toFixed(0)}%`}
-          >
-            <Box h="100%" w={`${Math.min(100, (meter?.peak ?? 0) * 100)}%`} bg={(meter?.peak ?? 0) > 0.9 ? 'red.400' : 'green.400'} />
-            <Box
-              position="absolute"
-              left={`${Math.min(100, (meter?.rms ?? 0) * 100)}%`}
-              top="0"
-              h="100%"
-              w="2px"
-              bg="blue.200"
-            />
-          </Box>
+          <TrackMeter status={playbackStatus} trackId={track.id} />
         </Flex>
       )}
       {!track.collapsed && (
@@ -197,7 +202,7 @@ export const TrackHeader: React.FC<Props> = ({
             max={12}
             step={0.5}
             onClick={event => event.stopPropagation()}
-            onChange={gainDb => onChange({ gainDb })}
+            onChange={gainDb => onChange(track.id, { gainDb })}
           />
           <Text fontSize="10px" fontVariantNumeric="tabular-nums" minW="36px">
             P
@@ -212,10 +217,10 @@ export const TrackHeader: React.FC<Props> = ({
             max={1}
             step={0.05}
             onClick={event => event.stopPropagation()}
-            onChange={pan => onChange({ pan })}
+            onChange={pan => onChange(track.id, { pan })}
           />
         </Flex>
       )}
     </Box>
   )
-}
+})
