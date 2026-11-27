@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react'
-import { Box, Text } from '@yamada-ui/react'
+import { Box } from '@yamada-ui/react'
 import {
   TIMELINE_LEADING_PADDING_PX,
   type TempoMapEvent,
@@ -103,28 +103,18 @@ export const TimelineRuler = React.memo(function TimelineRuler({
       }}
     >
       {marks.map(mark => (
-        <Box
+        <div
           key={mark.tick}
-          position="absolute"
-          left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(mark.tick, pxPerTick)}px`}
-          top={mark.major ? '0' : '15px'}
-          bottom="0"
-          borderLeft="1px solid"
-          borderColor={mark.major ? 'var(--studio-muted)' : 'var(--studio-line)'}
+          className="studio-ruler-mark"
+          data-major={mark.major}
+          style={{ left: TIMELINE_LEADING_PADDING_PX + tickToPx(mark.tick, pxPerTick) }}
         >
           {(mark.major || pxPerTick >= 6) && (
-            <Text
-              position="absolute"
-              left="3px"
-              top="1px"
-              fontSize="9px"
-              color={mark.major ? 'var(--studio-text)' : 'var(--studio-muted)'}
-              whiteSpace="nowrap"
-            >
+            <span className="studio-ruler-label">
               {formatLabel(mark.tick, settings, tempoModel)}
-            </Text>
+            </span>
           )}
-        </Box>
+        </div>
       ))}
       {settings.loop.enabled && (
         <>

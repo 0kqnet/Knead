@@ -1,5 +1,4 @@
 import React from 'react'
-import { Box, Text } from '@yamada-ui/react'
 import {
   TIMELINE_LEADING_PADDING_PX,
   TIMELINE_MARKER_HEIGHT,
@@ -50,7 +49,6 @@ export const TimelineMarker = React.memo(function TimelineMarker({
     : 0
   const left = TIMELINE_LEADING_PADDING_PX + tickToPx(marker.tick, pxPerTick) - size / 2
   const color = soundStop ? '#f43f5e' : invalidSound ? '#dc2626' : track.muted ? '#64748b' : COLOR_MAP[track.color]
-  const endpointBorder = selected ? '#f8fafc' : 'rgba(255,255,255,.45)'
   const lineColor = invalidSound ? '#7f1d1d' : color
   const waveformColor = selected ? '#dff2e5' : color
   const iconScale = markerIcon && markerIcon.cropWidth > 0 && markerIcon.cropHeight > 0
@@ -69,124 +67,62 @@ export const TimelineMarker = React.memo(function TimelineMarker({
     : marker.soundId || '(no sound)'
 
   const endpoint = (edge: ResizeEdge, offset: number) => (
-    <Box
+    <div
+      className="studio-marker-endpoint"
       data-marker-edge={edge}
-      position="absolute"
-      left={`${offset}px`}
-      top="0"
-      w={`${size}px`}
-      h={`${size}px`}
-      cursor={resizeCursor ? 'ew-resize' : 'grab'}
-      _active={{ cursor: resizeCursor ? 'ew-resize' : 'grabbing' }}
+      data-marker-diamond={!soundStop && !iconLayout}
+      style={{ left: offset, width: size }}
       onPointerDown={event => onPointerDown(marker, edge, event)}
     >
       {soundStop
         ? (
-            <Box
-              position="absolute"
-              inset="0"
-              borderRadius="3px"
-              bg="#881337"
-              border="2px solid"
-              borderColor={endpointBorder}
-              boxShadow={selected ? '0 0 0 2px #fb7185' : '0 2px 5px rgba(0,0,0,.4)'}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              pointerEvents="none"
-            >
-              <Text color="white" fontSize="10px" fontWeight="bold" lineHeight="1">■</Text>
-            </Box>
+            <div className="studio-marker-stopper">■</div>
           )
         : iconLayout && markerIcon
           ? (
-              <div
-                data-marker-icon-viewport
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: '2px',
-                  background: '#030712',
-                  outlineWidth: '1px',
-                  outlineStyle: 'solid',
-                  outlineColor: endpointBorder,
-                  boxShadow: selected ? '0 0 0 2px var(--knead-focus)' : '0 2px 5px rgba(0,0,0,.4)',
-                  overflow: 'hidden',
-                  pointerEvents: 'none',
-                }}
-              >
+              <div className="studio-marker-icon" style={{ outlineWidth: 1 }} data-marker-icon-viewport>
                 <img
                   data-marker-icon-image
                   src={markerIcon.dataUrl}
                   alt=""
                   draggable={false}
-                  style={{
-                    position: 'absolute',
-                    width: `${iconLayout.width}px`,
-                    height: `${iconLayout.height}px`,
-                    maxWidth: 'none',
-                    left: `${iconLayout.left}px`,
-                    top: `${iconLayout.top}px`,
-                    imageRendering: 'pixelated',
-                    pointerEvents: 'none',
-                  }}
+                  style={iconLayout}
                 />
               </div>
             )
-          : (
-              <Box
-                position="absolute"
-                inset="0"
-                transform="rotate(45deg) scale(.68)"
-                borderRadius="3px"
-                bg={color}
-                border="2px solid"
-                borderColor={endpointBorder}
-                boxShadow={selected ? '0 0 0 2px var(--knead-focus)' : '0 2px 5px rgba(0,0,0,.4)'}
-                pointerEvents="none"
-              />
-            )}
-    </Box>
+          : null}
+    </div>
   )
 
   return (
-    <Box
+    <div
+      className="studio-marker"
       data-marker-id={marker.id}
       data-marker-left={left}
       data-marker-top={topPx}
       data-marker-visual={soundStop ? 'sound-stop' : markerIcon?.kind ?? 'default'}
       data-marker-action={soundStop ? 'sound-stop' : 'play-sound'}
-      data-marker-muted={track.muted ? 'true' : 'false'}
-      position="absolute"
-      left={`${left}px`}
-      top={`${topPx}px`}
-      transform="translateY(-50%)"
-      w={`${size + durationPx}px`}
-      h={`${size}px`}
-      cursor="grab"
-      _active={{ cursor: 'grabbing' }}
-      userSelect="none"
-      zIndex={selected ? 4 : 2}
+      data-marker-muted={track.muted}
+      data-marker-selected={selected}
+      data-marker-resize={resizeCursor}
+      style={{
+        left, 'top': topPx, 'width': size + durationPx, 'height': size, '--studio-marker-color': color,
+      } as React.CSSProperties}
       onPointerDown={event => onPointerDown(marker, null, event)}
       title={`${track.name} · t=${marker.tick} · ${actionTitle}`}
     >
       {durationPx > 0 && (
-        <Box
+        <div
+          className="studio-marker-duration"
           data-marker-duration
-          position="absolute"
-          left={`${size / 2}px`}
-          top="50%"
-          transform="translateY(-50%)"
-          w={`${durationPx}px`}
-          h={`${size - 2}px`}
-          display="flex"
-          alignItems="center"
-          overflow="hidden"
-          bg={invalidSound ? lineColor : 'rgba(15,23,42,.88)'}
-          borderY="1px solid"
-          borderColor={selected ? '#f8fafc' : lineColor}
-          opacity={track.muted ? 0.72 : 1}
-          pointerEvents="none"
+          style={{
+            left: size / 2,
+            width: durationPx,
+            height: size - 2,
+            backgroundColor: invalidSound ? lineColor : 'rgba(15,23,42,.88)',
+            borderColor: selected ? '#f8fafc' : lineColor,
+            opacity: track.muted ? 0.72 : 1,
+          }}
         >
           {!invalidSound && (
             <TimelineWaveform
@@ -204,13 +140,13 @@ export const TimelineMarker = React.memo(function TimelineMarker({
               muted={track.muted}
             />
           )}
-        </Box>
+        </div>
       )}
       {endpoint(durationPx > 0 ? 'start' : 'end', 0)}
       {durationPx > 0 && endpoint('end', durationPx)}
       {invalidSound && (
-        <Text position="absolute" top="-12px" left="0" fontSize="9px" color="red.300">!</Text>
+        <span className="studio-marker-invalid">!</span>
       )}
-    </Box>
+    </div>
   )
 })

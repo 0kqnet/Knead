@@ -108,3 +108,29 @@ test('keeps the Japanese toolbar and zoom usable alongside the dark inspector', 
   await expect(page.getByRole('region', { name: 'プロパティ' })).toBeInViewport({ ratio: 0.99 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width)
 })
+
+test('lets manual scrolling take precedence over the playhead while playing', async ({ page }) => {
+  await page.goto('/sub.html')
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const pause = page.getByRole('button', { name: 'Pause', exact: true })
+  await expect(pause).toBeVisible()
+
+  const timeline = page.locator('.studio-timeline-viewport')
+  const { left, positions } = await timeline.evaluate(async (element) => {
+    const distance = element.scrollWidth - element.clientWidth
+    element.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaX: distance }))
+    element.scrollLeft = distance
+    const left = element.scrollLeft
+    const positions = []
+    for (let frame = 0; frame < 3; frame++) {
+      await new Promise<number>(requestAnimationFrame)
+      positions.push(element.scrollLeft)
+    }
+    return { left, positions }
+  })
+  expect(left).toBeGreaterThan(300)
+  expect(positions).toEqual([left, left, left])
+
+  await expect.poll(() => timeline.evaluate(element => element.scrollLeft)).toBeLessThan(left - 100)
+  await expect(pause).toBeVisible()
+})

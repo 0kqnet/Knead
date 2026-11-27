@@ -304,8 +304,131 @@
     grid-area: timeline;
     min-width: 0;
     min-height: 0;
+    overflow: auto;
+    overflow-anchor: none;
     scroll-padding-top: 32px;
     background: var(--studio-canvas);
+}
+
+.studio-ruler-mark {
+    position: absolute;
+    top: 15px;
+    bottom: 0;
+    border-left: 1px solid var(--studio-line);
+    color: var(--studio-muted);
+}
+
+.studio-ruler-mark[data-major="true"] {
+    top: 0;
+    border-color: var(--studio-muted);
+    color: var(--studio-text);
+}
+
+.studio-ruler-label {
+    position: absolute;
+    top: 1px;
+    left: 3px;
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.studio-marker {
+    --studio-marker-border: rgba(255, 255, 255, .45);
+    --studio-marker-shadow: 0 2px 5px rgba(0, 0, 0, .4);
+    position: absolute;
+    z-index: 2;
+    transform: translateY(-50%);
+    cursor: grab;
+    user-select: none;
+}
+
+.studio-marker[data-marker-selected="true"] {
+    --studio-marker-border: #f8fafc;
+    --studio-marker-shadow: 0 0 0 2px var(--knead-focus);
+    z-index: 4;
+}
+
+.studio-marker[data-marker-selected="true"][data-marker-action="sound-stop"] {
+    --studio-marker-shadow: 0 0 0 2px #fb7185;
+}
+
+.studio-marker:active {
+    cursor: grabbing;
+}
+
+.studio-marker-endpoint {
+    position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+.studio-marker[data-marker-resize="true"] .studio-marker-endpoint {
+    cursor: ew-resize;
+}
+
+.studio-marker-endpoint[data-marker-diamond="true"]::before,
+.studio-marker-stopper,
+.studio-marker-icon {
+    position: absolute;
+    inset: 0;
+    box-shadow: var(--studio-marker-shadow);
+    pointer-events: none;
+}
+
+.studio-marker-endpoint[data-marker-diamond="true"]::before,
+.studio-marker-stopper {
+    border: 2px solid var(--studio-marker-border);
+    border-radius: 3px;
+}
+
+.studio-marker-endpoint[data-marker-diamond="true"]::before {
+    content: "";
+    transform: rotate(45deg) scale(.68);
+    background: var(--studio-marker-color);
+}
+
+.studio-marker-stopper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #881337;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.studio-marker-icon {
+    overflow: hidden;
+    outline-style: solid;
+    outline-color: var(--studio-marker-border);
+    border-radius: 2px;
+    background: #030712;
+}
+
+.studio-marker-icon img {
+    position: absolute;
+    max-width: none;
+    image-rendering: pixelated;
+}
+
+.studio-marker-duration {
+    position: absolute;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    transform: translateY(-50%);
+    border-block: 1px solid;
+    pointer-events: none;
+}
+
+.studio-marker-invalid {
+    position: absolute;
+    top: -12px;
+    left: 0;
+    color: var(--ui-colors-red-300, #fca5a5);
+    font-size: 9px;
 }
 
 .studio-track-header {

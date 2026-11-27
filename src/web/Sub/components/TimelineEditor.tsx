@@ -25,6 +25,7 @@ import { TimelineToolbar } from './TimelineToolbar'
 import { TimelineRuler } from './TimelineRuler'
 import { SelectModifiers, TimelineTrack } from './TimelineTrack'
 import { TimelinePlayhead } from './TimelinePlayhead'
+import { RULER_HEIGHT, TimelineViewport } from './TimelineViewport'
 import { TrackHeader } from './TrackHeader'
 import { MixerPanel } from './MixerPanel'
 import { ExportDialog } from './ExportDialog'
@@ -53,7 +54,7 @@ import type { StudioDocumentSelection, StudioDocumentView } from '../types/studi
 import { findKneadProjectPath, findKneadProjectPaths } from '../utils/projectFiles'
 import { useTranslation } from 'react-i18next'
 import { useMarkerIcons } from '../hooks/useMarkerIcons'
-import { timelineViewportRange, type OverviewRange } from '../utils/arrangementOverview'
+import { timelineViewportRange } from '../utils/arrangementOverview'
 import { ReferenceAudioTrackRow } from './ReferenceAudioTrackRow'
 import {
   assertCanAddReferenceAudio,
@@ -116,25 +117,6 @@ const EMPTY_REFERENCE_AUDIO: NonNullable<ReturnType<typeof useTimeline>['state']
 const EMPTY_MARKERS: Marker[] = []
 const EMPTY_VARIANTS: { path: string, hash: string, pitch: number }[] = []
 const EMPTY_COMMANDS: CommandPaletteCommand[] = []
-const RULER_HEIGHT = 32
-const HORIZONTAL_OVERSCAN_PX = 128
-
-function firstTrackStartingAfter(rows: readonly { top: number }[], y: number): number {
-  let low = 0
-  let high = rows.length
-  while (low < high) {
-    const middle = Math.floor((low + high) / 2)
-    if (rows[middle].top <= y) low = middle + 1
-    else high = middle
-  }
-  return low
-}
-
-function trackIdAtTarget(target: EventTarget | null): string | null {
-  if (!(target instanceof Element)) return null
-  const row = target.closest<HTMLElement>('[data-track-id], [data-track-header-id]')
-  return row?.dataset.trackId ?? row?.dataset.trackHeaderId ?? null
-}
 
 function omitMarkerId(marker: Marker): Omit<Marker, 'id'> {
   const { id, ...rest } = marker
@@ -200,10 +182,6 @@ export const TimelineEditor: React.FC<Props> = ({
   const [mixerOpen, setMixerOpen] = useState(false)
   const [markerIconsEnabled, setMarkerIconsEnabled] = useState(false)
   const [navigatorOpen, setNavigatorOpen] = useState(true)
-  const [viewport, setViewport] = useState({ left: 0, top: 0, width: 0, height: 0 })
-  const [focusedTrackId, setFocusedTrackId] = useState<string | null>(null)
-  const [capturedTrackId, setCapturedTrackId] = useState<string | null>(null)
-  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [commandExportOpen, setCommandExportOpen] = useState(false)
   const [noteBlockBuildOpen, setNoteBlockBuildOpen] = useState(false)
@@ -235,7 +213,6 @@ export const TimelineEditor: React.FC<Props> = ({
   const clipboardRef = useRef<ClipboardItem[]>([])
   const selectionAnchorRef = useRef<string | null>(initialSelection?.anchorMarkerId ?? null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const viewportRef = useRef(viewport)
   const overviewViewportRef = useRef<HTMLDivElement>(null)
   const moveOriginsRef = useRef<Map<string, MoveOrigin>>(new Map())
   const pendingDuplicateOriginsRef = useRef<Map<string, MoveOrigin> | null>(null)
@@ -1223,21 +1200,9 @@ export const TimelineEditor: React.FC<Props> = ({
     })
   }, [])
 
-  useEffect(() => {
-    const viewport = scrollRef.current
-    if (!viewport) return
-    const headers = viewport.querySelectorAll<HTMLElement>('[data-track-header-id]')
-    const selected = Array.from(headers).find(header => header.dataset.trackHeaderId === selectedTrackId)
-    if (!selected) return
-    const observer = new ResizeObserver(() => selected.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
-    observer.observe(viewport)
-    return () => observer.disconnect()
-  }, [selectedTrackId])
-
-  const updateOverviewViewport = useCallback(() => {
+  const updateOverviewViewport = useCallback((left: number, width: number) => {
     const indicator = overviewViewportRef.current
     if (!indicator) return
-    const { left, width } = viewportRef.current
     const length = Math.max(1, stateRef.current.lengthTicks)
     const range = timelineViewportRange(
       left, width, pxPerTickRef.current, TRACK_HEADER_WIDTH, TIMELINE_LEADING_PADDING_PX, length,
@@ -1246,32 +1211,9 @@ export const TimelineEditor: React.FC<Props> = ({
     indicator.style.width = `${(range.endTick - range.startTick) / length * 100}%`
   }, [])
 
-  const syncViewport = useCallback(() => {
-    const element = scrollRef.current
-    if (!element) return
-    const next = { left: element.scrollLeft, top: element.scrollTop, width: element.clientWidth, height: element.clientHeight }
-    const current = viewportRef.current
-    if (next.left === current.left && next.top === current.top && next.width === current.width && next.height === current.height) return
-    viewportRef.current = next
-    updateOverviewViewport()
-    const left = Math.floor(next.left / HORIZONTAL_OVERSCAN_PX) * HORIZONTAL_OVERSCAN_PX
-    if (
-      left !== Math.floor(current.left / HORIZONTAL_OVERSCAN_PX) * HORIZONTAL_OVERSCAN_PX
-      || next.top !== current.top || next.width !== current.width || next.height !== current.height
-    ) setViewport({ ...next, left })
-  }, [updateOverviewViewport])
-
   useLayoutEffect(() => {
     const viewport = scrollRef.current
-    if (!viewport) return
-    syncViewport()
-    const observer = new ResizeObserver(syncViewport)
-    observer.observe(viewport)
-    return () => observer.disconnect()
-  }, [syncViewport])
-
-  useLayoutEffect(() => {
-    updateOverviewViewport()
+    if (viewport) updateOverviewViewport(viewport.scrollLeft, viewport.clientWidth)
   }, [navigatorOpen, pxPerTick, timeline.state.lengthTicks, updateOverviewViewport])
 
   const navigateOverview = useCallback((tick: number) => {
@@ -1383,25 +1325,6 @@ export const TimelineEditor: React.FC<Props> = ({
     paste, playback, save, saveAs, selectAllEditable, timeline,
   ])
 
-  useEffect(() => {
-    if (!playback.isPlaying) return
-    const follow = (tick: number) => {
-      const element = scrollRef.current
-      if (!element) return
-      const { left, width } = viewportRef.current
-      const x = TRACK_HEADER_WIDTH + TIMELINE_LEADING_PADDING_PX + tickToPx(tick, pxPerTick)
-      const margin = 80
-      if (x < left + TRACK_HEADER_WIDTH + margin) {
-        if (left > 0) element.scrollLeft = Math.max(0, x - TRACK_HEADER_WIDTH - margin)
-      }
-      else if (x > left + width - margin) {
-        element.scrollLeft = x - width + margin
-      }
-    }
-    follow(getCurrentTick())
-    return subscribeTick(follow)
-  }, [getCurrentTick, playback.isPlaying, pxPerTick, subscribeTick])
-
   const selectedMarkers = useMemo(
     () => selectedIds.size > 0
       ? timeline.state.markers.filter(marker => selectedIds.has(marker.id))
@@ -1452,36 +1375,6 @@ export const TimelineEditor: React.FC<Props> = ({
     0,
   ), [referenceAudio])
   const totalTrackHeight = noteTrackHeight + referenceAudioHeight
-  const renderRange = timelineViewportRange(
-    viewport.left,
-    viewport.width + HORIZONTAL_OVERSCAN_PX,
-    pxPerTick,
-    TRACK_HEADER_WIDTH,
-    TIMELINE_LEADING_PADDING_PX,
-    timeline.state.lengthTicks,
-  )
-  // Round the render window to chunks so following the playhead does not
-  // update every row for each pixel of horizontal scrolling.
-  const startChunk = Math.floor(renderRange.startTick * pxPerTick / HORIZONTAL_OVERSCAN_PX) - 1
-  const endChunk = Math.ceil(renderRange.endTick * pxPerTick / HORIZONTAL_OVERSCAN_PX) + 1
-  const visibleTicks = useMemo<OverviewRange>(() => ({
-    startTick: Math.max(0, startChunk * HORIZONTAL_OVERSCAN_PX / pxPerTick),
-    endTick: Math.min(timeline.state.lengthTicks, endChunk * HORIZONTAL_OVERSCAN_PX / pxPerTick),
-  }), [endChunk, pxPerTick, startChunk, timeline.state.lengthTicks])
-  const trackTop = viewport.top - referenceAudioHeight
-  const trackBottom = trackTop + Math.max(0, viewport.height - RULER_HEIGHT)
-  const firstTrackIndex = Math.max(0, firstTrackStartingAfter(trackRows, trackTop - TRACK_HEIGHT) - 1)
-  const endTrackIndex = firstTrackStartingAfter(trackRows, trackBottom + TRACK_HEIGHT)
-  const visibleTrackIndices = useMemo(() => {
-    const indices = new Set<number>()
-    for (let index = firstTrackIndex; index < endTrackIndex; index++) indices.add(index)
-    // Keep rows involved in selection, focus, or a drag mounted as the view scrolls.
-    for (const id of [selectedTrackId, focusedTrackId, capturedTrackId, draggedTrackId]) {
-      const index = id === null ? undefined : trackOrder.get(id)
-      if (index !== undefined) indices.add(index)
-    }
-    return [...indices].sort((left, right) => left - right)
-  }, [capturedTrackId, draggedTrackId, endTrackIndex, firstTrackIndex, focusedTrackId, selectedTrackId, trackOrder])
   const contentWidth = TIMELINE_LEADING_PADDING_PX
     + tickToPx(timeline.state.lengthTicks, pxPerTick)
   const exportName = (filePath?.replace(/^.*[\\/]/, '').replace(/\.kp$/i, '') || 'knead-mix')
@@ -1659,161 +1552,158 @@ export const TimelineEditor: React.FC<Props> = ({
         onToggleNavigator={toggleNavigator}
       />
 
-      <Box
-        ref={scrollRef}
-        className="studio-timeline-viewport"
-        overflow="auto"
-        onScroll={syncViewport}
-        onFocus={event => setFocusedTrackId(trackIdAtTarget(event.target))}
-        onBlur={event => setFocusedTrackId(trackIdAtTarget(event.relatedTarget))}
-        onGotPointerCapture={event => setCapturedTrackId(trackIdAtTarget(event.target))}
-        onLostPointerCapture={() => setCapturedTrackId(null)}
-        onDragStart={event => setDraggedTrackId(trackIdAtTarget(event.target))}
-        onDragEnd={() => setDraggedTrackId(null)}
-        onWheel={(event) => {
-          if (!(event.ctrlKey || event.metaKey)) return
-          event.preventDefault()
-          setPxPerTick(value => Math.max(1.5, Math.min(64, value * (event.deltaY > 0 ? 0.88 : 1.12))))
-        }}
+      <TimelineViewport
+        scrollRef={scrollRef}
+        playback={playback}
+        lengthTicks={timeline.state.lengthTicks}
+        pxPerTick={pxPerTick}
+        setPxPerTick={setPxPerTick}
+        trackRows={trackRows}
+        trackOrder={trackOrder}
+        selectedTrackId={selectedTrackId}
+        referenceAudioHeight={referenceAudioHeight}
+        onHorizontalViewportChange={updateOverviewViewport}
       >
-        <Box position="relative" w={`${TRACK_HEADER_WIDTH + contentWidth}px`} minW="100%" minH="100%">
-          <Box
-            aria-hidden="true"
-            position="absolute" top={`${RULER_HEIGHT}px`} bottom="0" left={`${TRACK_HEADER_WIDTH}px`} right="0"
-            pointerEvents="none"
-            backgroundImage="linear-gradient(to right, var(--studio-lane-grid) 1px, transparent 1px)"
-            backgroundPosition={`${TIMELINE_LEADING_PADDING_PX}px 0`}
-            backgroundSize={`${pxPerTick * 5}px 100%`}
-          />
-          <Flex position="sticky" top="0" zIndex="20">
-            <Flex
-              position="sticky" left="0" zIndex="22"
-              w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`} h={`${RULER_HEIGHT}px`}
-              align="center" px="3" bg="var(--studio-frame)" borderRight="1px solid" borderBottom="1px solid"
-              borderColor="var(--studio-line)"
-            >
-              <Text fontSize="xs" fontWeight="semibold" color="var(--studio-muted)">{t('studio.tracks')}</Text>
-              <Flex className="studio-zoom-controls" role="group" aria-label={t('studio.zoom')}>
-                <IconButton
-                  size="xs" variant="ghost"
-                  icon={<MinusIcon boxSize="4" />}
-                  aria-label={t('studio.zoom_out')}
-                  title={t('studio.zoom_out')}
-                  onClick={() => setPxPerTick(value => Math.max(1.5, value / 1.35))}
-                />
-                <Text as="span" className="studio-zoom-value">
-                  {Math.round(pxPerTick / DEFAULT_PX_PER_TICK * 100)}
-                  %
-                </Text>
-                <IconButton
-                  size="xs" variant="ghost"
-                  icon={<PlusIcon boxSize="4" />}
-                  aria-label={t('studio.zoom_in')}
-                  title={t('studio.zoom_in')}
-                  onClick={() => setPxPerTick(value => Math.min(64, value * 1.35))}
-                />
-                <IconButton
-                  size="xs" variant="ghost"
-                  icon={<MaximizeIcon boxSize="3.5" />}
-                  aria-label={t('studio.fit_all')}
-                  title={t('studio.fit_all')}
-                  onClick={() => fitRange(0, timeline.state.lengthTicks)}
-                />
-              </Flex>
-            </Flex>
-            <TimelineRuler
-              lengthTicks={timeline.state.lengthTicks}
-              pxPerTick={pxPerTick}
-              visibleTicks={visibleTicks}
-              settings={timeline.state.settings}
-              tempoModel={tempoModel}
-              onSeek={playback.seek}
-              onLoopChange={changeLoopRange}
+        {({ visibleTicks, visibleTrackIndices }) => (
+          <Box position="relative" w={`${TRACK_HEADER_WIDTH + contentWidth}px`} minW="100%" minH="100%">
+            <Box
+              aria-hidden="true"
+              position="absolute" top={`${RULER_HEIGHT}px`} bottom="0" left={`${TRACK_HEADER_WIDTH}px`} right="0"
+              pointerEvents="none"
+              backgroundImage="linear-gradient(to right, var(--studio-lane-grid) 1px, transparent 1px)"
+              backgroundPosition={`${TIMELINE_LEADING_PADDING_PX}px 0`}
+              backgroundSize={`${pxPerTick * 5}px 100%`}
             />
-          </Flex>
-          {referenceAudio.map(track => (
-            <ReferenceAudioTrackRow
-              key={track.id}
-              track={track}
-              waveform={cache.getReferenceWaveform(track.id)}
-              error={cache.getReferenceError(track.id)}
-              playbackStatus={playback.status}
-              lengthTicks={timeline.state.lengthTicks}
-              pxPerTick={pxPerTick}
-              settings={timeline.state.settings}
-              tempoModel={tempoModel}
-              onChange={patch => timeline.updateReferenceAudio(track.id, patch)}
-              onRemove={() => timeline.removeReferenceAudio(track.id)}
-              onBeginEdit={timeline.beginTransaction}
-              onEndEdit={timeline.commitTransaction}
-              onSeek={playback.seek}
-            />
-          ))}
-          <Box position="relative" h={`${noteTrackHeight}px`}>
-            {visibleTrackIndices.map((index) => {
-              const { track, top } = trackRows[index]
-              return (
-                <Flex key={track.id} position="absolute" top={`${top}px`} left="0" right="0">
-                  <Box position="sticky" left="0" zIndex="12" w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`}>
-                    <TrackHeader
-                      track={track}
-                      index={index}
-                      selected={selectedTrackId === track.id}
-                      playbackStatus={playback.status}
-                      canDelete={timeline.state.tracks.length > 1}
-                      onSelect={setSelectedTrackId}
-                      onChange={timeline.updateTrack}
-                      onDuplicate={duplicateTrackAndSelect}
-                      onDelete={removeTrack}
-                      onMove={timeline.reorderTrack}
-                    />
-                  </Box>
-                  <TimelineTrack
-                    track={track}
-                    markers={markersByTrack.get(track.id) ?? EMPTY_MARKERS}
-                    lengthTicks={timeline.state.lengthTicks}
-                    pxPerTick={pxPerTick}
-                    visibleTicks={visibleTicks}
-                    settings={timeline.state.settings}
-                    tempoModel={tempoModel}
-                    selectedIds={selectedIds}
-                    validSoundIds={validSoundIds}
-                    markerIcons={markerIcons.icons}
-                    onSelectMarker={handleMarkerSelect}
-                    onClearSelection={clearSelection}
-                    onRectangleSelect={rectangleSelect}
-                    onBeginEdit={captureMoveOrigins}
-                    onEndEdit={timeline.commitTransaction}
-                    onMoveSelection={moveSelection}
-                    onResizeMarker={resizeMarker}
-                    onDuplicateForDrag={duplicateForDrag}
-                    onAddMarker={addAtTick}
+            <Flex position="sticky" top="0" zIndex="20">
+              <Flex
+                position="sticky" left="0" zIndex="22"
+                w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`} h={`${RULER_HEIGHT}px`}
+                align="center" px="3" bg="var(--studio-frame)" borderRight="1px solid" borderBottom="1px solid"
+                borderColor="var(--studio-line)"
+              >
+                <Text fontSize="xs" fontWeight="semibold" color="var(--studio-muted)">{t('studio.tracks')}</Text>
+                <Flex className="studio-zoom-controls" role="group" aria-label={t('studio.zoom')}>
+                  <IconButton
+                    size="xs" variant="ghost"
+                    icon={<MinusIcon boxSize="4" />}
+                    aria-label={t('studio.zoom_out')}
+                    title={t('studio.zoom_out')}
+                    onClick={() => setPxPerTick(value => Math.max(1.5, value / 1.35))}
+                  />
+                  <Text as="span" className="studio-zoom-value">
+                    {Math.round(pxPerTick / DEFAULT_PX_PER_TICK * 100)}
+                    %
+                  </Text>
+                  <IconButton
+                    size="xs" variant="ghost"
+                    icon={<PlusIcon boxSize="4" />}
+                    aria-label={t('studio.zoom_in')}
+                    title={t('studio.zoom_in')}
+                    onClick={() => setPxPerTick(value => Math.min(64, value * 1.35))}
+                  />
+                  <IconButton
+                    size="xs" variant="ghost"
+                    icon={<MaximizeIcon boxSize="3.5" />}
+                    aria-label={t('studio.fit_all')}
+                    title={t('studio.fit_all')}
+                    onClick={() => fitRange(0, timeline.state.lengthTicks)}
                   />
                 </Flex>
-              )
-            })}
-          </Box>
-          <Box position="absolute" left={`${TRACK_HEADER_WIDTH}px`} top="0" pointerEvents="none">
-            {timeline.state.settings.loop.enabled && (
-              <Box
-                position="absolute"
-                left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(timeline.state.settings.loop.startTick, pxPerTick)}px`}
-                top={`${RULER_HEIGHT}px`}
-                h={`${totalTrackHeight}px`}
-                w={`${tickToPx(timeline.state.settings.loop.endTick - timeline.state.settings.loop.startTick, pxPerTick)}px`}
-                bg="var(--studio-loop-track-fill)"
-                borderX="1px solid rgba(74,222,128,.35)"
+              </Flex>
+              <TimelineRuler
+                lengthTicks={timeline.state.lengthTicks}
+                pxPerTick={pxPerTick}
+                visibleTicks={visibleTicks}
+                settings={timeline.state.settings}
+                tempoModel={tempoModel}
+                onSeek={playback.seek}
+                onLoopChange={changeLoopRange}
               />
-            )}
-            <TimelinePlayhead
-              getCurrentTick={getCurrentTick}
-              subscribeTick={subscribeTick}
-              pxPerTick={pxPerTick}
-              heightPx={RULER_HEIGHT + totalTrackHeight}
-            />
+            </Flex>
+            {referenceAudio.map(track => (
+              <ReferenceAudioTrackRow
+                key={track.id}
+                track={track}
+                waveform={cache.getReferenceWaveform(track.id)}
+                error={cache.getReferenceError(track.id)}
+                playbackStatus={playback.status}
+                lengthTicks={timeline.state.lengthTicks}
+                pxPerTick={pxPerTick}
+                settings={timeline.state.settings}
+                tempoModel={tempoModel}
+                onChange={patch => timeline.updateReferenceAudio(track.id, patch)}
+                onRemove={() => timeline.removeReferenceAudio(track.id)}
+                onBeginEdit={timeline.beginTransaction}
+                onEndEdit={timeline.commitTransaction}
+                onSeek={playback.seek}
+              />
+            ))}
+            <Box position="relative" h={`${noteTrackHeight}px`}>
+              {visibleTrackIndices.map((index) => {
+                const { track, top } = trackRows[index]
+                return (
+                  <Flex key={track.id} position="absolute" top={`${top}px`} left="0" right="0">
+                    <Box position="sticky" left="0" zIndex="12" w={`${TRACK_HEADER_WIDTH}px`} minW={`${TRACK_HEADER_WIDTH}px`}>
+                      <TrackHeader
+                        track={track}
+                        index={index}
+                        selected={selectedTrackId === track.id}
+                        playbackStatus={playback.status}
+                        canDelete={timeline.state.tracks.length > 1}
+                        onSelect={setSelectedTrackId}
+                        onChange={timeline.updateTrack}
+                        onDuplicate={duplicateTrackAndSelect}
+                        onDelete={removeTrack}
+                        onMove={timeline.reorderTrack}
+                      />
+                    </Box>
+                    <TimelineTrack
+                      track={track}
+                      markers={markersByTrack.get(track.id) ?? EMPTY_MARKERS}
+                      lengthTicks={timeline.state.lengthTicks}
+                      pxPerTick={pxPerTick}
+                      visibleTicks={visibleTicks}
+                      settings={timeline.state.settings}
+                      tempoModel={tempoModel}
+                      selectedIds={selectedIds}
+                      validSoundIds={validSoundIds}
+                      markerIcons={markerIcons.icons}
+                      onSelectMarker={handleMarkerSelect}
+                      onClearSelection={clearSelection}
+                      onRectangleSelect={rectangleSelect}
+                      onBeginEdit={captureMoveOrigins}
+                      onEndEdit={timeline.commitTransaction}
+                      onMoveSelection={moveSelection}
+                      onResizeMarker={resizeMarker}
+                      onDuplicateForDrag={duplicateForDrag}
+                      onAddMarker={addAtTick}
+                    />
+                  </Flex>
+                )
+              })}
+            </Box>
+            <Box position="absolute" left={`${TRACK_HEADER_WIDTH}px`} top="0" pointerEvents="none">
+              {timeline.state.settings.loop.enabled && (
+                <Box
+                  position="absolute"
+                  left={`${TIMELINE_LEADING_PADDING_PX + tickToPx(timeline.state.settings.loop.startTick, pxPerTick)}px`}
+                  top={`${RULER_HEIGHT}px`}
+                  h={`${totalTrackHeight}px`}
+                  w={`${tickToPx(timeline.state.settings.loop.endTick - timeline.state.settings.loop.startTick, pxPerTick)}px`}
+                  bg="var(--studio-loop-track-fill)"
+                  borderX="1px solid rgba(74,222,128,.35)"
+                />
+              )}
+              <TimelinePlayhead
+                getCurrentTick={getCurrentTick}
+                subscribeTick={subscribeTick}
+                pxPerTick={pxPerTick}
+                heightPx={RULER_HEIGHT + totalTrackHeight}
+              />
+            </Box>
           </Box>
-        </Box>
-      </Box>
+        )}
+      </TimelineViewport>
 
       {mixerOpen && (
         <MixerPanel
