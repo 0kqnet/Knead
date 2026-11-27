@@ -15,7 +15,6 @@ import {
   SINGLE_SHOT_CURVE_PREVIEW_TICKS,
   TRACK_COLORS,
   createDefaultTrack,
-  getTimelineLengthTicks,
   snapLaneY,
   type Curve,
   type EmbeddedCustomAudioAsset,
@@ -32,7 +31,7 @@ import {
 } from '../types/timeline'
 import { scaleCurveDuration } from '../utils/curveScaling'
 import { deriveProjectCustomInstruments } from '../utils/customInstruments'
-import { normalizeTempoMap } from '../utils/tempoMap'
+import { getTimelineLengthTicks, normalizeTempoMap, tempoBpmLimits } from '../utils/tempoMap'
 
 export const MAX_TIMELINE_HISTORY = 100
 
@@ -494,6 +493,7 @@ export function useTimelineController(
       const previousFallback = {
         bpm: draft.settings.bpm,
         timeSignature: { ...draft.settings.timeSignature },
+        ticksPerQuarter: draft.settings.ticksPerQuarter,
       }
       draft.settings = {
         ...draft.settings,
@@ -502,7 +502,8 @@ export function useTimelineController(
         snap: { ...draft.settings.snap, ...patch.snap },
         loop: { ...draft.settings.loop, ...patch.loop },
       }
-      draft.settings.bpm = Math.max(20, Math.min(300, draft.settings.bpm))
+      const { min, max } = tempoBpmLimits(draft.settings)
+      draft.settings.bpm = Math.max(min, Math.min(max, draft.settings.bpm))
       draft.settings.panLaw ??= 'cascade'
       draft.settings.loop.startTick = Math.max(0, Math.min(draft.lengthTicks - 1, Math.trunc(draft.settings.loop.startTick)))
       draft.settings.loop.endTick = Math.max(

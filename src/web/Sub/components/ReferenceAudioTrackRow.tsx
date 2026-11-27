@@ -10,9 +10,8 @@ import {
   type TimelineSettings,
 } from '../types/timeline'
 import type { WaveformPeaks } from '../utils/waveformPeaks'
-import { referenceAudioDurationTicks } from '../utils/referenceAudio'
 import { tickToPx } from '../utils/tickPixel'
-import { buildTempoMap, snapTickToTempoMap } from '../utils/tempoMap'
+import { buildTempoMap, referenceAudioEndTick, snapTickToTempoMap, type TempoMapModel } from '../utils/tempoMap'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import { WaveformCanvas } from './WaveformCanvas'
 
@@ -30,6 +29,7 @@ interface Props {
   pxPerTick: number
   settings: TimelineSettings
   tempoMap?: readonly TempoMapEvent[]
+  tempoModel?: TempoMapModel
   onChange: (patch: Partial<ReferenceAudioTrack>) => void
   onRemove: () => void
   onBeginEdit: () => void
@@ -51,6 +51,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
   pxPerTick,
   settings,
   tempoMap,
+  tempoModel: suppliedTempoModel,
   onChange,
   onRemove,
   onBeginEdit,
@@ -60,27 +61,18 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
   const height = track.collapsed
     ? REFERENCE_AUDIO_TRACK_HEIGHT_COLLAPSED
     : REFERENCE_AUDIO_TRACK_HEIGHT
-  const clipDurationTicks = referenceAudioDurationTicks(track)
-  const clipWidth = Math.max(4, tickToPx(clipDurationTicks, pxPerTick))
   const clipBorderColor = error
     ? 'red.400'
     : track.solo
       ? 'yellow.300'
       : 'cyan.300'
   const dragCleanupRef = useRef<(() => void) | null>(null)
-  const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
-    bpm: settings.bpm,
-    timeSignature: {
-      numerator: settings.timeSignature.numerator,
-      denominator: settings.timeSignature.denominator,
-    },
-  }, Math.max(0, lengthTicks - 1)), [
-    lengthTicks,
-    settings.bpm,
-    settings.timeSignature.denominator,
-    settings.timeSignature.numerator,
-    tempoMap,
-  ])
+  const tempoModel = useMemo(
+    () => suppliedTempoModel ?? buildTempoMap(tempoMap, settings, Math.max(0, lengthTicks - 1)),
+    [lengthTicks, settings, suppliedTempoModel, tempoMap],
+  )
+  const clipDurationTicks = referenceAudioEndTick(track, tempoModel) - track.offsetTicks
+  const clipWidth = Math.max(4, tickToPx(clipDurationTicks, pxPerTick))
 
   useEffect(() => () => dragCleanupRef.current?.(), [])
 

@@ -1,16 +1,34 @@
 import {
   DEFAULT_SETTINGS,
+  DEFAULT_TIMELINE_LENGTH_TICKS,
   MAX_TEMPO_MAP_EVENTS,
+  MINECRAFT_TICKS_PER_SECOND,
+  getRequiredTimelineLengthTicks,
+  type Marker,
+  type ReferenceAudioTrack,
   type TempoMapEvent,
+  type TimelineGridSettings,
   type TimelineMeter,
   type TimelineSettings,
 } from '../types/timeline'
 
-export const TIMELINE_TICKS_PER_SECOND = 20
 export const MIN_TEMPO_BPM = 20
-export const MAX_TEMPO_BPM = 300
+export const MAX_TEMPO_BPM = 2_000
 
-export type TempoMapFallback = Pick<TimelineSettings, 'bpm' | 'timeSignature'>
+export type TempoMapFallback = TimelineGridSettings
+
+export function tempoBpmLimits(settings: Pick<TimelineSettings, 'ticksPerQuarter'>) {
+  // NBS's minimum header tempo is 0.01 TPS. A signed 16-bit Tempo Changer
+  // pitch can encode up to 32768 BPM because OpenNBS uses its absolute value.
+  return settings.ticksPerQuarter === undefined
+    ? { min: MIN_TEMPO_BPM, max: MAX_TEMPO_BPM }
+    : { min: 0.15, max: 32_768 }
+}
+
+export function tempoMapEventLimit(settings: Pick<TimelineSettings, 'ticksPerQuarter'>): number {
+  // A valid NBS file can change tempo at every column (0..32767).
+  return settings.ticksPerQuarter === undefined ? MAX_TEMPO_MAP_EVENTS : 32_768
+}
 
 export interface TempoMapValidationOptions {
   maxTick?: number
@@ -26,11 +44,15 @@ export interface ResolvedTempoMapSegment {
   startBeat: number
   /** Integrated measures at this segment boundary. */
   startBar: number
+  startSeconds: number
+  ticksPerSecond: number
+  ticksPerBeat: number
 }
 
 export interface TempoMapModel {
   events: readonly TempoMapEvent[]
   segments: readonly ResolvedTempoMapSegment[]
+  ticksPerQuarter: TimelineSettings['ticksPerQuarter']
 }
 
 export interface MusicalPosition {
@@ -64,9 +86,9 @@ function cloneMeter(meter: TimelineMeter): TimelineMeter {
   return { numerator: meter.numerator, denominator: meter.denominator }
 }
 
-function validateFallback(fallback: TempoMapFallback): string | null {
-  if (!Number.isFinite(fallback.bpm) || fallback.bpm < MIN_TEMPO_BPM || fallback.bpm > MAX_TEMPO_BPM) {
-    return `Fallback BPM must be between ${MIN_TEMPO_BPM} and ${MAX_TEMPO_BPM}`
+function validateFallback(fallback: TempoMapFallback, { min, max }: ReturnType<typeof tempoBpmLimits>): string | null {
+  if (!Number.isFinite(fallback.bpm) || fallback.bpm < min || fallback.bpm > max) {
+    return `Fallback BPM must be between ${min} and ${max}`
   }
   if (!Number.isInteger(fallback.timeSignature.numerator)
     || fallback.timeSignature.numerator < 1
@@ -85,11 +107,13 @@ export function validateTempoMap(
   fallback: TempoMapFallback = DEFAULT_SETTINGS,
   options: TempoMapValidationOptions = {},
 ): string | null {
-  const fallbackError = validateFallback(fallback)
+  const limits = tempoBpmLimits(fallback)
+  const fallbackError = validateFallback(fallback, limits)
   if (fallbackError) return fallbackError
   if (!Array.isArray(value)) return 'Tempo map must be an array'
-  if (value.length > MAX_TEMPO_MAP_EVENTS) {
-    return `Tempo map exceeds ${MAX_TEMPO_MAP_EVENTS} events`
+  const eventLimit = tempoMapEventLimit(fallback)
+  if (value.length > eventLimit) {
+    return `Tempo map exceeds ${eventLimit} events`
   }
   const maxTick = options.maxTick ?? Number.MAX_SAFE_INTEGER
   let previousTick = -1
@@ -101,9 +125,9 @@ export function validateTempoMap(
     if (!Number.isInteger(rawTick) || (rawTick as number) < 0 || (rawTick as number) > maxTick) {
       return `Tempo event ${index + 1} tick must be an integer between 0 and ${maxTick}`
     }
-    if (!Number.isFinite(event.bpm) || (event.bpm as number) < MIN_TEMPO_BPM
-      || (event.bpm as number) > MAX_TEMPO_BPM) {
-      return `Tempo event ${index + 1} BPM must be between ${MIN_TEMPO_BPM} and ${MAX_TEMPO_BPM}`
+    if (!Number.isFinite(event.bpm) || (event.bpm as number) < limits.min
+      || (event.bpm as number) > limits.max) {
+      return `Tempo event ${index + 1} BPM must be between ${limits.min} and ${limits.max}`
     }
     if (event.meter !== undefined) {
       const numerator = isRecord(event.meter) ? event.meter.numerator : undefined
@@ -161,8 +185,9 @@ export function normalizeTempoMap(
       meter: cloneMeter(fallback.timeSignature),
     })
   }
-  if (byTick.size > MAX_TEMPO_MAP_EVENTS) {
-    throw new Error(`Tempo map exceeds ${MAX_TEMPO_MAP_EVENTS} events after adding tick zero`)
+  const eventLimit = tempoMapEventLimit(fallback)
+  if (byTick.size > eventLimit) {
+    throw new Error(`Tempo map exceeds ${eventLimit} events after adding tick zero`)
   }
   const sorted = [...byTick.values()].sort((left, right) => left.tick - right.tick)
   let inheritedMeter = cloneMeter(fallback.timeSignature)
@@ -178,10 +203,6 @@ export function normalizeTempoMap(
   })
 }
 
-function ticksPerBeatValues(bpm: number, meter: TimelineMeter): number {
-  return (TIMELINE_TICKS_PER_SECOND * 60 / bpm) * (4 / meter.denominator)
-}
-
 function nextMusicalBoundary(value: number): number {
   const nearest = Math.round(value)
   return Math.abs(value - nearest) <= EPSILON ? nearest : Math.ceil(value)
@@ -195,16 +216,19 @@ export function buildTempoMap(
 ): TempoMapModel {
   const normalized = normalizeTempoMap(events, fallback, maxTick)
   const segments: ResolvedTempoMapSegment[] = []
-  let bpm = fallback.bpm
+  const { ticksPerQuarter } = fallback
   let meter = cloneMeter(fallback.timeSignature)
   let previousTick = 0
+  let ticksPerSecond = MINECRAFT_TICKS_PER_SECOND
+  let ticksPerBeat = 1
+  let startSeconds = 0
   let startBeat = 0
   let startBar = 0
   for (const event of normalized) {
     const elapsed = event.tick - previousTick
-    const beatTicks = ticksPerBeatValues(bpm, meter)
-    startBeat += elapsed / beatTicks
-    startBar += elapsed / (beatTicks * meter.numerator)
+    startSeconds += elapsed / ticksPerSecond
+    startBeat += elapsed / ticksPerBeat
+    startBar += elapsed / (ticksPerBeat * meter.numerator)
     const nextMeter = event.meter ? cloneMeter(event.meter) : meter
     if (event.tick > 0 && !sameMeter(nextMeter, meter)) {
       // A meter change begins a new measure, like a DAW conductor track. Any
@@ -212,18 +236,25 @@ export function buildTempoMap(
       startBeat = nextMusicalBoundary(startBeat)
       startBar = nextMusicalBoundary(startBar)
     }
-    bpm = event.bpm
     meter = nextMeter
+    ticksPerSecond = ticksPerQuarter === undefined
+      ? MINECRAFT_TICKS_PER_SECOND
+      : event.bpm * ticksPerQuarter / 60
+    const quarter = ticksPerQuarter ?? MINECRAFT_TICKS_PER_SECOND * 60 / event.bpm
+    ticksPerBeat = quarter * (4 / meter.denominator)
     segments.push({
       tick: event.tick,
-      bpm,
+      bpm: event.bpm,
       meter: cloneMeter(meter),
       startBeat,
       startBar,
+      startSeconds,
+      ticksPerSecond,
+      ticksPerBeat,
     })
     previousTick = event.tick
   }
-  return { events: normalized, segments }
+  return { events: normalized, segments, ticksPerQuarter }
 }
 
 function findTickSegment(model: TempoMapModel, tick: number): ResolvedTempoMapSegment {
@@ -237,11 +268,11 @@ function findTickSegment(model: TempoMapModel, tick: number): ResolvedTempoMapSe
   return model.segments[low]
 }
 
-function findAxisSegment(
+function findAxisSegmentIndex(
   model: TempoMapModel,
   value: number,
-  axis: 'startBeat' | 'startBar',
-): ResolvedTempoMapSegment {
+  axis: 'startBeat' | 'startBar' | 'startSeconds',
+): number {
   let low = 0
   let high = model.segments.length - 1
   while (low < high) {
@@ -249,7 +280,7 @@ function findAxisSegment(
     if (model.segments[middle][axis] <= value) low = middle
     else high = middle - 1
   }
-  return model.segments[low]
+  return low
 }
 
 function nonNegativeFinite(value: number, name: string): number {
@@ -262,25 +293,67 @@ export function tempoAtTick(tick: number, model: TempoMapModel): Pick<ResolvedTe
   return { bpm: segment.bpm, meter: cloneMeter(segment.meter) }
 }
 
-export function tickToSeconds(tick: number): number {
-  return nonNegativeFinite(tick, 'Tick') / TIMELINE_TICKS_PER_SECOND
+export function tickToSeconds(tick: number, model?: TempoMapModel): number {
+  const safeTick = nonNegativeFinite(tick, 'Tick')
+  if (model?.ticksPerQuarter === undefined) return safeTick / MINECRAFT_TICKS_PER_SECOND
+  const segment = findTickSegment(model, safeTick)
+  return segment.startSeconds + (safeTick - segment.tick) / segment.ticksPerSecond
 }
 
-export function secondsToTick(seconds: number): number {
-  return nonNegativeFinite(seconds, 'Seconds') * TIMELINE_TICKS_PER_SECOND
+export function secondsToTick(seconds: number, model?: TempoMapModel): number {
+  const safeSeconds = nonNegativeFinite(seconds, 'Seconds')
+  if (model?.ticksPerQuarter === undefined) return safeSeconds * MINECRAFT_TICKS_PER_SECOND
+  const segment = model.segments[findAxisSegmentIndex(model, safeSeconds, 'startSeconds')]
+  return segment.tick + (safeSeconds - segment.startSeconds) * segment.ticksPerSecond
+}
+
+export function tickRangeToSeconds(startTick: number, endTick: number, model?: TempoMapModel): number {
+  if (model?.ticksPerQuarter === undefined) return (endTick - startTick) / MINECRAFT_TICKS_PER_SECOND
+  return tickToSeconds(endTick, model) - tickToSeconds(startTick, model)
+}
+
+export function referenceAudioEndTick(
+  track: Pick<ReferenceAudioTrack, 'offsetTicks' | 'durationSeconds'>,
+  model?: TempoMapModel,
+): number {
+  const { offsetTicks, durationSeconds } = track
+  const end = model?.ticksPerQuarter === undefined
+    ? offsetTicks + durationSeconds * MINECRAFT_TICKS_PER_SECOND
+    : secondsToTick(tickToSeconds(offsetTicks, model) + durationSeconds, model)
+  return Math.max(offsetTicks + 1, Math.ceil(end - EPSILON))
+}
+
+export function getTimelineLengthTicks(
+  markers: ReadonlyArray<Pick<Marker, 'tick' | 'duration'>>,
+  currentLength = DEFAULT_TIMELINE_LENGTH_TICKS,
+  settings: TempoMapFallback = DEFAULT_SETTINGS,
+  referenceAudio: ReadonlyArray<Pick<ReferenceAudioTrack, 'offsetTicks' | 'durationSeconds'>> = [],
+  tempoMap: readonly TempoMapEvent[] = [],
+): number {
+  const model = settings.ticksPerQuarter !== undefined && referenceAudio.length > 0
+    ? buildTempoMap(tempoMap, settings)
+    : undefined
+  const referenceEndTick = referenceAudio.reduce((latest, track) => (
+    Math.max(latest, referenceAudioEndTick(track, model))
+  ), 0)
+  const tempoEndTick = tempoMap.reduce((latest, event) => Math.max(latest, event.tick + 1), 0)
+  const markerEndTick = settings.ticksPerQuarter === undefined
+    ? getRequiredTimelineLengthTicks(markers, settings)
+    : markers.reduce((latest, marker) => Math.max(latest, marker.tick + Math.max(0, marker.duration ?? 0) + 1), 1)
+  return Math.max(currentLength, referenceEndTick, tempoEndTick, markerEndTick)
 }
 
 export function tickToMusicalBeat(tick: number, model: TempoMapModel): number {
   const safeTick = nonNegativeFinite(tick, 'Tick')
   const segment = findTickSegment(model, safeTick)
-  return segment.startBeat + (safeTick - segment.tick) / ticksPerBeatValues(segment.bpm, segment.meter)
+  return segment.startBeat + (safeTick - segment.tick) / segment.ticksPerBeat
 }
 
 export function musicalBeatToTick(beat: number, model: TempoMapModel): number {
   const safeBeat = nonNegativeFinite(beat, 'Beat')
-  const segment = findAxisSegment(model, safeBeat, 'startBeat')
-  const tick = segment.tick + (safeBeat - segment.startBeat) * ticksPerBeatValues(segment.bpm, segment.meter)
-  const index = model.segments.indexOf(segment)
+  const index = findAxisSegmentIndex(model, safeBeat, 'startBeat')
+  const segment = model.segments[index]
+  const tick = segment.tick + (safeBeat - segment.startBeat) * segment.ticksPerBeat
   const next = model.segments[index + 1]
   return next ? Math.min(next.tick, tick) : tick
 }
@@ -289,15 +362,15 @@ export function tickToMusicalBar(tick: number, model: TempoMapModel): number {
   const safeTick = nonNegativeFinite(tick, 'Tick')
   const segment = findTickSegment(model, safeTick)
   return segment.startBar
-    + (safeTick - segment.tick) / (ticksPerBeatValues(segment.bpm, segment.meter) * segment.meter.numerator)
+    + (safeTick - segment.tick) / (segment.ticksPerBeat * segment.meter.numerator)
 }
 
 export function musicalBarToTick(bar: number, model: TempoMapModel): number {
   const safeBar = nonNegativeFinite(bar, 'Bar')
-  const segment = findAxisSegment(model, safeBar, 'startBar')
+  const index = findAxisSegmentIndex(model, safeBar, 'startBar')
+  const segment = model.segments[index]
   const tick = segment.tick
-    + (safeBar - segment.startBar) * ticksPerBeatValues(segment.bpm, segment.meter) * segment.meter.numerator
-  const index = model.segments.indexOf(segment)
+    + (safeBar - segment.startBar) * segment.ticksPerBeat * segment.meter.numerator
   const next = model.segments[index + 1]
   return next ? Math.min(next.tick, tick) : tick
 }
@@ -362,7 +435,7 @@ export function enumerateTempoGridLines(
   return [...lines.values()].sort((left, right) => left.tick - right.tick)
 }
 
-/** Beat-aware snapping whose physical clock remains the same 20 TPS clock. */
+/** Beat-aware snapping on the project's integer tick grid. */
 export function snapTickToTempoMap(
   tick: number,
   settings: TimelineSettings,

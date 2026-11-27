@@ -528,6 +528,7 @@
     "tempo_map_short": "Tempo Map",
     "tempo_map_title": "Tempo & Time-Signature Map",
     "tempo_map_description": "Place tempo and meter changes on the fixed 20 TPS timeline. Audio and marker timing never moves.",
+    "tempo_map_nbs_description": "Tempo changes set the playback tick rate while preserving the notes' tick positions.",
     "tempo_map_anchor_hint": "A time-signature change starts a new bar and beat at its event tick; tempo-only changes keep the current musical phase.",
     "tempo_map_tick": "Tick",
     "tempo_map_bpm": "BPM",

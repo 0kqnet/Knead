@@ -11,6 +11,7 @@ use std::{
     fs::{self, File},
     io::{BufWriter, Cursor, Write},
     num::{NonZeroU32, NonZeroU8},
+    ops::Range,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -91,6 +92,8 @@ pub struct Project {
     pub markers: Vec<Marker>,
     #[serde(default)]
     pub reference_audio: Vec<ReferenceAudioTrack>,
+    #[serde(default)]
+    tempo_map: Vec<TempoEvent>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -115,6 +118,80 @@ pub struct Settings {
     pub loop_: Option<LoopRange>,
     #[serde(default)]
     pub pan_law: PanLaw,
+    ticks_per_quarter: Option<u16>,
+    bpm: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TempoEvent {
+    tick: u64,
+    bpm: f64,
+}
+
+struct ClockSegment {
+    tick: u64,
+    seconds: f64,
+    rate: f64,
+}
+
+#[derive(Default)]
+struct TimelineClock {
+    segments: Vec<ClockSegment>,
+}
+
+impl TimelineClock {
+    fn for_project(project: &Project) -> Result<Self, String> {
+        let Some(ticks_per_quarter) = project.settings.ticks_per_quarter else {
+            return Ok(Self::default());
+        };
+        if ticks_per_quarter != 4 || project.tempo_map.len() > 32_768 {
+            return Err("Invalid project timing grid".to_string());
+        }
+        let rate_for_bpm = |bpm: f64| {
+            if !(0.15..=32_768.0).contains(&bpm) {
+                return Err("Project tempo is out of range".to_string());
+            }
+            Ok(bpm * f64::from(ticks_per_quarter) / 60.0)
+        };
+        let mut segments = vec![ClockSegment {
+            tick: 0,
+            seconds: 0.0,
+            rate: rate_for_bpm(project.settings.bpm.unwrap_or(0.0))?,
+        }];
+        for (index, event) in project.tempo_map.iter().enumerate() {
+            let rate = rate_for_bpm(event.bpm)?;
+            if index == 0 && event.tick == 0 {
+                segments[0].rate = rate;
+                continue;
+            }
+            let previous = segments.last().unwrap();
+            if event.tick <= previous.tick || event.tick >= project.length_ticks {
+                return Err("Invalid project tempo event tick".to_string());
+            }
+            segments.push(ClockSegment {
+                tick: event.tick,
+                seconds: previous.seconds + (event.tick - previous.tick) as f64 / previous.rate,
+                rate,
+            });
+        }
+        Ok(Self { segments })
+    }
+
+    fn seconds_at(&self, tick: u64) -> f64 {
+        let index = self
+            .segments
+            .partition_point(|segment| segment.tick <= tick)
+            - 1;
+        let segment = &self.segments[index];
+        segment.seconds + (tick - segment.tick) as f64 / segment.rate
+    }
+
+    fn duration(&self, start: u64, end: u64) -> f64 {
+        if self.segments.is_empty() {
+            return (end - start) as f64 * TICK_SECONDS;
+        }
+        self.seconds_at(end) - self.seconds_at(start)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
@@ -796,6 +873,7 @@ fn first_stop_frame(
     stops: &[&StopEvent],
     start_tick: u64,
     sample_rate: u32,
+    clock: &TimelineClock,
 ) -> Option<usize> {
     stops
         .iter()
@@ -805,16 +883,20 @@ fn first_stop_frame(
                 || (stop.tick == event.tick && stop.track_index >= event.track_index))
                 && stop_matches_track(stop, event.track_index)
         })
-        .map(|stop| {
-            (((stop.tick - start_tick) as f64 * TICK_SECONDS) * sample_rate as f64).round() as usize
-        })
+        .map(|stop| (clock.duration(start_tick, stop.tick) * sample_rate as f64).round() as usize)
 }
 
-fn gate_stop_frame(event: &Event, start_tick: u64, sample_rate: u32) -> Option<usize> {
+fn gate_stop_frame(
+    event: &Event,
+    start_tick: u64,
+    sample_rate: u32,
+    clock: &TimelineClock,
+) -> Option<usize> {
     let gate_ticks = event.gate_ticks.filter(|gate| *gate > 0)?;
     let start_frame =
-        (((event.tick - start_tick) as f64 * TICK_SECONDS) * sample_rate as f64).round() as usize;
-    let gate_frames = ((gate_ticks as f64 * TICK_SECONDS) * sample_rate as f64).ceil() as usize;
+        (clock.duration(start_tick, event.tick) * sample_rate as f64).round() as usize;
+    let gate_duration = clock.duration(event.tick, event.tick.saturating_add(gate_ticks));
+    let gate_frames = (gate_duration * sample_rate as f64).ceil() as usize;
     Some(start_frame.saturating_add(gate_frames))
 }
 
@@ -823,10 +905,11 @@ fn earliest_voice_stop_frame(
     stops: &[&StopEvent],
     start_tick: u64,
     sample_rate: u32,
+    clock: &TimelineClock,
 ) -> Option<usize> {
     match (
-        gate_stop_frame(event, start_tick, sample_rate),
-        first_stop_frame(event, stops, start_tick, sample_rate),
+        gate_stop_frame(event, start_tick, sample_rate, clock),
+        first_stop_frame(event, stops, start_tick, sample_rate, clock),
     ) {
         (Some(gate), Some(stopper)) => Some(gate.min(stopper)),
         (gate, stopper) => gate.or(stopper),
@@ -951,6 +1034,7 @@ fn render_audio(
 ) -> Result<RenderedAudio, String> {
     let options = &request.options;
     let project = &request.project;
+    let clock = TimelineClock::for_project(project)?;
     let (start_tick, end_tick) = if options.range == "loop" {
         let range = project
             .settings
@@ -1026,7 +1110,7 @@ fn render_audio(
 
     let channel_count = options.channels as usize;
     let base_frames = checked_frame_count(
-        (end_tick - start_tick) as f64 * TICK_SECONDS * options.sample_rate as f64,
+        clock.duration(start_tick, end_tick) * options.sample_rate as f64,
         "Project",
     )?;
     let mut frame_count = base_frames.max(1);
@@ -1039,16 +1123,20 @@ fn render_audio(
                 .ok_or_else(|| "Decoded audio missing".to_string())?;
             let pitch = combined_playback_rate(event, variant)?;
             let start = checked_frame_count(
-                ((event.tick - start_tick) as f64 * TICK_SECONDS * options.sample_rate as f64)
-                    .round(),
+                (clock.duration(start_tick, event.tick) * options.sample_rate as f64).round(),
                 "Voice start",
             )?;
             let duration =
                 (source.samples.len() / source.channels) as f64 / source.sample_rate as f64 / pitch;
             let natural_end = start as f64 + duration * options.sample_rate as f64;
-            let audible_end =
-                earliest_voice_stop_frame(event, &selected_stops, start_tick, options.sample_rate)
-                    .map_or(natural_end, |stop| natural_end.min(stop as f64));
+            let audible_end = earliest_voice_stop_frame(
+                event,
+                &selected_stops,
+                start_tick,
+                options.sample_rate,
+                &clock,
+            )
+            .map_or(natural_end, |stop| natural_end.min(stop as f64));
             let audible_end = checked_frame_count(audible_end, "Voice tail")?;
             frame_count = frame_count.max(audible_end);
             checked_render_sample_count(frame_count, channel_count)?;
@@ -1070,12 +1158,17 @@ fn render_audio(
             .ok_or_else(|| "Decoded audio missing".to_string())?;
         let pitch = combined_playback_rate(event, variant)?;
         let start_frame = checked_frame_count(
-            ((event.tick - start_tick) as f64 * TICK_SECONDS * options.sample_rate as f64).round(),
+            (clock.duration(start_tick, event.tick) * options.sample_rate as f64).round(),
             "Voice start",
         )?;
         let source_frames = source.samples.len() / source.channels;
-        let stop_frame =
-            earliest_voice_stop_frame(event, &selected_stops, start_tick, options.sample_rate);
+        let stop_frame = earliest_voice_stop_frame(
+            event,
+            &selected_stops,
+            start_tick,
+            options.sample_rate,
+            &clock,
+        );
         let available_frames = frame_count.saturating_sub(start_frame);
         let audible_frames = stop_frame
             .map(|stop| stop.saturating_sub(start_frame))
@@ -1132,8 +1225,8 @@ fn render_audio(
             options.sample_rate,
             source,
             track,
-            start_tick,
-            end_tick,
+            start_tick..end_tick,
+            &clock,
             canceled,
         )?;
     }
@@ -1166,8 +1259,8 @@ fn mix_reference_audio(
     output_sample_rate: u32,
     source: &DecodedAudio,
     track: &ReferenceAudioTrack,
-    range_start_tick: u64,
-    range_end_tick: u64,
+    range: Range<u64>,
+    clock: &TimelineClock,
     canceled: &Arc<AtomicBool>,
 ) -> Result<(), String> {
     let source_frames = source.samples.len() / source.channels;
@@ -1176,26 +1269,29 @@ fn mix_reference_audio(
     }
     let output_frames = output.len() / output_channels;
     checked_render_sample_count(output_frames, output_channels)?;
-    let source_duration_ticks = source_frames as f64 / source.sample_rate as f64 / TICK_SECONDS;
-    let track_start_tick = track.offset_ticks as f64;
-    let track_end_tick = track_start_tick + source_duration_ticks;
-    let overlap_start_tick = (range_start_tick as f64).max(track_start_tick);
-    let overlap_end_tick = (range_end_tick as f64).min(track_end_tick);
-    if overlap_end_tick <= overlap_start_tick {
+    let source_duration = source_frames as f64 / source.sample_rate as f64;
+    let track_start = if track.offset_ticks >= range.start {
+        clock.duration(range.start, track.offset_ticks)
+    } else {
+        -clock.duration(track.offset_ticks, range.start)
+    };
+    let overlap_start = track_start.max(0.0);
+    let overlap_end = clock
+        .duration(range.start, range.end)
+        .min(track_start + source_duration);
+    if overlap_end <= overlap_start {
         return Ok(());
     }
     let destination_start = checked_frame_count(
-        ((overlap_start_tick - range_start_tick as f64) * TICK_SECONDS * output_sample_rate as f64)
-            .round(),
+        (overlap_start * output_sample_rate as f64).round(),
         "Reference audio start",
     )?;
     let requested_duration = checked_frame_count(
-        (overlap_end_tick - overlap_start_tick) * TICK_SECONDS * output_sample_rate as f64,
+        (overlap_end - overlap_start) * output_sample_rate as f64,
         "Reference audio duration",
     )?;
     let output_duration = requested_duration.min(output_frames.saturating_sub(destination_start));
-    let source_start =
-        (overlap_start_tick - track_start_tick) * TICK_SECONDS * source.sample_rate as f64;
+    let source_start = (overlap_start - track_start) * source.sample_rate as f64;
     let source_step = source.sample_rate as f64 / output_sample_rate as f64;
     let gain = db_to_gain(track.gain_db);
 
@@ -2033,14 +2129,35 @@ mod tests {
             solo: false,
         };
         let canceled = Arc::new(AtomicBool::new(false));
+        let clock = TimelineClock::default();
 
         let mut from_start = vec![0.0_f32; 80 * 2];
-        mix_reference_audio(&mut from_start, 2, 20, &source, &track, 0, 80, &canceled).unwrap();
+        mix_reference_audio(
+            &mut from_start,
+            2,
+            20,
+            &source,
+            &track,
+            0..80,
+            &clock,
+            &canceled,
+        )
+        .unwrap();
         assert!(from_start[..40].iter().all(|sample| *sample == 0.0));
         assert!(from_start[42] > 0.0);
 
         let mut after_seek = vec![0.0_f32; 40 * 2];
-        mix_reference_audio(&mut after_seek, 2, 20, &source, &track, 40, 80, &canceled).unwrap();
+        mix_reference_audio(
+            &mut after_seek,
+            2,
+            20,
+            &source,
+            &track,
+            40..80,
+            &clock,
+            &canceled,
+        )
+        .unwrap();
         let expected_source = source.samples[20] as f64 * std::f64::consts::FRAC_1_SQRT_2;
         assert!((after_seek[0] as f64 - expected_source).abs() < 0.000_01);
         assert!((after_seek[1] as f64 - expected_source).abs() < 0.000_01);
@@ -2431,6 +2548,7 @@ mod tests {
 
     #[test]
     fn gate_is_a_wall_clock_cutoff_and_stopper_keeps_the_earliest_end() {
+        let clock = TimelineClock::default();
         let event = Event {
             marker_id: "gate".to_string(),
             firing_index: 0,
@@ -2445,7 +2563,7 @@ mod tests {
             track_index: 0,
             marker_index: 0,
         };
-        assert_eq!(gate_stop_frame(&event, 0, 8_000), Some(1_600));
+        assert_eq!(gate_stop_frame(&event, 0, 8_000, &clock), Some(1_600));
         let stopper = StopEvent {
             tick: 2,
             track_index: 0,
@@ -2455,15 +2573,57 @@ mod tests {
             end_track: None,
         };
         assert_eq!(
-            earliest_voice_stop_frame(&event, &[&stopper], 0, 8_000),
+            earliest_voice_stop_frame(&event, &[&stopper], 0, 8_000, &clock),
             Some(800)
         );
 
         let mut natural = event.clone();
         natural.gate_ticks = None;
-        assert_eq!(gate_stop_frame(&natural, 0, 8_000), None);
+        assert_eq!(gate_stop_frame(&natural, 0, 8_000, &clock), None);
         natural.gate_ticks = Some(0);
-        assert_eq!(gate_stop_frame(&natural, 0, 8_000), None);
+        assert_eq!(gate_stop_frame(&natural, 0, 8_000, &clock), None);
+    }
+
+    #[test]
+    fn renders_notes_on_both_sides_of_an_nbs_tempo_change_at_their_source_times() {
+        let mut request = extended_pitch_request(false);
+        request.project.length_ticks = 5;
+        request.project.settings.ticks_per_quarter = Some(4);
+        request.project.settings.bpm = Some(260.55);
+        request.project.tempo_map = vec![TempoEvent {
+            tick: 2,
+            bpm: 600.0,
+        }];
+        request.project.markers[0].tick = 1;
+        request.project.markers[1].tick = 3;
+        for marker in &mut request.project.markers {
+            marker.pitch = 1.0;
+        }
+        let mut decoded = HashMap::from([(
+            "tone-hash".to_string(),
+            DecodedAudio {
+                sample_rate: 8_000,
+                channels: 1,
+                samples: vec![0.5; 4],
+            },
+        )]);
+        let events = build_events(&request.project);
+        let rendered = render_audio(
+            Path::new("."),
+            &request,
+            &events,
+            &[],
+            None,
+            &mut decoded,
+            &Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+        let first_frame = (8_000.0_f64 / 17.37).round() as usize;
+        let second_frame = (8_000.0_f64 * (2.0 / 17.37 + 1.0 / 40.0)).round() as usize;
+        for frame in [first_frame, second_frame] {
+            assert_eq!(rendered.samples[frame - 1], 0.0);
+            assert_eq!(rendered.samples[frame], 0.5);
+        }
     }
 
     #[test]

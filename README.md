@@ -37,11 +37,12 @@ playback/export semantics.
 OpenNBS Sound Stopper notes are editable first-class events with exact layer
 ranges, live playback and offline mix/stem voice-tail stopping, NBS/NBP
 round-trips, and data-pack output.
-OpenNBS Tempo Changer notes become piecewise conductor events with the official
-four-source-ticks-per-quarter clock, same-column layer precedence, and v4+
-functional-note re-export; meter numerators remain independent N/4 metadata.
+NBS imports keep source tick positions and use the song's tick rate for Studio
+playback and audio export. OpenNBS Tempo Changer notes set the rate at their
+original columns, follow same-column layer precedence, and can be exported as
+functional notes in NBS v4 and later. The time signature remains N/4 metadata.
 OpenNBS zipped songs preserve custom OGG/WAV samples for playback, waveforms,
-mix/stem export, deterministic bundle re-export, and portable `.kp` v10 saves.
+mix/stem export, deterministic bundle re-export, and portable `.kp` saves.
 The Custom Instrument Studio edits stable sound IDs, NBS file/source-key,
 press-key and default pitch, attaches verified samples, and applies definition,
 marker and asset changes as one undoable operation.
@@ -68,8 +69,8 @@ or removed in the Extension Manager; see the
 Dirty projects are atomically autosaved to bounded recovery snapshots and can
 be restored or discarded on the next launch. A first-class tempo/meter
 conductor map drives the ruler, beat snapping, metronome, Minecraft-range Piano
-Roll, and blackout Player Mode without changing the deterministic 20 TPS audio
-clock. Ctrl/Cmd+K opens a searchable command palette with categories, recent
+Roll, and blackout Player Mode. Standard projects use a 20 TPS playback clock.
+Ctrl/Cmd+K opens a searchable command palette with categories, recent
 actions, shortcut discovery, and host-owned callbacks only.
 Up to eight `.kp` or `.nbs` songs can stay open in independent tabs with
 per-song undo history, dirty/save state, crash recovery, native path ownership,
@@ -117,10 +118,11 @@ drag/drop、最近のファイルに対応します。plain NBSで表現でき�
 正しい音源IDと有限ループ回数も保持します。有限ループは通常再生と
 データパックでも同じ回数で停止します。Sound Stopperも停止範囲付きの正式イベントとして再生・編集でき、通常再生と
 offline mix/stemで既発voiceのtailを停止し、NBS/NBP・データパックへ往復できます。
-Tempo Changerは公式の4 source tick／四分音符と同列layer優先順位でテンポマップへ変換し、
-NBS v4以降へ機能noteとして再出力します。拍子のN/4分子とは独立して扱います。
+NBSのノートは元のtick位置を保持し、Studioでの再生と音声書き出しには曲のtick rateを使います。
+Tempo Changerは元の列でtick rateを切り替え、同じ列では有効なレイヤーの順序に従います。
+NBS v4以降へ機能noteとして再出力でき、拍子のN/4分子とは独立して扱います。
 OpenNBS音源同梱ZIPではカスタムOGG/WAVを通常再生・波形・mix/stem・
-再ZIP出力に利用し、`.kp` v10へポータブルに保持できます。カスタム楽器Studioでは
+再ZIP出力に利用し、`.kp` へポータブルに保持できます。カスタム楽器Studioでは
 stable sound ID、NBS file/source-key、press-key、既定pitchと検証済み音源を編集し、
 定義・marker・assetを1回のUndo可能な操作で更新できます。MIDI format 0/1のtempo map・GM音色・ドラム・pitch bend・
 note-off Gateを読み込み、適用前previewでquantize、Gate／単発、channel別mappingを選べます。
@@ -145,9 +147,9 @@ Minecraft Java用データパックZIPとして直接書き出し、`/reload`後
 生成NBTは独立consumer harnessでもcross-readします。実ゲーム／modでの確認状況は
 [Minecraft受入matrix](docs/minecraft-acceptance.md)に自動検証と分けて記録します。
 未保存変更は容量・件数・期限を制限したatomic recovery snapshotへ自動保存され、
-次回起動時に復元または破棄できます。20 TPSの決定論的な実時間を保ったまま、
-テンポ／拍子マップをルーラー、拍スナップ、メトロノーム、Minecraft音域の
-Piano Roll、暗転Player Modeで共有します。Ctrl/Cmd+Kのコマンドパレットから、
+次回起動時に復元または破棄できます。テンポ／拍子マップをルーラー、拍スナップ、
+メトロノーム、Minecraft音域の Piano Roll、暗転Player Modeで共有します。
+通常プロジェクトの再生は20 TPSです。Ctrl/Cmd+Kのコマンドパレットから、
 カテゴリ検索・最近使った操作・ショートカット一覧を安全に呼び出せます。
 最大8曲の`.kp` / `.nbs`を独立したタブで開き、曲ごとのUndo履歴・未保存状態・保存先・自動復旧と
 容量制限付きの最近のファイルを

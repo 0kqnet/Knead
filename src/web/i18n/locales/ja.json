@@ -527,6 +527,7 @@
     "tempo_map_short": "テンポマップ",
     "tempo_map_title": "テンポ・拍子マップ",
     "tempo_map_description": "固定20 TPSタイムライン上へテンポと拍子の変化を配置します。音声とマーカーの実時間位置は移動しません。",
+    "tempo_map_nbs_description": "ノートのtick位置を保ったまま、テンポに合わせて再生のtick rateが変わります。",
     "tempo_map_anchor_hint": "拍子変更tickは新しい小節・第1拍の開始になります。テンポだけの変更では現在の拍位相を維持します。",
     "tempo_map_tick": "Tick",
     "tempo_map_bpm": "BPM",

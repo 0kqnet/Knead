@@ -201,6 +201,15 @@ describe('useTimeline track operations', () => {
     expect(result.current.state.settings.bpm).toBe(120)
   })
 
+  it('accepts 2,000 BPM in the project settings and updates the tempo map', () => {
+    const { result } = renderHook(() => useTimeline())
+
+    act(() => result.current.setSettings({ bpm: 2_000 }))
+
+    expect(result.current.state.settings.bpm).toBe(2_000)
+    expect(result.current.state.tempoMap?.[0]?.bpm).toBe(2_000)
+  })
+
   it('applies a tempo map as one undoable edit without changing unrelated data', () => {
     const { result } = renderHook(() => useTimeline())
     const originalProjectId = result.current.state.projectId

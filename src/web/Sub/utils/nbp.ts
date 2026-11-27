@@ -3,11 +3,9 @@ import {
   DEFAULT_MASTER,
   DEFAULT_SETTINGS,
   createDefaultTrack,
-  getTimelineLengthTicks,
   isSoundStopMarker,
   MAX_MARKER_PITCH,
   MAX_PROJECT_CUSTOM_INSTRUMENTS,
-  MAX_TEMPO_MAP_EVENTS,
   MAX_SOUND_STOP_TRACK,
   MIN_MARKER_PITCH,
   snapLaneY,
@@ -24,9 +22,9 @@ import {
   encodeSoundStopEnd,
   isSoundStopperInstrument,
   isTempoChangerInstrument,
-  nbsTempoChangerTicksPerSecond,
+  nbsTempoChangerBpm,
 } from './nbs'
-import { MAX_TEMPO_BPM, MIN_TEMPO_BPM, normalizeTempoMap } from './tempoMap'
+import { getTimelineLengthTicks, normalizeTempoMap, tempoBpmLimits, tempoMapEventLimit } from './tempoMap'
 import {
   projectCustomInstrumentKind,
   validateAuthoredNbsInstrumentFile,
@@ -743,7 +741,13 @@ function projectDefinitionsForPattern(pattern: NbpPattern): {
   return { definitions, warnings }
 }
 
-function patternMarkers(pattern: NbpPattern, tracks: Track[], startTick: number, startTrackIndex: number): {
+function patternMarkers(
+  pattern: NbpPattern,
+  tracks: Track[],
+  startTick: number,
+  startTrackIndex: number,
+  settings = DEFAULT_SETTINGS,
+): {
   markers: Marker[]
   tempoEvents: TempoMapEvent[]
   warnings: string[]
@@ -804,11 +808,12 @@ function patternMarkers(pattern: NbpPattern, tracks: Track[], startTick: number,
     })
     if (note.velocity > 100 || note.panning > 200) clampedMix++
   }
+  const { min, max } = tempoBpmLimits(settings)
   const tempoEvents = [...tempoWinnerByTick.values()]
     .sort((left, right) => left.tick - right.tick)
     .map((note): TempoMapEvent => {
-      const rawBpm = nbsTempoChangerTicksPerSecond(note.pitch) * 15
-      const bpm = Math.max(MIN_TEMPO_BPM, Math.min(MAX_TEMPO_BPM, rawBpm))
+      const rawBpm = nbsTempoChangerBpm(note.pitch)
+      const bpm = Math.max(min, Math.min(max, rawBpm))
       if (bpm !== rawBpm) clampedTempo++
       return { tick: startTick + note.tick, bpm }
     })
@@ -821,7 +826,7 @@ function patternMarkers(pattern: NbpPattern, tracks: Track[], startTick: number,
     warnings.push(`${duplicateTempo} earlier Tempo Changer note(s) shared a pattern tick; the highest unlocked layer won, matching OpenNBS.`)
   }
   if (clampedTempo) {
-    warnings.push(`${clampedTempo} Tempo Changer event(s) outside Knead's ${MIN_TEMPO_BPM}..${MAX_TEMPO_BPM} BPM range were clamped.`)
+    warnings.push(`${clampedTempo} Tempo Changer event(s) outside Knead's ${min}..${max} BPM range were clamped.`)
   }
   const unresolved = new Set(markers.filter(marker => marker.soundId.startsWith('nbp:')).map(marker => marker.soundId))
   if (unresolved.size) warnings.push(`${unresolved.size} instrument definition(s) could not be resolved from this pattern.`)
@@ -835,10 +840,11 @@ function mergeTempoEvents(
 ): TempoMapEvent[] {
   const current = normalizeTempoMap(state.tempoMap, state.settings)
   const byTick = new Map(current.map(event => [event.tick, event]))
+  const eventLimit = tempoMapEventLimit(state.settings)
   let omitted = 0
   for (const event of incoming) {
     const previous = byTick.get(event.tick)
-    if (!previous && byTick.size >= MAX_TEMPO_MAP_EVENTS) {
+    if (!previous && byTick.size >= eventLimit) {
       omitted++
       continue
     }
@@ -849,7 +855,7 @@ function mergeTempoEvents(
     })
   }
   if (omitted) {
-    warnings.push(`${omitted} Tempo Changer event(s) exceeded Knead's ${MAX_TEMPO_MAP_EVENTS}-event tempo-map limit and were omitted.`)
+    warnings.push(`${omitted} Tempo Changer event(s) exceeded Knead's ${eventLimit}-event tempo-map limit and were omitted.`)
   }
   return normalizeTempoMap([...byTick.values()], state.settings)
 }
@@ -864,7 +870,7 @@ export function insertNbpPattern(
   const next = structuredClone(state)
   const requiredTracks = startTrackIndex + pattern.notes.reduce((value, note) => Math.max(value, note.layer + 1), 1)
   while (next.tracks.length < requiredTracks) next.tracks.push(createDefaultTrack(uuidv4(), next.tracks.length))
-  const converted = patternMarkers(pattern, next.tracks, startTick, startTrackIndex)
+  const converted = patternMarkers(pattern, next.tracks, startTick, startTrackIndex, next.settings)
   const incomingDefinitions = projectDefinitionsForPattern(pattern)
   converted.warnings.push(...incomingDefinitions.warnings)
   const definitions = next.customInstruments ?? (next.customInstruments = [])

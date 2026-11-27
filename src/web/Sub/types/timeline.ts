@@ -1,7 +1,10 @@
-// Minecraft の実行時刻は常に整数 tick（1 tick = 1/20 秒）を正とする。
+// Project positions use integer ticks. Imported NBS projects retain their musical grid.
 export type Tick = number
 
-/** Maximum authored MIDI-style note gate (10,000,000 ticks / about 5.8 days). */
+export const MINECRAFT_TICKS_PER_SECOND = 20
+export const NBS_TICKS_PER_QUARTER = 4
+
+/** Maximum authored MIDI-style note gate in project ticks. */
 export const MAX_GATE_TICKS = 10_000_000
 /** Shared project/import ceiling; checked before per-marker validation. */
 export const MAX_TIMELINE_MARKERS = 250_000
@@ -276,7 +279,7 @@ export interface Marker {
   /** Per-marker stereo position. Missing values from older v2 files mean center. */
   pan?: number
   /**
-   * Wall-clock voice cutoff in 20 TPS ticks. Missing/zero lets the sample play
+   * Voice cutoff in project ticks. Missing/zero lets the sample play
    * its natural tail. This is deliberately independent from retrigger span.
    */
   gateTicks?: Tick
@@ -314,10 +317,7 @@ export interface TimelineMeter {
   denominator: TimeSignatureDenominator
 }
 
-/**
- * A musical-grid change anchored to Knead's immutable 20 TPS timeline.
- * BPM changes only beat/bar placement; they never move audio or markers in real time.
- */
+/** A musical-grid change at a project tick. BPM also sets the rate on musical timelines. */
 export interface TempoMapEvent {
   tick: Tick
   bpm: number
@@ -327,6 +327,8 @@ export interface TempoMapEvent {
 
 export interface TimelineSettings {
   bpm: number
+  /** NBS uses four ticks per quarter. Omit for the Minecraft wall-clock grid. */
+  ticksPerQuarter?: typeof NBS_TICKS_PER_QUARTER
   /** Stereo routing compatibility. Missing values from older projects mean cascade. */
   panLaw?: PanLaw
   timeSignature: TimelineMeter
@@ -346,6 +348,8 @@ export interface TimelineSettings {
   metronomeEnabled: boolean
   metronomeVolume: number
 }
+
+export type TimelineGridSettings = Pick<TimelineSettings, 'bpm' | 'timeSignature' | 'ticksPerQuarter'>
 
 export interface MasterBus {
   gainDb: number
@@ -399,7 +403,7 @@ export interface TimelineState {
 
 export interface TimelineFile extends TimelineState {
   format: 'knead-project'
-  version: 10
+  version: 10 | 11
   customInstruments: ProjectCustomInstrument[]
   tempoMap: TempoMapEvent[]
   metadata: SongMetadata
@@ -518,11 +522,12 @@ export function dbToGain(db: number): number {
   return db <= -60 ? 0 : 10 ** (db / 20)
 }
 
-export function ticksPerBeat(settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'>): number {
-  return (20 * 60 / settings.bpm) * (4 / settings.timeSignature.denominator)
+export function ticksPerBeat(settings: TimelineGridSettings): number {
+  const quarter = settings.ticksPerQuarter ?? MINECRAFT_TICKS_PER_SECOND * 60 / settings.bpm
+  return quarter * (4 / settings.timeSignature.denominator)
 }
 
-export function ticksPerBar(settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'>): number {
+export function ticksPerBar(settings: TimelineGridSettings): number {
   return ticksPerBeat(settings) * settings.timeSignature.numerator
 }
 
@@ -537,7 +542,7 @@ export function snapTick(tick: number, settings: TimelineSettings, bypass = fals
 
 export function getRequiredTimelineLengthTicks(
   markers: ReadonlyArray<Pick<Marker, 'tick' | 'duration'>>,
-  settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'> = DEFAULT_SETTINGS,
+  settings: TimelineGridSettings = DEFAULT_SETTINGS,
 ): number {
   const lastMarkerEnd = markers.reduce((latest, marker) => (
     Math.max(latest, marker.tick + Math.max(0, marker.duration ?? 0))
@@ -547,25 +552,6 @@ export function getRequiredTimelineLengthTicks(
   return Math.max(
     DEFAULT_TIMELINE_LENGTH_TICKS,
     Math.ceil(Math.ceil((lastMarkerEnd + bar) / bar) * bar),
-  )
-}
-
-export function getTimelineLengthTicks(
-  markers: ReadonlyArray<Pick<Marker, 'tick' | 'duration'>>,
-  currentLength = DEFAULT_TIMELINE_LENGTH_TICKS,
-  settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'> = DEFAULT_SETTINGS,
-  referenceAudio: ReadonlyArray<Pick<ReferenceAudioTrack, 'offsetTicks' | 'durationSeconds'>> = [],
-  tempoMap: ReadonlyArray<Pick<TempoMapEvent, 'tick'>> = [],
-): number {
-  const referenceEndTick = referenceAudio.reduce((latest, track) => (
-    Math.max(latest, track.offsetTicks + Math.ceil(track.durationSeconds / 0.05))
-  ), 0)
-  const tempoEndTick = tempoMap.reduce((latest, event) => Math.max(latest, event.tick + 1), 0)
-  return Math.max(
-    currentLength,
-    referenceEndTick,
-    tempoEndTick,
-    getRequiredTimelineLengthTicks(markers, settings),
   )
 }
 

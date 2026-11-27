@@ -4,21 +4,22 @@ import { useTranslation } from 'react-i18next'
 import { StudioDialogClose } from './StudioDialogClose'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
-  MAX_TEMPO_MAP_EVENTS,
   type TempoMapEvent,
-  type TimelineSettings,
+  type TimelineGridSettings,
 } from '../types/timeline'
 import {
   buildTempoMap,
   normalizeTempoMap,
   tempoAtTick,
+  tempoBpmLimits,
+  tempoMapEventLimit,
   validateTempoMap,
 } from '../utils/tempoMap'
 
 export interface TempoMapDialogProps {
   open: boolean
   events?: readonly TempoMapEvent[]
-  settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'>
+  settings: TimelineGridSettings
   lengthTicks: number
   /** Used as the suggested location for a newly added conductor event. */
   currentTick?: number
@@ -57,18 +58,22 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
   const { t } = useTranslation()
   const fallback = useMemo(() => ({
     bpm: settings.bpm,
+    ticksPerQuarter: settings.ticksPerQuarter,
     timeSignature: {
       numerator: settings.timeSignature.numerator,
       denominator: settings.timeSignature.denominator,
     },
   }), [
     settings.bpm,
+    settings.ticksPerQuarter,
     settings.timeSignature.denominator,
     settings.timeSignature.numerator,
   ])
   const [draft, setDraft] = useState<TempoMapEvent[]>(() => normalizeTempoMap(events, fallback))
   const [busy, setBusy] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const bpmLimits = tempoBpmLimits(settings)
+  const eventLimit = tempoMapEventLimit(settings)
 
   useEffect(() => {
     if (!open) return
@@ -102,7 +107,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
   }
 
   const add = () => {
-    if (draft.length >= MAX_TEMPO_MAP_EVENTS) return
+    if (draft.length >= eventLimit) return
     const used = new Set(draft.map(event => event.tick))
     let tick = Math.max(0, Math.min(lengthTicks - 1, Math.round(currentTick)))
     if (used.has(tick)) {
@@ -151,7 +156,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
           <Box>
             <Text fontSize="xl" fontWeight="bold">{t('studio.tempo_map_title')}</Text>
             <Text mt="1" fontSize="sm" color="var(--studio-muted)">
-              {t('studio.tempo_map_description')}
+              {t(settings.ticksPerQuarter === undefined ? 'studio.tempo_map_description' : 'studio.tempo_map_nbs_description')}
             </Text>
           </Box>
           <Box flex="1" />
@@ -184,7 +189,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
               />
               <Input
                 aria-label={t('studio.tempo_map_bpm_index', { index: index + 1 })}
-                type="number" w="110px" min={20} max={300} step={0.01}
+                type="number" w="110px" min={bpmLimits.min} max={bpmLimits.max} step={0.01}
                 value={event.bpm}
                 onChange={change => update(index, { bpm: Number(change.target.value) })}
               />
@@ -241,12 +246,12 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
 
         <Button
           mt="3" size="sm" onClick={add}
-          disabled={busy || draft.length >= MAX_TEMPO_MAP_EVENTS}
+          disabled={busy || draft.length >= eventLimit}
         >
           {t('studio.tempo_map_add')}
         </Button>
         <Text ml="3" as="span" fontSize="xs" color="var(--studio-muted)">
-          {t('studio.tempo_map_count', { count: draft.length, max: MAX_TEMPO_MAP_EVENTS })}
+          {t('studio.tempo_map_count', { count: draft.length, max: eventLimit })}
         </Text>
 
         {(validationError || submitError) && (

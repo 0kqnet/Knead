@@ -1,9 +1,10 @@
 import type { Marker, TimelineState } from '../types/timeline'
-import { MAX_SOUND_STOP_TRACK, dbToGain, isTrackAudible } from '../types/timeline'
+import { MAX_SOUND_STOP_TRACK, MINECRAFT_TICKS_PER_SECOND, dbToGain, isTrackAudible } from '../types/timeline'
 import { parseVersion } from '../../../types/VersionInfo'
 import { sampleCurve } from './curveSampling'
 import { generationCheckpoint, type GenerationProgressContext } from './generationProgress'
 import { stableVariantIndex } from './studioMath'
+import { buildTempoMap, tickRangeToSeconds } from './tempoMap'
 
 export type CommandAudience = 'all' | 'nearby' | 'custom'
 
@@ -159,6 +160,7 @@ export type CommandExportWarning =
 
 interface CommandEvent {
   tick: number
+  projectTick: number
   trackIndex: number
   kind: 'play' | 'stop'
   command: string
@@ -1052,7 +1054,22 @@ export function generateCommandDatapack(
   const selectedRange = rangeFor(project, options.range)
   const rangeStart = selectedRange.start
   const rangeEnd = selectedRange.end
-  const durationTicks = Math.max(1, Math.ceil(rangeEnd - rangeStart))
+  const tempoModel = project.settings.ticksPerQuarter === undefined
+    ? undefined
+    : buildTempoMap(project.tempoMap, project.settings)
+  const relativeGameTick = (tick: number) => tempoModel
+    ? tickRangeToSeconds(rangeStart, tick, tempoModel) * MINECRAFT_TICKS_PER_SECOND
+    : tick - rangeStart
+  const exactDurationTicks = relativeGameTick(rangeEnd)
+  const durationTicks = Math.max(1, Math.ceil(exactDurationTicks - (tempoModel ? 1e-8 : 0)))
+  if (durationTicks > 0x7fff_ffff) throw new Error('Playback length exceeds the Minecraft scoreboard tick range')
+  const roundedTimingMarkerIds = new Set<string>()
+  const scheduledGameTick = (projectTick: number, markerId: string) => {
+    const exact = relativeGameTick(projectTick)
+    const tick = Math.min(durationTicks - 1, Math.max(0, Math.round(exact)))
+    if (tempoModel && Math.abs(tick - exact) > 1e-8) roundedTimingMarkerIds.add(markerId)
+    return tick
+  }
   const positionResult = normalizedPosition(options.position)
   const position = positionResult.value
   const targetResult = resolveTarget(options)
@@ -1143,7 +1160,6 @@ export function generateCommandDatapack(
     const trackIndex = trackIndices.get(marker.trackId) ?? Number.MAX_SAFE_INTEGER
     if (marker.action?.type === 'sound-stop') {
       if (marker.tick < rangeStart || marker.tick >= rangeEnd) continue
-      const stopTick = Math.min(durationTicks - 1, Math.max(0, Math.round(marker.tick - rangeStart)))
       let commands: string[]
       if (marker.action.scope === 'all') {
         commands = [stopSoundCommand(undefined, source, target, position)]
@@ -1174,7 +1190,9 @@ export function generateCommandDatapack(
           eventBudgetExceeded = true
           break eventLoop
         }
-        events.push({ tick: stopTick, trackIndex, kind: 'stop', command })
+        events.push({
+          tick: scheduledGameTick(marker.tick, marker.id), projectTick: marker.tick, trackIndex, kind: 'stop', command,
+        })
       }
       continue
     }
@@ -1219,7 +1237,8 @@ export function generateCommandDatapack(
         Math.max(-COMMAND_VISUALIZER_LIMITS.pitchSemitones, 12 * Math.log2(Math.max(0.0001, pitch))),
       )
       events.push({
-        tick: Math.min(durationTicks - 1, Math.max(0, Math.round(absoluteTick - rangeStart))),
+        tick: scheduledGameTick(absoluteTick, marker.id),
+        projectTick: absoluteTick,
         trackIndex,
         kind: 'play',
         command: panOptions.enabled
@@ -1256,6 +1275,7 @@ export function generateCommandDatapack(
 
   events.sort((a, b) => (
     a.tick - b.tick
+    || (tempoModel ? a.projectTick - b.projectTick : 0)
     || a.trackIndex - b.trackIndex
     || (a.kind === b.kind ? a.command.localeCompare(b.command) : a.kind === 'play' ? -1 : 1)
   ))
@@ -1400,13 +1420,22 @@ export function generateCommandDatapack(
       message: 'Sound Stopper events are exported as stopsound commands.',
     }, soundStopMarkers.map(marker => marker.id))
   }
+  if (tempoModel && (roundedTimingMarkerIds.size > 0 || Math.abs(exactDurationTicks - durationTicks) > 1e-8)) {
+    addDiagnostic({
+      code: 'command.timing.rounded',
+      severity: 'warning',
+      disposition: 'degraded',
+      feature: 'timing',
+      message: 'The data pack rounds playback times to the Minecraft 20 TPS command grid.',
+    }, [...roundedTimingMarkerIds])
+  }
   if ((project.tempoMap?.length ?? 0) > 1) {
     addDiagnostic({
       code: 'command.tempo_map.baked',
       severity: 'info',
       disposition: 'baked',
       feature: 'timing',
-      message: 'Tempo and meter changes are baked into Knead\'s fixed 20 TPS event positions.',
+      message: 'Tempo and meter changes are baked into event positions at 20 TPS.',
     })
   }
   const referenceAudio = project.referenceAudio ?? []
@@ -1835,7 +1864,7 @@ export function generateCommandDatapack(
       `Stop:      ${stopCommand}`,
       `Uninstall: ${uninstallCommand} (run before removing the data pack)`,
       '',
-      `Length: ${durationTicks} ticks (${commandNumber(durationTicks / 20)} seconds)`,
+      `Length: ${durationTicks} ticks (${commandNumber(durationTicks / MINECRAFT_TICKS_PER_SECOND)} seconds)`,
       `Events: ${events.length}`,
       `Playback: ${options.loopPlayback
         ? finiteLoopCount > 0

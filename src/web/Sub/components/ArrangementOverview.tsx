@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Text, useColorModeValue } from '@yamada-ui/react'
 import type { Marker, ReferenceAudioTrack, TimelineSettings, Track } from '../types/timeline'
-import { referenceAudioDurationTicks } from '../utils/referenceAudio'
+import { referenceAudioEndTick, type TempoMapModel } from '../utils/tempoMap'
 import { overviewXToTick, type OverviewRange } from '../utils/arrangementOverview'
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
   markers: Marker[]
   referenceAudio?: ReferenceAudioTrack[]
   settings: TimelineSettings
+  tempoModel?: TempoMapModel
   lengthTicks: number
   currentTick: number
   viewport: OverviewRange
@@ -28,7 +29,7 @@ const COLORS: Record<Track['color'], string> = {
 }
 
 export const ArrangementOverview: React.FC<Props> = ({
-  tracks, markers, referenceAudio = [], settings, lengthTicks, currentTick, viewport, onSeek, label,
+  tracks, markers, referenceAudio = [], settings, tempoModel, lengthTicks, currentTick, viewport, onSeek, label,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -88,7 +89,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       const x = tickToX(track.offsetTicks)
       const width = Math.max(
         2,
-        tickToX(track.offsetTicks + referenceAudioDurationTicks(track)) - x,
+        tickToX(referenceAudioEndTick(track, tempoModel)) - x,
       )
       const y = index * rowHeight + Math.max(1, rowHeight * 0.18)
       const audible = !track.muted && (!hasSolo || track.solo)
@@ -112,7 +113,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       context.fillRect(x, y, width, Math.max(1, rowHeight * 0.64))
     }
     context.globalAlpha = 1
-  }, [lengthTicks, loopFill, markers, referenceAudio, rowDivider, settings.loop, size, tracks])
+  }, [lengthTicks, loopFill, markers, referenceAudio, rowDivider, settings.loop, size, tempoModel, tracks])
 
   const seekAtPointer = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()

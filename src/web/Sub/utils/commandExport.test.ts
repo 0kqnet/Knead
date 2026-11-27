@@ -77,6 +77,24 @@ describe('command data pack export', () => {
     expect(result.files['data/knead_show/function/events/tick_14.mcfunction']).toContain('playsound')
   })
 
+  it('converts NBS loop timing to the Minecraft clock at export', () => {
+    const state = project()
+    state.settings.ticksPerQuarter = 4
+    state.settings.bpm = 150
+    state.settings.loop = { enabled: true, startTick: 4, endTick: 10 }
+    state.tempoMap = [{ tick: 6, bpm: 450 }]
+    state.markers = [5, 7].map(tick => ({
+      ...state.markers[0], id: `note-${tick}`, tick, duration: 0,
+    }))
+    const result = generateCommandDatapack(state, { ...DEFAULT_COMMAND_EXPORT_OPTIONS, range: 'loop' })
+    expect(result.durationTicks).toBe(7)
+    expect(result.files['data/knead_show/function/events/tick_2.mcfunction']).toContain('playsound')
+    expect(result.files['data/knead_show/function/events/tick_5.mcfunction']).toContain('playsound')
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'command.timing.rounded', markerIds: ['note-7'],
+    }))
+  })
+
   it('embeds a deterministic, bounded machine-readable compatibility report', () => {
     const state = project()
     state.master.limiterEnabled = true

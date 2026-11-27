@@ -1,4 +1,5 @@
-import { getTimelineLengthTicks, type Marker, type TimelineState, type Track } from '../types/timeline'
+import type { Marker, TimelineState, Track } from '../types/timeline'
+import { getTimelineLengthTicks } from '../utils/tempoMap'
 import { parse, serialize } from '../utils/timelineIO'
 import {
   EXTENSION_PERMISSIONS,

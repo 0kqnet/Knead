@@ -8,13 +8,13 @@ import {
   MAX_TIMELINE_MARKERS,
   MIN_MARKER_PITCH,
   createDefaultTrack,
-  getTimelineLengthTicks,
   isTrackAudible,
   snapTick,
   ticksPerBeat,
   type TimelineState,
 } from '../types/timeline'
 import { parse, serialize } from './timelineIO'
+import { getTimelineLengthTicks } from './tempoMap'
 import { sanitizeStemName, stableVariantIndex, stemFileName } from './studioMath'
 
 describe('Knead Studio project v10', () => {

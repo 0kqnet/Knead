@@ -16,7 +16,7 @@ import {
   type Track,
 } from '../types/timeline'
 import { pxDeltaToTick, pxToTick, tickToPx } from '../utils/tickPixel'
-import { buildTempoMap, snapTickToTempoMap } from '../utils/tempoMap'
+import { buildTempoMap, snapTickToTempoMap, type TempoMapModel } from '../utils/tempoMap'
 import { ResizeEdge, TimelineMarker } from './TimelineMarker'
 import type { MarkerVisualIcon } from '../../../../@types/global'
 
@@ -32,6 +32,7 @@ interface Props {
   pxPerTick: number
   settings: TimelineSettings
   tempoMap?: readonly TempoMapEvent[]
+  tempoModel?: TempoMapModel
   selectedIds: Set<string>
   validSoundIds: Set<string>
   markerIcons?: Record<string, MarkerVisualIcon>
@@ -66,6 +67,7 @@ interface DragState {
 
 export const TimelineTrack: React.FC<Props> = ({
   track, markers, lengthTicks, pxPerTick, settings, tempoMap, selectedIds, validSoundIds,
+  tempoModel: suppliedTempoModel,
   markerIcons = {},
   onSelectMarker, onClearSelection, onRectangleSelect, onBeginEdit, onEndEdit,
   onMoveSelection, onResizeMarker, onDuplicateForDrag, onAddMarker,
@@ -77,19 +79,10 @@ export const TimelineTrack: React.FC<Props> = ({
   const [selectionRect, setSelectionRect] = useState<{ start: number, end: number } | null>(null)
   const selectionPointerRef = useRef<number | null>(null)
   const [ctrlPressed, setCtrlPressed] = useState(false)
-  const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
-    bpm: settings.bpm,
-    timeSignature: {
-      numerator: settings.timeSignature.numerator,
-      denominator: settings.timeSignature.denominator,
-    },
-  }, Math.max(0, lengthTicks - 1)), [
-    lengthTicks,
-    settings.bpm,
-    settings.timeSignature.denominator,
-    settings.timeSignature.numerator,
-    tempoMap,
-  ])
+  const tempoModel = useMemo(
+    () => suppliedTempoModel ?? buildTempoMap(tempoMap, settings, Math.max(0, lengthTicks - 1)),
+    [lengthTicks, settings, suppliedTempoModel, tempoMap],
+  )
 
   const markerYById = useMemo(() => {
     const result = new Map<string, number>()
@@ -344,6 +337,7 @@ export const TimelineTrack: React.FC<Props> = ({
             marker={marker}
             track={track}
             pxPerTick={pxPerTick}
+            tempoModel={tempoModel}
             selected={selectedIds.has(marker.id)}
             invalidSound={!soundStop && (!marker.soundId || !validSoundIds.has(marker.soundId))}
             markerIcon={!soundStop && validSoundIds.has(marker.soundId) ? markerIcons[marker.soundId] : undefined}

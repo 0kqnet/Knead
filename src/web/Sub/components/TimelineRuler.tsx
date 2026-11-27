@@ -11,6 +11,7 @@ import {
   enumerateTempoGridLines,
   formatMusicalPosition,
   snapTickToTempoMap,
+  tickToSeconds,
   type TempoMapModel,
 } from '../utils/tempoMap'
 
@@ -19,33 +20,25 @@ interface Props {
   pxPerTick: number
   settings: TimelineSettings
   tempoMap?: readonly TempoMapEvent[]
+  tempoModel?: TempoMapModel
   onSeek: (tick: number) => void
   onLoopChange: (startTick: number, endTick: number) => void
 }
 
 function formatLabel(tick: number, settings: TimelineSettings, tempoModel: TempoMapModel): string {
-  if (settings.timeDisplay === 'seconds') return `${(tick / 20).toFixed(1)}s`
+  if (settings.timeDisplay === 'seconds') return `${tickToSeconds(tick, tempoModel).toFixed(1)}s`
   if (settings.timeDisplay === 'bars') return formatMusicalPosition(tick, tempoModel)
   return `${Math.round(tick)}`
 }
 
 export const TimelineRuler: React.FC<Props> = ({
-  lengthTicks, pxPerTick, settings, tempoMap, onSeek, onLoopChange,
+  lengthTicks, pxPerTick, settings, tempoMap, tempoModel: suppliedTempoModel, onSeek, onLoopChange,
 }) => {
   const rulerRef = useRef<HTMLDivElement | null>(null)
-  const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
-    bpm: settings.bpm,
-    timeSignature: {
-      numerator: settings.timeSignature.numerator,
-      denominator: settings.timeSignature.denominator,
-    },
-  }, Math.max(0, lengthTicks - 1)), [
-    lengthTicks,
-    settings.bpm,
-    settings.timeSignature.denominator,
-    settings.timeSignature.numerator,
-    tempoMap,
-  ])
+  const tempoModel = useMemo(
+    () => suppliedTempoModel ?? buildTempoMap(tempoMap, settings, Math.max(0, lengthTicks - 1)),
+    [lengthTicks, settings, suppliedTempoModel, tempoMap],
+  )
   const marks = useMemo(() => {
     const musical = enumerateTempoGridLines(0, lengthTicks, tempoModel, 5_000)
     if (settings.timeDisplay === 'bars') return musical

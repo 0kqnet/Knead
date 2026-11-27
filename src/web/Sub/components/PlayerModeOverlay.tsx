@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import {
   type ReferenceAudioTrack,
   type TempoMapEvent,
+  type TimelineGridSettings,
   type TimelineSettings,
   type Track,
 } from '../types/timeline'
@@ -12,6 +13,7 @@ import {
   buildTempoMap,
   formatMusicalPosition,
   tickToMusicalPosition,
+  tickToSeconds,
 } from '../utils/tempoMap'
 
 export interface PlayerMeterValue {
@@ -24,7 +26,7 @@ export interface PlayerModeOverlayProps {
   title: string
   lengthTicks: number
   currentTick: number
-  settings: Pick<TimelineSettings, 'bpm' | 'timeSignature' | 'loop'>
+  settings: TimelineGridSettings & Pick<TimelineSettings, 'loop'>
   /** Optional conductor map. Missing maps retain the legacy single-tempo display. */
   tempoMap?: readonly TempoMapEvent[]
   tracks: readonly Pick<Track, 'id' | 'name' | 'color' | 'muted' | 'solo'>[]
@@ -65,8 +67,8 @@ function clamp(value: number, minimum = 0, maximum = 1): number {
   return Math.max(minimum, Math.min(maximum, value))
 }
 
-function formatClock(tick: number): string {
-  const totalMilliseconds = Math.max(0, tick) * 50
+function formatClock(secondsElapsed: number): string {
+  const totalMilliseconds = secondsElapsed * 1_000
   const minutes = Math.floor(totalMilliseconds / 60_000)
   const seconds = Math.floor((totalMilliseconds % 60_000) / 1_000)
   const tenths = Math.floor((totalMilliseconds % 1_000) / 100)
@@ -75,7 +77,7 @@ function formatClock(tick: number): string {
 
 export function formatPlayerMusicalPosition(
   tick: number,
-  settings: Pick<TimelineSettings, 'bpm' | 'timeSignature'>,
+  settings: TimelineGridSettings,
   tempoMap?: readonly TempoMapEvent[],
 ): string {
   return formatMusicalPosition(Math.max(0, tick), buildTempoMap(tempoMap, settings))
@@ -359,7 +361,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
             {status}
           </Text>
           <Text fontFamily="mono" fontSize="clamp(52px, 13vw, 164px)" lineHeight=".95" letterSpacing="-.06em">
-            {formatClock(safeCurrentTick)}
+            {formatClock(tickToSeconds(safeCurrentTick, tempoModel))}
           </Text>
           <Flex align="baseline" justify="center" gap="clamp(12px, 4vw, 48px)" flexWrap="wrap">
             <Text fontFamily="mono" fontSize="clamp(18px, 3vw, 36px)">
@@ -409,7 +411,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
           />
           <Flex justify="space-between" fontFamily="mono" fontSize="xs" color="gray.500">
             <Text>00:00.0</Text>
-            <Text>{formatClock(maximumTick)}</Text>
+            <Text>{formatClock(tickToSeconds(maximumTick, tempoModel))}</Text>
           </Flex>
         </Box>
 

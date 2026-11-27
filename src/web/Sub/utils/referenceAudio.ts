@@ -133,7 +133,3 @@ export function assertCanAddReferenceAudio(
     throw new Error('参照オーディオの合計容量が64 MiBを超えます（長尺はOggを推奨）')
   }
 }
-
-export function referenceAudioDurationTicks(track: Pick<ReferenceAudioTrack, 'durationSeconds'>): number {
-  return Math.max(1, Math.ceil(track.durationSeconds / 0.05))
-}

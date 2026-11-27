@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { useAudioWaveform } from '../hooks/useAudioBufferCache'
 import { resolveMarkerPlaybackRate } from '../hooks/useTimelinePlayback'
+import { tickRangeToSeconds, type TempoMapModel } from '../utils/tempoMap'
 import { WaveformCanvas } from './WaveformCanvas'
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
   variantIndex: number
   pitch: number
   durationTicks: number
+  startTick?: number
+  tempoModel?: TempoMapModel
   retriggerIntervalTicks?: number
   width: number
   height: number
@@ -16,13 +19,13 @@ interface Props {
   muted: boolean
 }
 
-const TICK_SECONDS = 0.05
-
 export const TimelineWaveform = memo(function TimelineWaveform({
   soundId,
   variantIndex,
   pitch,
   durationTicks,
+  startTick = 0,
+  tempoModel,
   retriggerIntervalTicks,
   width,
   height,
@@ -40,10 +43,10 @@ export const TimelineWaveform = memo(function TimelineWaveform({
       waveform={cached.waveform}
       width={width}
       height={height}
-      durationSeconds={durationTicks * TICK_SECONDS}
+      durationSeconds={tickRangeToSeconds(startTick, startTick + durationTicks, tempoModel)}
       playbackRate={playbackRate}
       retriggerEverySeconds={retriggerIntervalTicks
-        ? retriggerIntervalTicks * TICK_SECONDS
+        ? tickRangeToSeconds(startTick, startTick + retriggerIntervalTicks, tempoModel)
         : undefined}
       color={color}
       selected={selected}

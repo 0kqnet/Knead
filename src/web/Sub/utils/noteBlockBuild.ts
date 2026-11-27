@@ -1,12 +1,14 @@
 import { parseVersion, type VersionInfoType } from '../../../types/VersionInfo'
 import {
   DEFAULT_RETRIGGER_INTERVAL,
+  MINECRAFT_TICKS_PER_SECOND,
   isSoundStopMarker,
   type Marker,
   type TimelineState,
 } from '../types/timeline'
 import { sampleCurve } from './curveSampling'
 import { generationCheckpoint, type GenerationProgressContext } from './generationProgress'
+import { buildTempoMap, tickToSeconds } from './tempoMap'
 import {
   gzipDeterministic,
   nbtByte,
@@ -59,7 +61,7 @@ export interface NoteBlockBuildResult {
   noteBlockCount: number
   warnings: string[]
   circuit: NoteBlockBuildCircuit
-  /** Present only for a physical redstone build. Values use Knead's 20 TPS ticks. */
+  /** Present only for a physical redstone build. Values use Minecraft's 20 TPS ticks. */
   timing?: NoteBlockBuildTimingMetadata
 }
 
@@ -351,6 +353,9 @@ function collectBuildNotes(
   progressContext?: GenerationProgressContext,
 ): { notes: BuildNote[], warnings: string[] } {
   const trackById = new Map(project.tracks.map((track, index) => [track.id, { track, index }]))
+  const tempoModel = project.settings.ticksPerQuarter === undefined
+    ? undefined
+    : buildTempoMap(project.tempoMap, project.settings)
   const unknownSounds = new Map<string, number>()
   const unavailableSounds = new Map<string, number>()
   const candidates: Omit<BuildNote, 'voice'>[] = []
@@ -359,6 +364,7 @@ function collectBuildNotes(
   let volumeAutomationCount = 0
   let fixedVariantCount = 0
   let pitchQuantizedCount = 0
+  let timingQuantizedCount = 0
   let pitchClampedCount = 0
   let dynamicMixCount = 0
   const supportedLevel = effectiveInstrumentLevel(capabilities, options.format)
@@ -422,10 +428,14 @@ function collectBuildNotes(
       const exactNote = 12 + 12 * Math.log2(pitch)
       const note = Math.max(0, Math.min(24, Math.round(exactNote)))
       if (Math.abs(exactNote - note) > 1e-6) pitchQuantizedCount++
+      const projectTick = marker.tick + offset
+      const exactTick = tempoModel ? tickToSeconds(projectTick, tempoModel) * MINECRAFT_TICKS_PER_SECOND : projectTick
+      const tick = options.circuit === 'playable-redstone' ? exactTick : Math.round(exactTick)
+      if (Math.abs(exactTick - tick) > 1e-8) timingQuantizedCount++
       candidates.push({
         marker,
         trackIndex: entry.index,
-        tick: marker.tick + offset,
+        tick,
         firingIndex,
         instrument,
         note,
@@ -440,6 +450,9 @@ function collectBuildNotes(
     return { ...candidate, voice }
   })
   const warnings: string[] = []
+  if (timingQuantizedCount) {
+    warnings.push(`${timingQuantizedCount} note(s) were rounded to Minecraft's 20 TPS grid.`)
+  }
   if (capabilities.era === 'unknown') {
     warnings.push('Minecraft target version is unknown; conservative instrument availability was used.')
   }
@@ -848,7 +861,7 @@ function allocatePhysicalNotes(notes: BuildNote[], trackCount: number): {
   const quantized: Array<BuildNote & { step: number }> = []
   for (const note of notes) {
     const step = Math.round(note.tick / 2)
-    if (step * 2 !== note.tick) quantizedNoteCount++
+    if (Math.abs(step * 2 - note.tick) > 1e-8) quantizedNoteCount++
     const firingKey = `${note.marker.id}\0${step}`
     if (seenFiringStep.has(firingKey)) {
       collapsedRetriggerCount++

@@ -8,6 +8,7 @@ import {
   type Track,
 } from '../types/timeline'
 import { tickToPx } from '../utils/tickPixel'
+import type { TempoMapModel } from '../utils/tempoMap'
 import type { MarkerVisualIcon } from '../../../../@types/global'
 import { TimelineWaveform } from './TimelineWaveform'
 
@@ -17,6 +18,7 @@ interface Props {
   marker: Marker
   track: Track
   pxPerTick: number
+  tempoModel?: TempoMapModel
   selected: boolean
   invalidSound: boolean
   markerIcon?: MarkerVisualIcon
@@ -39,7 +41,7 @@ const COLOR_MAP: Record<Track['color'], string> = {
 
 export const TimelineMarker: React.FC<Props> = ({
   marker, track, pxPerTick, selected, invalidSound, resizeCursor, topPx, onPointerDown,
-  markerIcon, soundStopTitle,
+  markerIcon, soundStopTitle, tempoModel,
 }) => {
   const size = TIMELINE_MARKER_HEIGHT
   const soundStop = isSoundStopMarker(marker)
@@ -192,6 +194,8 @@ export const TimelineMarker: React.FC<Props> = ({
               variantIndex={marker.variantIndex}
               pitch={marker.pitch}
               durationTicks={marker.duration ?? 0}
+              startTick={marker.tick}
+              tempoModel={tempoModel}
               retriggerIntervalTicks={marker.retriggerInterval}
               width={durationPx}
               height={size - 4}

@@ -1504,7 +1504,12 @@ export const TimelineEditor: React.FC<Props> = ({
         canUndo={timeline.canUndo}
         canRedo={timeline.canRedo}
         settings={timeline.state.settings}
-        onSettingsChange={timeline.setSettings}
+        tempoModel={tempoModel}
+        onSettingsChange={(patch) => {
+          const { bpm, ticksPerQuarter } = stateRef.current.settings
+          if (ticksPerQuarter !== undefined && patch.bpm !== undefined && patch.bpm !== bpm) playback.stop()
+          timeline.setSettings(patch)
+        }}
         onReroll={timeline.rerollRandomSeed}
         onFitSelection={fitSelection}
         canFitSelection={selectedIds.size > 0}
@@ -1577,7 +1582,7 @@ export const TimelineEditor: React.FC<Props> = ({
               lengthTicks={timeline.state.lengthTicks}
               pxPerTick={pxPerTick}
               settings={timeline.state.settings}
-              tempoMap={timeline.state.tempoMap}
+              tempoModel={tempoModel}
               onSeek={playback.seek}
               onLoopChange={(startTick, endTick) => timeline.setSettings({
                 loop: { ...timeline.state.settings.loop, startTick, endTick },
@@ -1594,7 +1599,7 @@ export const TimelineEditor: React.FC<Props> = ({
               lengthTicks={timeline.state.lengthTicks}
               pxPerTick={pxPerTick}
               settings={timeline.state.settings}
-              tempoMap={timeline.state.tempoMap}
+              tempoModel={tempoModel}
               onChange={patch => timeline.updateReferenceAudio(track.id, patch)}
               onRemove={() => timeline.removeReferenceAudio(track.id)}
               onBeginEdit={timeline.beginTransaction}
@@ -1624,7 +1629,7 @@ export const TimelineEditor: React.FC<Props> = ({
                 lengthTicks={timeline.state.lengthTicks}
                 pxPerTick={pxPerTick}
                 settings={timeline.state.settings}
-                tempoMap={timeline.state.tempoMap}
+                tempoModel={tempoModel}
                 selectedIds={selectedIds}
                 validSoundIds={validSoundIds}
                 markerIcons={markerIcons.icons}
@@ -1678,6 +1683,7 @@ export const TimelineEditor: React.FC<Props> = ({
           markers={timeline.state.markers}
           referenceAudio={referenceAudio}
           settings={timeline.state.settings}
+          tempoModel={tempoModel}
           lengthTicks={timeline.state.lengthTicks}
           currentTick={playback.currentTick}
           viewport={viewportRange}
@@ -1851,7 +1857,8 @@ export const TimelineEditor: React.FC<Props> = ({
       <MidiDialog
         open={midiOpen}
         targetVersion={currentTargetVersion ?? timeline.state.targetVersion}
-        currentTick={playback.currentTick}
+        currentTick={snapTickToTempoMap(playback.currentTick, timeline.state.settings, tempoModel)}
+        tempoModel={tempoModel}
         canRecord={timeline.state.tracks.some(track => !track.locked)}
         soundIds={soundIdList}
         defaultSoundId={defaultSoundId || soundIdList[0] || 'block.note_block.harp'}

@@ -7,7 +7,6 @@ import {
   MIN_MARKER_PITCH,
   TRACK_COLORS,
   createDefaultTrack,
-  getTimelineLengthTicks,
   snapLaneY,
   type Marker,
   type TempoMapEvent,
@@ -16,6 +15,7 @@ import {
 } from '../types/timeline'
 import {
   MAX_TEMPO_BPM,
+  getTimelineLengthTicks,
   MIN_TEMPO_BPM,
   normalizeTempoMap,
 } from './tempoMap'

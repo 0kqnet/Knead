@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { UIProvider } from '@yamada-ui/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TimelineCloseRequest } from '../../../../@types/global'
+import type { TimelineState } from '../types/timeline'
 import { parseNbs, writeNbs, type NbsSong } from '../utils/nbs'
 import { RECENT_STUDIO_SONGS_KEY } from '../utils/recentStudioSongs'
 import { StudioWorkspace } from './StudioWorkspace'
@@ -65,7 +66,7 @@ vi.mock('./TimelineEditor', async () => {
     TimelineEditor: (props: {
       documentId?: string
       timelineController?: {
-        state?: { customAudio?: unknown[] }
+        state?: TimelineState
         addMarker: (input: { tick: number, soundId: string }) => string
       }
       onSaveDocument?: () => void | Promise<void>
@@ -76,6 +77,8 @@ vi.mock('./TimelineEditor', async () => {
         'data-testid': 'timeline-editor',
         'data-document-id': props.documentId,
         'data-custom-audio-count': props.timelineController?.state?.customAudio?.length ?? 0,
+        'data-project-bpm': props.timelineController?.state?.settings.bpm,
+        'data-ticks-per-quarter': props.timelineController?.state?.settings.ticksPerQuarter,
       },
       createElement('button', {
         type: 'button',
@@ -353,15 +356,16 @@ describe('StudioWorkspace', () => {
     expect(screen.getByTestId('timeline-editor').getAttribute('data-custom-audio-count')).toBe('0')
   })
 
-  it('shows bounded NBS conversion warnings in a nonblocking workspace dialog', async () => {
-    arrangeClassicNbsOpen('C:\\Songs\\quantized.nbs', 750)
+  it('opens a classic song at its source tempo without a timing warning', async () => {
+    arrangeClassicNbsOpen('C:\\Songs\\source-tempo.nbs', 750)
     renderWorkspace()
 
-    const warningDialog = await screen.findByRole('dialog', { name: 'Project warnings' })
-    expect(warningDialog.textContent).toContain('NBS timing was quantized to Minecraft 20 TPS ticks.')
+    await screen.findByRole('tab', { name: 'source-tempo.nbs' })
+    const editor = screen.getByTestId('timeline-editor')
+    expect(editor.getAttribute('data-ticks-per-quarter')).toBe('4')
+    expect(editor.getAttribute('data-project-bpm')).toBe('112.5')
+    expect(screen.queryByRole('dialog', { name: 'Project warnings' })).toBeNull()
     expect(window.alert).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Project warnings' })).toBeNull())
   })
 
   it('opens NBS v0 as a bound song tab and Save As keeps the NBS kind/version', async () => {

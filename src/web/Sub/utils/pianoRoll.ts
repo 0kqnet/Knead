@@ -1,5 +1,4 @@
 import {
-  getTimelineLengthTicks,
   isSoundStopMarker,
   type Marker,
   type TempoMapEvent,
@@ -8,6 +7,7 @@ import {
 } from '../types/timeline'
 import {
   buildTempoMap,
+  getTimelineLengthTicks,
   enumerateTempoGridLines,
   musicalBeatToTick,
   snapTickToTempoMap,

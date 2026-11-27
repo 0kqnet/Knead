@@ -12,6 +12,8 @@ import {
   type NbsSong,
   type NbsTargetVersion,
 } from './nbs'
+import { buildTempoMap, tickToSeconds } from './tempoMap'
+import { parse, serialize } from './timelineIO'
 
 const song: NbsSong = {
   header: {
@@ -81,8 +83,9 @@ describe('NBS v5 compatibility', () => {
     expect(converted.state.markers[0].soundId).toBe('block.note_block.harp')
     expect(converted.state.markers[1].pitch).toBeCloseTo(1.9713, 3)
     expect(converted.state.markers[1].pan).toBe(0.5)
-    expect(converted.state.markers[1].tick).toBe(6)
-    expect(converted.state.settings.loop.startTick).toBe(8)
+    expect(converted.state.markers[1].tick).toBe(3)
+    expect(converted.state.settings.ticksPerQuarter).toBe(4)
+    expect(converted.state.settings.loop.startTick).toBe(4)
     expect(converted.state.settings.loop.maxLoopCount).toBe(0)
     expect(converted.state.settings.panLaw).toBe('nbs-average')
     expect(converted.state.metadata).toMatchObject({
@@ -90,7 +93,7 @@ describe('NBS v5 compatibility', () => {
       minutesSpent: 1, leftClicks: 2, blocksRemoved: 5,
     })
     expect(converted.state.source).toMatchObject({
-      format: 'nbs', sourceVersion: 5, tickScale: 2, name: 'Roundtrip', author: 'Knead',
+      format: 'nbs', sourceVersion: 5, tickScale: 1, name: 'Roundtrip', author: 'Knead',
     })
     expect(converted.state.tracks[1].source).toEqual({
       format: 'nbs', index: 1, name: 'Bell', locked: true, volume: 60, panning: 140,
@@ -98,6 +101,30 @@ describe('NBS v5 compatibility', () => {
     expect(converted.state.markers[1].source).toEqual({ format: 'nbs', ...song.notes[1] })
     expect(converted.state.markers[0]).not.toHaveProperty('gateTicks')
     expect(converted.state.markers[1]).not.toHaveProperty('gateTicks')
+  })
+
+  it('preserves adjacent columns at fractional TPS through project and NBS saves', () => {
+    const source: NbsSong = {
+      ...song,
+      header: { ...song.header, tempo: 3333, loopStartTick: 2 },
+      notes: [1, 2].map(tick => ({ ...song.notes[0], tick })),
+    }
+    const { state, warnings } = nbsToTimelineState(source)
+    expect(warnings).toEqual([])
+    const json = serialize(state)
+    expect(JSON.parse(json).version).toBe(11)
+    const reopened = parse(json)
+    expect(reopened.ok).toBe(true)
+    if (!reopened.ok) return
+    const restored = reopened.state
+    expect(restored.markers.map(marker => marker.tick)).toEqual([1, 2])
+    expect(restored.settings.loop).toMatchObject({ startTick: 2, endTick: 32 })
+    const model = buildTempoMap(restored.tempoMap, restored.settings)
+    expect(tickToSeconds(2, model) - tickToSeconds(1, model)).toBeCloseTo(1 / 33.33, 12)
+    restored.tempoMap!.push({ tick: 16, bpm: restored.settings.bpm, meter: { numerator: 3, denominator: 4 } })
+    const exported = timelineStateToNbs(restored).song
+    expect(exported.header).toMatchObject({ tempo: 3333, songLength: 31, loopStartTick: 2 })
+    expect(exported.notes).toEqual(source.notes)
   })
 
   it('uses the NBS N/4 meter independently from its fixed four ticks per quarter', () => {
@@ -144,10 +171,10 @@ describe('NBS v5 compatibility', () => {
 
     const converted = nbsToTimelineState(tempoSong)
 
-    expect(converted.state.markers.map(marker => marker.tick)).toEqual([0, 8, 12])
+    expect(converted.state.markers.map(marker => marker.tick)).toEqual([0, 4, 8])
     expect(converted.state.tempoMap).toEqual([
       { tick: 0, bpm: 150, meter: { numerator: 3, denominator: 4 } },
-      { tick: 8, bpm: 300 },
+      { tick: 4, bpm: 300 },
     ])
     expect(converted.state.source).toMatchObject({
       format: 'nbs',
@@ -158,6 +185,30 @@ describe('NBS v5 compatibility', () => {
     })
     expect(converted.warnings.join('\n')).toMatch(/highest unlocked layer won/i)
     expect(converted.warnings.join('\n')).not.toMatch(/matching sounds/i)
+    const model = buildTempoMap(converted.state.tempoMap, converted.state.settings)
+    expect(tickToSeconds(4, model)).toBeCloseTo(0.4, 12)
+    expect(tickToSeconds(8, model)).toBeCloseTo(0.6, 12)
+  })
+
+  it('round-trips a tick-zero rate above the header range and a slow Tempo Changer', () => {
+    const source: NbsSong = {
+      ...song,
+      customInstruments: [{ name: 'Tempo Changer', file: '', key: 45, pressKey: false }],
+      notes: [
+        { ...song.notes[0], tick: 0, instrument: 16, pitch: -32768 },
+        { ...song.notes[0], tick: 1 },
+        { ...song.notes[0], tick: 2, instrument: 16, pitch: 3 },
+        { ...song.notes[0], tick: 3 },
+      ],
+    }
+    const { state } = nbsToTimelineState(source)
+    const exported = timelineStateToNbs(state)
+    const reimported = nbsToTimelineState(exported.song).state
+    expect(reimported.tempoMap).toEqual(state.tempoMap)
+    expect(reimported.markers.map(marker => marker.tick)).toEqual([1, 3])
+    const model = buildTempoMap(reimported.tempoMap, reimported.settings)
+    expect(tickToSeconds(1, model)).toBeCloseTo(15 / 32768, 12)
+    expect(tickToSeconds(3, model)).toBeCloseTo(30 / 32768 + 4, 12)
   })
 
   it('imports and losslessly writes OpenNBS Sound Stopper functional instruments', () => {
@@ -333,9 +384,11 @@ describe('Knead to NBS conversion', () => {
     const reimported = nbsToTimelineState(converted.song)
     expect(reimported.state.tempoMap).toEqual([
       { tick: 0, bpm: 150, meter: { numerator: 3, denominator: 4 } },
-      { tick: 80, bpm: 60 },
+      { tick: 40, bpm: 60 },
     ])
-    expect(reimported.state.markers[0].tick).toBe(100)
+    expect(reimported.state.markers[0].tick).toBe(44)
+    const model = buildTempoMap(reimported.state.tempoMap, reimported.state.settings)
+    expect(tickToSeconds(44, model)).toBeCloseTo(5, 12)
   })
 
   it('preserves note timing but warns when down-saving tempo changes before NBS v4', () => {
@@ -358,7 +411,9 @@ describe('Knead to NBS conversion', () => {
     expect(converted.song.customInstruments.some(instrument => instrument.name === 'Tempo Changer')).toBe(false)
     expect(converted.song.notes[0].tick).toBe(6)
     expect(converted.warnings.join('\n')).toMatch(/v3 cannot encode.*Tempo Changer/i)
-    expect(nbsToTimelineState(converted.song).state.markers[0].tick).toBe(12)
+    const reimported = nbsToTimelineState(converted.song).state
+    expect(reimported.markers[0].tick).toBe(6)
+    expect(tickToSeconds(6, buildTempoMap(reimported.tempoMap, reimported.settings))).toBeCloseTo(0.6, 12)
   })
 
   it('warns separately when later meter changes cannot be represented', () => {

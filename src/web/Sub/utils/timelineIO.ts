@@ -24,7 +24,7 @@ import {
   SINGLE_SHOT_CURVE_PREVIEW_TICKS,
   TRACK_COLORS,
   createDefaultTrack,
-  getTimelineLengthTicks,
+  NBS_TICKS_PER_QUARTER,
   snapLaneY,
   type EmbeddedCustomAudioAsset,
   type Keyframe,
@@ -52,7 +52,7 @@ import {
 } from '../types/timeline'
 import { constrainCurveHandles } from './curveHandles'
 import { deriveProjectCustomInstruments, validateProjectCustomInstruments } from './customInstruments'
-import { normalizeTempoMap, validateTempoMap } from './tempoMap'
+import { getTimelineLengthTicks, normalizeTempoMap, tempoBpmLimits, validateTempoMap } from './tempoMap'
 
 interface LegacyMarker extends Omit<Marker, 'trackId'> {
   trackY?: number
@@ -521,9 +521,13 @@ function validateEmbeddedCustomAudioAsset(x: unknown): string | null {
   return null
 }
 
-function validateSettings(x: unknown, lengthTicks: number, requireMaxLoopCount: boolean): string | null {
+function validateSettings(x: unknown, lengthTicks: number, version: number): string | null {
   if (!isObj(x)) return 'settings がオブジェクトではありません'
-  if (!isFiniteNumber(x.bpm) || x.bpm < 20 || x.bpm > 300) return 'bpm が範囲外です'
+  if (x.ticksPerQuarter !== undefined && (version < 11 || x.ticksPerQuarter !== NBS_TICKS_PER_QUARTER)) {
+    return 'ticksPerQuarter が不正です'
+  }
+  const { min, max } = tempoBpmLimits({ ticksPerQuarter: x.ticksPerQuarter })
+  if (!isFiniteNumber(x.bpm) || x.bpm < min || x.bpm > max) return 'bpm が範囲外です'
   if (x.panLaw !== undefined && x.panLaw !== 'cascade' && x.panLaw !== 'nbs-average') {
     return 'panLaw が不正です'
   }
@@ -542,7 +546,7 @@ function validateSettings(x: unknown, lengthTicks: number, requireMaxLoopCount: 
     || (x.loop.startTick as number) < 0 || (x.loop.endTick as number) <= (x.loop.startTick as number)
     || (x.loop.endTick as number) > lengthTicks
   ) return 'loop範囲が不正です'
-  if (requireMaxLoopCount && x.loop.maxLoopCount === undefined) return 'maxLoopCount がありません'
+  if (version >= 8 && x.loop.maxLoopCount === undefined) return 'maxLoopCount がありません'
   if (x.loop.maxLoopCount !== undefined && !isIntegerInRange(x.loop.maxLoopCount, 0, MAX_LOOP_COUNT)) {
     return `maxLoopCount が 0..${MAX_LOOP_COUNT} の範囲外です`
   }
@@ -633,7 +637,7 @@ export function serialize(state: TimelineState): string {
       ? metadataFromNbsSource(state.source)
       : normalizeSongMetadata(state.metadata),
     format: 'knead-project',
-    version: 10,
+    version: state.settings.ticksPerQuarter === undefined ? 10 : 11,
   }
   return JSON.stringify(file, null, 2)
 }
@@ -680,8 +684,8 @@ export function parse(json: string): ParseResult {
   }
   if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3
     && raw.version !== 4 && raw.version !== 5 && raw.version !== 6 && raw.version !== 7
-    && raw.version !== 8 && raw.version !== 9 && raw.version !== 10) {
-    return { ok: false, error: `version ${JSON.stringify(raw.version)} は未対応です（対応: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10）` }
+    && raw.version !== 8 && raw.version !== 9 && raw.version !== 10 && raw.version !== 11) {
+    return { ok: false, error: `version ${JSON.stringify(raw.version)} は未対応です（対応: 1〜11）` }
   }
   if (typeof raw.targetVersion !== 'string') return { ok: false, error: 'targetVersion が不正です' }
   if (!Number.isInteger(raw.lengthTicks) || (raw.lengthTicks as number) < 1) {
@@ -784,7 +788,7 @@ export function parse(json: string): ParseResult {
     const error = validateProjectCustomInstruments(rawCustomInstruments as ProjectCustomInstrument[])
     if (error) return { ok: false, error: `customInstruments: ${error}` }
   }
-  const settingsError = validateSettings(raw.settings, raw.lengthTicks as number, raw.version >= 8)
+  const settingsError = validateSettings(raw.settings, raw.lengthTicks as number, raw.version)
   if (settingsError) return { ok: false, error: settingsError }
   const fallbackSettings = raw.settings as unknown as TimelineSettings
   const rawTempoMap = raw.version >= 6 ? raw.tempoMap : []

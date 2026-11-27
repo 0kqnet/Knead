@@ -7,6 +7,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineSettings } from '../types/timeline'
+import { tempoBpmLimits, tickToSeconds, type TempoMapModel } from '../utils/tempoMap'
 
 interface Props {
   onNew: () => void
@@ -49,6 +50,7 @@ interface Props {
   canUndo: boolean
   canRedo: boolean
   settings: TimelineSettings
+  tempoModel?: TempoMapModel
   onSettingsChange: (patch: Partial<TimelineSettings>) => void
   onReroll: () => void
   onFitSelection: () => void
@@ -82,12 +84,14 @@ export const TimelineToolbar: React.FC<Props> = ({
   recoveryError, onPlayerMode, onPianoRoll, onTempoMap, onSongMetadata, onCustomInstruments,
   onMidi, onExtensions, onAddMarker, onAddSoundStopper, onAddTrack, onAddReferenceAudio,
   canAddMarker, onDeleteSelected, canDelete, onTogglePlay, onStop, isPlaying, isPaused,
-  currentTick, preloading, onUndo, onRedo, canUndo, canRedo, settings, onSettingsChange,
+  currentTick, preloading, onUndo, onRedo, canUndo, canRedo, settings, tempoModel, onSettingsChange,
   onReroll, onFitSelection, canFitSelection, mixerOpen,
   onToggleMixer, markerIconsEnabled, markerIconsLoading, onToggleMarkerIcons, navigatorOpen,
   onToggleNavigator,
 }) => {
   const { t } = useTranslation()
+  const bpmLimits = tempoBpmLimits(settings)
+  const nativeClock = settings.ticksPerQuarter !== undefined
   const snapItems = useMemo(() => [
     { label: t('studio.snap_off'), value: 'off' },
     ...[1, 2, 5, 10, 20].map(value => ({ label: t('studio.snap_ticks', { value }), value: `tick:${value}` })),
@@ -174,7 +178,7 @@ export const TimelineToolbar: React.FC<Props> = ({
           />
           <Text as="span" className="studio-time-readout">
             <span>
-              {(currentTick / 20).toFixed(2)}
+              {tickToSeconds(currentTick, tempoModel).toFixed(2)}
               {' '}
               s
             </span>
@@ -265,7 +269,8 @@ export const TimelineToolbar: React.FC<Props> = ({
         <Flex className="studio-toolbar-group studio-tempo-controls">
           <Text as="span" className="studio-field-label">BPM</Text>
           <CommitNumberInput
-            aria-label="BPM" size="xs" w="68px" value={settings.bpm} min={20} max={300} step={1} precision={0}
+            aria-label="BPM" size="xs" w={nativeClock ? '84px' : '68px'} value={settings.bpm}
+            min={bpmLimits.min} max={bpmLimits.max} step={1} precision={nativeClock ? 2 : 0}
             onCommit={bpm => onSettingsChange({ bpm })}
           />
           <Flex className="studio-toolbar-group" role="group" aria-label={t('studio.time_signature')}>

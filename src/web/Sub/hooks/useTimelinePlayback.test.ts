@@ -1,6 +1,10 @@
+// @vitest-environment jsdom
+
+import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createDefaultTrack,
+  DEFAULT_MASTER,
   DEFAULT_SETTINGS,
   MAX_MARKER_PITCH,
   MIN_MARKER_PITCH,
@@ -17,6 +21,7 @@ import {
   resolveMarkerPlaybackRate,
   resolveSoundStopTrackIds,
   scheduleEarliestSourceStop,
+  useTimelinePlayback,
   type SourceStopTarget,
 } from './useTimelinePlayback'
 
@@ -86,6 +91,52 @@ describe('transport animation loop', () => {
     expect(cancel).toHaveBeenCalledWith(7)
     expect(request).toHaveBeenCalledOnce()
     expect(request).toHaveBeenCalledWith(callback)
+  })
+
+  it('schedules adjacent notes across an NBS tempo change using the AudioContext clock', () => {
+    const start = vi.fn()
+    const node = {
+      connect: <T>(next: T) => next,
+      disconnect: vi.fn(),
+    }
+    const parameter = () => ({ value: 0, setTargetAtTime: vi.fn() })
+    const context = {
+      currentTime: 10,
+      resume: vi.fn(),
+      destination: node,
+      createGain: () => ({ ...node, gain: parameter() }),
+      createStereoPanner: () => ({ ...node, pan: parameter() }),
+      createDynamicsCompressor: () => ({
+        ...node, threshold: parameter(), knee: parameter(), ratio: parameter(), attack: parameter(), release: parameter(),
+      }),
+      createAnalyser: () => ({ ...node, fftSize: 256, getFloatTimeDomainData: vi.fn() }),
+      createBufferSource: () => ({ ...node, playbackRate: parameter(), start, stop: vi.fn() }),
+    }
+    const cache = {
+      getAudioContext: () => context,
+      getBuffer: () => ({}),
+      getBasePitch: () => 1,
+    } as unknown as Parameters<typeof useTimelinePlayback>[0]['cache']
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const { result, unmount } = renderHook(() => useTimelinePlayback({
+      cache,
+      randomSeed: 1,
+      master: DEFAULT_MASTER,
+      lengthTicks: 4,
+      settings: { ...DEFAULT_SETTINGS, ticksPerQuarter: 4, bpm: 555 },
+      tempoMap: [{ tick: 2, bpm: 900 }],
+      tracks: [createDefaultTrack('track')],
+      markers: [1, 3].map(tick => ({
+        id: `note-${tick}`, trackId: 'track', tick, soundId: 'block.note_block.harp',
+        variantIndex: 0, volume: 1, pitch: 1,
+      })),
+    }))
+    act(() => result.current.play())
+    expect(start).toHaveBeenCalledTimes(2)
+    expect(start.mock.calls[0][0]).toBeCloseTo(10 + 1 / 37, 12)
+    expect(start.mock.calls[1][0]).toBeCloseTo(10 + 2 / 37 + 1 / 60, 12)
+    unmount()
   })
 })
 

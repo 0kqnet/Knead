@@ -5,11 +5,11 @@ import {
   TRACK_COLORS,
   createDefaultTrack,
   dbToGain,
-  getTimelineLengthTicks,
+  MINECRAFT_TICKS_PER_SECOND,
   isTrackAudible,
   isSoundStopMarker,
   MAX_SOUND_STOP_TRACK,
-  MAX_TEMPO_MAP_EVENTS,
+  NBS_TICKS_PER_QUARTER,
   MAX_MARKER_PITCH,
   MIN_MARKER_PITCH,
   snapLaneY,
@@ -21,7 +21,7 @@ import {
   type Track,
 } from '../types/timeline'
 import { sampleCurve } from './curveSampling'
-import { normalizeTempoMap } from './tempoMap'
+import { buildTempoMap, getTimelineLengthTicks, normalizeTempoMap, tickToSeconds } from './tempoMap'
 import { normalizeSongMetadata } from './timelineIO'
 import { projectCustomInstrumentsFromNbs } from './customInstruments'
 
@@ -83,7 +83,7 @@ export interface NbsSong {
 }
 
 /** OpenNBS draws each quarter-note beat every four song ticks. */
-export const NBS_TICKS_PER_QUARTER = 4
+export { NBS_TICKS_PER_QUARTER } from '../types/timeline'
 const NBS_MIN_TIME_SIGNATURE = 2
 const NBS_MAX_TIME_SIGNATURE = 8
 
@@ -738,24 +738,12 @@ function isTempoChangerNote(song: NbsSong, note: Pick<NbsNote, 'instrument'>): b
   )
 }
 
-export function nbsTempoChangerTicksPerSecond(pitch: number): number {
-  return Math.max(0.25, Math.floor(Math.abs(pitch)) / 15)
+export function nbsTempoChangerBpm(pitch: number): number {
+  return Math.max(3.75, Math.floor(Math.abs(pitch)))
 }
 
-interface NbsTempoSegment {
-  sourceTick: number
-  timelineTick: number
-  ticksPerSecond: number
-  sourceNote?: NbsNote
-}
-
-interface NbsTempoMapping {
-  rawNotes: NbsNote[]
-  activeNotes: NbsNote[]
-  segments: NbsTempoSegment[]
-  mapTick: (sourceTick: number) => number
-  duplicateAtTickCount: number
-  lockedCount: number
+function nbsHeaderBpm(tempo: number): number {
+  return tempo * 60 / (100 * NBS_TICKS_PER_QUARTER)
 }
 
 /**
@@ -764,48 +752,17 @@ interface NbsTempoMapping {
  * several changers share a column, layer-order processing makes the last one
  * win. Locked layers do not participate in OpenNBS playback.
  */
-function buildNbsTempoMapping(song: NbsSong): NbsTempoMapping {
+function getTempoChangerNotes(song: NbsSong) {
   const rawNotes = song.notes
     .filter(note => isTempoChangerNote(song, note))
     .sort((left, right) => left.tick - right.tick || left.layer - right.layer)
   const unlocked = rawNotes.filter(note => !(song.layers[note.layer]?.locked ?? false))
   const winnerByTick = new Map<number, NbsNote>()
   for (const note of unlocked) winnerByTick.set(note.tick, note)
-  const activeNotes = [...winnerByTick.values()].sort((left, right) => left.tick - right.tick)
-  const initialTicksPerSecond = song.header.tempo / 100
-  const segments: NbsTempoSegment[] = [{
-    sourceTick: 0,
-    timelineTick: 0,
-    ticksPerSecond: initialTicksPerSecond,
-  }]
-  let sourceTick = 0
-  let timelineTick = 0
-  let ticksPerSecond = initialTicksPerSecond
-  for (const note of activeNotes) {
-    timelineTick += (note.tick - sourceTick) * 20 / ticksPerSecond
-    sourceTick = note.tick
-    ticksPerSecond = nbsTempoChangerTicksPerSecond(note.pitch)
-    const segment: NbsTempoSegment = { sourceTick, timelineTick, ticksPerSecond, sourceNote: note }
-    if (segments.at(-1)?.sourceTick === sourceTick) segments[segments.length - 1] = segment
-    else segments.push(segment)
-  }
-  const mapTick = (targetTick: number): number => {
-    let low = 0
-    let high = segments.length - 1
-    while (low < high) {
-      const middle = Math.ceil((low + high) / 2)
-      if (segments[middle].sourceTick <= targetTick) low = middle
-      else high = middle - 1
-    }
-    const segment = segments[low]
-    return segment.timelineTick + (targetTick - segment.sourceTick) * 20 / segment.ticksPerSecond
-  }
   return {
     rawNotes,
-    activeNotes,
-    segments,
-    mapTick,
-    duplicateAtTickCount: unlocked.length - activeNotes.length,
+    activeNotes: [...winnerByTick.values()],
+    duplicateAtTickCount: unlocked.length - winnerByTick.size,
     lockedCount: rawNotes.length - unlocked.length,
   }
 }
@@ -825,9 +782,7 @@ function toNbsNoteSource(note: NbsNote) {
 
 export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConversionResult {
   const warnings: string[] = []
-  const ticksPerSecond = song.header.tempo / 100
-  const scale = 20 / ticksPerSecond
-  const tempoMapping = buildNbsTempoMapping(song)
+  const tempoChangers = getTempoChangerNotes(song)
   const tracks: Track[] = song.layers.map((layer, index) => ({
     ...createDefaultTrack(uuidv4(), index),
     name: layer.name.trim() || `Layer ${index + 1}`,
@@ -864,7 +819,7 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
       return {
         id: uuidv4(),
         trackId,
-        tick: Math.max(0, Math.round(tempoMapping.mapTick(note.tick))),
+        tick: note.tick,
         soundId: '',
         variantIndex: -1,
         volume: 1,
@@ -885,7 +840,7 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
     return {
       id: uuidv4(),
       trackId,
-      tick: Math.max(0, Math.round(tempoMapping.mapTick(note.tick))),
+      tick: note.tick,
       soundId,
       variantIndex: -1,
       volume: Math.max(0, Math.min(1, note.velocity / 100)),
@@ -904,9 +859,9 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
   if (normalizedSoundStopCount) {
     warnings.push(`${normalizedSoundStopCount} Sound Stopper range(s) exceeded OpenNBS's supported range and were clamped.`)
   }
-  const maxTick = markers.reduce((value, marker) => Math.max(value, marker.tick + 1), 1)
-  const mappedLength = Math.max(maxTick, Math.ceil(tempoMapping.mapTick(song.header.songLength + 1)))
   const settings = structuredClone(DEFAULT_SETTINGS)
+  settings.ticksPerQuarter = NBS_TICKS_PER_QUARTER
+  settings.bpm = nbsHeaderBpm(song.header.tempo)
   settings.panLaw = 'nbs-average'
   const importedMeterNumerator = clampInteger(
     song.header.timeSignature,
@@ -917,39 +872,23 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
     numerator: importedMeterNumerator,
     denominator: 4,
   }
-  let clampedTempoCount = 0
-  let canonicalTempoCollisionCount = 0
-  const tempoEventsByTick = new Map<number, { tick: number, bpm: number, meter?: { numerator: number, denominator: 4 } }>()
-  for (const segment of tempoMapping.segments) {
-    const tick = Math.max(0, Math.round(segment.timelineTick))
-    const rawBpm = segment.ticksPerSecond * 60 / NBS_TICKS_PER_QUARTER
-    const bpm = Math.max(20, Math.min(300, rawBpm))
-    if (bpm !== rawBpm) clampedTempoCount++
-    if (tempoEventsByTick.has(tick)) canonicalTempoCollisionCount++
-    tempoEventsByTick.set(tick, {
-      tick,
-      bpm,
-      ...(tick === 0 ? { meter: { numerator: importedMeterNumerator, denominator: 4 as const } } : {}),
-    })
-  }
-  const allTempoEvents = [...tempoEventsByTick.values()].sort((left, right) => left.tick - right.tick)
-  const importedTempoEvents = allTempoEvents.slice(0, MAX_TEMPO_MAP_EVENTS)
-  const tempoMap = normalizeTempoMap(importedTempoEvents, {
-    ...settings,
-    bpm: importedTempoEvents[0]?.bpm ?? Math.max(20, Math.min(300, 60 * ticksPerSecond / NBS_TICKS_PER_QUARTER)),
-  })
+  const tempoMap = normalizeTempoMap(tempoChangers.activeNotes.map(note => ({
+    tick: note.tick,
+    bpm: nbsTempoChangerBpm(note.pitch),
+  })), settings)
   settings.bpm = tempoMap[0].bpm
+  const lengthTicks = getTimelineLengthTicks(markers, song.header.songLength + 1, settings, [], tempoMap)
   settings.loop = {
     enabled: song.header.loop,
-    startTick: Math.max(0, Math.min(mappedLength - 1, Math.round(tempoMapping.mapTick(song.header.loopStartTick)))),
-    endTick: mappedLength,
+    startTick: Math.max(0, Math.min(lengthTicks - 1, song.header.loopStartTick)),
+    endTick: lengthTicks,
     maxLoopCount: song.header.maxLoopCount,
   }
   const state: TimelineState = {
     projectId: uuidv4(),
     randomSeed: Math.floor(Math.random() * 0x1_0000_0000),
     targetVersion,
-    lengthTicks: getTimelineLengthTicks(markers, mappedLength, settings, [], tempoMap),
+    lengthTicks,
     settings,
     master: { ...DEFAULT_MASTER },
     tracks,
@@ -976,7 +915,7 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
     source: {
       format: 'nbs',
       sourceVersion: song.header.version,
-      tickScale: scale,
+      tickScale: 1,
       vanillaInstrumentCount: song.header.vanillaInstrumentCount,
       songLength: song.header.songLength,
       layerCount: song.header.layerCount,
@@ -998,35 +937,16 @@ export function nbsToTimelineState(song: NbsSong, targetVersion = ''): NbsConver
       maxLoopCount: song.header.maxLoopCount,
       loopStartTick: song.header.loopStartTick,
       customInstruments: song.customInstruments.map(instrument => ({ ...instrument })),
-      ...(tempoMapping.rawNotes.length > 0
-        ? { tempoChangerNotes: tempoMapping.rawNotes.map(toNbsNoteSource) }
+      ...(tempoChangers.rawNotes.length > 0
+        ? { tempoChangerNotes: tempoChangers.rawNotes.map(toNbsNoteSource) }
         : {}),
     },
   }
-  state.settings.loop.endTick = Math.min(state.lengthTicks, Math.max(state.settings.loop.startTick + 1, mappedLength))
-  const timingNeedsQuantization = tempoMapping.segments.some((segment) => {
-    const segmentScale = 20 / segment.ticksPerSecond
-    return Math.abs(segmentScale - Math.round(segmentScale)) > 1e-6
-  }) || song.notes.some(note => (
-    Math.abs(tempoMapping.mapTick(note.tick) - Math.round(tempoMapping.mapTick(note.tick))) > 1e-6
-  ))
-  if (timingNeedsQuantization) {
-    warnings.push('NBS timing was quantized to Minecraft 20 TPS ticks.')
+  if (tempoChangers.duplicateAtTickCount > 0) {
+    warnings.push(`${tempoChangers.duplicateAtTickCount} earlier Tempo Changer note(s) shared a source tick; the highest unlocked layer won, matching OpenNBS.`)
   }
-  if (tempoMapping.duplicateAtTickCount > 0) {
-    warnings.push(`${tempoMapping.duplicateAtTickCount} earlier Tempo Changer note(s) shared a source tick; the highest unlocked layer won, matching OpenNBS.`)
-  }
-  if (tempoMapping.lockedCount > 0) {
-    warnings.push(`${tempoMapping.lockedCount} Tempo Changer note(s) on locked layers were preserved as source data but ignored during playback.`)
-  }
-  if (canonicalTempoCollisionCount > 0) {
-    warnings.push(`${canonicalTempoCollisionCount} Tempo Changer event(s) collided after 20 TPS quantization; the last event won.`)
-  }
-  if (allTempoEvents.length > importedTempoEvents.length) {
-    warnings.push(`${allTempoEvents.length - importedTempoEvents.length} Tempo Changer event(s) exceeded Knead's ${MAX_TEMPO_MAP_EVENTS}-event tempo-map limit and were omitted from the conductor map.`)
-  }
-  if (clampedTempoCount > 0) {
-    warnings.push(`${clampedTempoCount} NBS tempo value(s) were clamped to Knead's 20–300 BPM conductor range; note timing remains source-accurate.`)
+  if (tempoChangers.lockedCount > 0) {
+    warnings.push(`${tempoChangers.lockedCount} Tempo Changer note(s) on locked layers were preserved as source data but ignored during playback.`)
   }
   if (song.header.timeSignature !== importedMeterNumerator) {
     warnings.push(`NBS time signature ${song.header.timeSignature}/4 was clamped to ${importedMeterNumerator}/4.`)
@@ -1049,8 +969,71 @@ interface NbsExportTiming {
   quantizedTempoEventCount: number
 }
 
+function nbsTempoForBpm(bpm: number): number {
+  return clampInteger(Math.round(bpm * NBS_TICKS_PER_QUARTER * 100 / 60), 1, MAX_NBS_SHORT)
+}
+
+function nbsTempoChangerPitch(bpm: number): number {
+  const rounded = Math.round(bpm)
+  if (rounded > MAX_NBS_SHORT) return -0x8000
+  // Pitches 0..3 all select 3.75 BPM. The next available value is 4 BPM.
+  return bpm < 3.875 ? Math.min(3, rounded) : rounded
+}
+
+function nativeNbsExportTiming(
+  state: TimelineState,
+  tempoMap: ReturnType<typeof normalizeTempoMap>,
+  targetVersion: NbsTargetVersion,
+): NbsExportTiming {
+  const initial = tempoMap[0]
+  const source = state.source?.format === 'nbs' ? state.source : undefined
+  const timing: NbsExportTiming = {
+    tempo: nbsTempoForBpm(initial.bpm),
+    timeSignature: clampInteger(initial.meter!.numerator, NBS_MIN_TIME_SIGNATURE, NBS_MAX_TIME_SIGNATURE),
+    scale: 1,
+    mapTick: tick => tick,
+    tempoEvents: [],
+    omittedTempoEventCount: 0,
+    collapsedTempoEventCount: 0,
+    quantizedTempoEventCount: 0,
+  }
+  let encodedBpm = nbsHeaderBpm(timing.tempo)
+  if (targetVersion >= 4) {
+    const sourceChanger = source?.tempoChangerNotes?.findLast(note => (
+      note.tick === 0 && nbsTempoChangerBpm(note.pitch) === initial.bpm
+    ))
+    const pitch = sourceChanger?.pitch ?? nbsTempoChangerPitch(initial.bpm)
+    const changerBpm = nbsTempoChangerBpm(pitch)
+    if (sourceChanger || Math.abs(changerBpm - initial.bpm) < Math.abs(encodedBpm - initial.bpm)) {
+      timing.tempo = sourceChanger && source ? source.tempo : timing.tempo
+      timing.tempoEvents.push({ timelineTick: 0, sourceTick: 0, pitch })
+      encodedBpm = changerBpm
+    }
+    if (Math.abs(initial.bpm - encodedBpm) > 1e-6) timing.quantizedTempoEventCount++
+    let projectBpm = initial.bpm
+    for (const event of tempoMap.slice(1)) {
+      if (event.bpm === projectBpm) continue
+      projectBpm = event.bpm
+      const pitch = nbsTempoChangerPitch(event.bpm)
+      const nextBpm = nbsTempoChangerBpm(pitch)
+      if (Math.abs(event.bpm - nextBpm) > 1e-6) timing.quantizedTempoEventCount++
+      if (nextBpm === encodedBpm) continue
+      encodedBpm = nextBpm
+      timing.tempoEvents.push({ timelineTick: event.tick, sourceTick: event.tick, pitch })
+    }
+  }
+  else {
+    const model = buildTempoMap(tempoMap, state.settings)
+    timing.scale = encodedBpm / initial.bpm
+    timing.mapTick = tick => tickToSeconds(tick, model) * timing.tempo / 100
+    timing.omittedTempoEventCount = tempoMap.slice(1).filter((event, index) => event.bpm !== tempoMap[index].bpm).length
+  }
+  return timing
+}
+
 function nbsExportTiming(state: TimelineState, targetVersion: NbsTargetVersion): NbsExportTiming {
   const tempoMap = normalizeTempoMap(state.tempoMap, state.settings)
+  if (state.settings.ticksPerQuarter !== undefined) return nativeNbsExportTiming(state, tempoMap, targetVersion)
   const initialTempo = tempoMap[0]
   const initialSettings = {
     ...state.settings,
@@ -1062,9 +1045,9 @@ function nbsExportTiming(state: TimelineState, targetVersion: NbsTargetVersion):
     && source.timeSignature >= 2 && source.timeSignature <= 8
     && initialSettings.timeSignature.numerator === source.timeSignature
     && initialSettings.timeSignature.denominator === 4) {
-    const sourceTicksPerSecond = source.tempo / 100
-    const importedBpm = Math.max(20, Math.min(300, 60 * sourceTicksPerSecond / NBS_TICKS_PER_QUARTER))
-    if (Math.abs(initialSettings.bpm - importedBpm) < 1e-6) {
+    // Legacy 20 TPS NBS imports stored their initial conductor tempo in the 20–300 BPM range.
+    const legacyImportedBpm = Math.max(20, Math.min(300, nbsHeaderBpm(source.tempo)))
+    if (Math.abs(initialSettings.bpm - legacyImportedBpm) < 1e-6) {
       // Preserve an imported file's exact initial rate when its canonical
       // conductor event has not changed. Later events are still rebuilt below.
       const timing = buildNbsExportTempoSegments(
@@ -1076,10 +1059,7 @@ function nbsExportTiming(state: TimelineState, targetVersion: NbsTargetVersion):
       return timing
     }
   }
-  const tempo = Math.max(1, Math.min(
-    MAX_NBS_SHORT,
-    Math.round(initialSettings.bpm * NBS_TICKS_PER_QUARTER * 100 / 60),
-  ))
+  const tempo = nbsTempoForBpm(initialSettings.bpm)
   return buildNbsExportTempoSegments(
     tempoMap,
     tempo,
@@ -1103,7 +1083,7 @@ function buildNbsExportTempoSegments(
     sourceTick: number
     scale: number
   }
-  const initialScale = tempo / 2000
+  const initialScale = tempo / (100 * MINECRAFT_TICKS_PER_SECOND)
   const segments: ExportSegment[] = [{ timelineTick: 0, sourceTick: 0, scale: initialScale }]
   const tempoEvents: NbsExportTiming['tempoEvents'] = []
   let omittedTempoEventCount = 0
@@ -1129,7 +1109,7 @@ function buildNbsExportTempoSegments(
     const nextSegment: ExportSegment = {
       timelineTick,
       sourceTick,
-      scale: pitch / 300,
+      scale: pitch * NBS_TICKS_PER_QUARTER / (60 * MINECRAFT_TICKS_PER_SECOND),
     }
     if (sourceTick === previous.sourceTick) {
       segments[segments.length - 1] = nextSegment
@@ -1222,13 +1202,13 @@ export function timelineStateToNbs(
     warnings.push(`${laterMeterEventCount} later meter change(s) cannot be represented by NBS and were omitted.`)
   }
   if (timing.omittedTempoEventCount > 0) {
-    warnings.push(`NBS v${targetVersion} cannot encode fine-pitch Tempo Changer events; ${timing.omittedTempoEventCount} later tempo change(s) were omitted while note timing was preserved.`)
+    warnings.push(`NBS v${targetVersion} cannot encode Tempo Changer events. Notes were mapped to a fixed-tempo grid for ${timing.omittedTempoEventCount} tempo change(s).`)
   }
   if (timing.collapsedTempoEventCount > 0) {
     warnings.push(`${timing.collapsedTempoEventCount} Tempo Changer event(s) collapsed onto an earlier NBS tick after quantization; the last event won.`)
   }
   if (timing.quantizedTempoEventCount > 0) {
-    warnings.push(`${timing.quantizedTempoEventCount} Tempo Changer BPM value(s) were rounded to whole numbers required by OpenNBS.`)
+    warnings.push(`${timing.quantizedTempoEventCount} BPM value(s) were rounded to rates supported by OpenNBS.`)
   }
   const initialMeter = tempoMap[0]?.meter ?? state.settings.timeSignature
   if (initialMeter.denominator !== 4 || initialMeter.numerator !== timing.timeSignature) {
@@ -1652,7 +1632,7 @@ export function timelineStateToNbs(
   ))) {
     warnings.push(`NBS v${targetVersion} cannot store Sound Stopper ranges; affected events stop all layers.`)
   }
-  if (timing.tempoEvents.length > 0) {
+  if (state.settings.ticksPerQuarter === undefined && timing.tempoEvents.length > 0) {
     warnings.push('Timeline ticks were piecewise rescaled around Tempo Changer events for NBS\'s fixed four-ticks-per-quarter grid.')
   }
   else if (Math.abs(timing.scale - 1) > 1e-6) {

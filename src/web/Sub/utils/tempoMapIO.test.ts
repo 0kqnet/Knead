@@ -28,19 +28,19 @@ describe('Knead project v10 tempo-map persistence', () => {
     const project = state()
     project.tempoMap = [
       { tick: 500, bpm: 90, meter: { numerator: 7, denominator: 8 } },
-      { tick: 0, bpm: 132, meter: { numerator: 3, denominator: 4 } },
-      { tick: 100, bpm: 110, meter: { numerator: 3, denominator: 4 } },
+      { tick: 0, bpm: 2_000, meter: { numerator: 3, denominator: 4 } },
+      { tick: 100, bpm: 1_680, meter: { numerator: 3, denominator: 4 } },
     ]
     const raw = JSON.parse(serialize(project)) as Record<string, unknown>
     expect(raw.version).toBe(10)
     expect(raw.lengthTicks).toBe(501)
     expect(raw.tempoMap).toEqual([
-      { tick: 0, bpm: 132, meter: { numerator: 3, denominator: 4 } },
-      { tick: 100, bpm: 110 },
+      { tick: 0, bpm: 2_000, meter: { numerator: 3, denominator: 4 } },
+      { tick: 100, bpm: 1_680 },
       { tick: 500, bpm: 90, meter: { numerator: 7, denominator: 8 } },
     ])
     expect(raw.settings).toMatchObject({
-      bpm: 132,
+      bpm: 2_000,
       timeSignature: { numerator: 3, denominator: 4 },
     })
 
@@ -48,7 +48,7 @@ describe('Knead project v10 tempo-map persistence', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.state.tempoMap).toEqual(raw.tempoMap)
-    expect(parsed.state.settings.bpm).toBe(132)
+    expect(parsed.state.settings.bpm).toBe(2_000)
   })
 
   it.each([1, 2, 3, 4, 5])('migrates a version %i project from its legacy settings', (version) => {
@@ -85,6 +85,8 @@ describe('Knead project v10 tempo-map persistence', () => {
     expect(parse(JSON.stringify(raw))).toMatchObject({ ok: false })
     raw.tempoMap = [{ tick: 0, bpm: 120 }, { tick: raw.lengthTicks, bpm: 100 }]
     expect(parse(JSON.stringify(raw))).toMatchObject({ ok: false })
+    raw.tempoMap = [{ tick: 0, bpm: 2_001 }]
+    expect(parse(JSON.stringify(raw))).toMatchObject({ ok: false, error: expect.stringContaining('BPM') })
     raw.tempoMap = Array.from({ length: MAX_TEMPO_MAP_EVENTS + 1 }, (_, tick) => ({
       tick, bpm: 120,
     }))

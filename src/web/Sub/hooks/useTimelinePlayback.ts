@@ -19,10 +19,11 @@ import { stableVariantIndex } from '../utils/studioMath'
 import {
   buildTempoMap,
   enumerateTempoGridLines,
+  secondsToTick,
+  tickRangeToSeconds,
+  tickToSeconds,
   type TempoMapModel,
 } from '../utils/tempoMap'
-
-const TICK_SEC = 0.05
 
 /** Resolve the exact WebAudio/offline rate without silently changing pitch. */
 export function resolveMarkerPlaybackRate(markerPitch: number, basePitch: number): number | null {
@@ -53,24 +54,24 @@ export function resolveReferencePlaybackWindow(
   bufferDurationSeconds: number,
   windowStartTick: number,
   windowEndTick: number,
+  tempoModel?: TempoMapModel,
 ): ReferencePlaybackWindow | null {
   if (
     !Number.isFinite(bufferDurationSeconds)
     || bufferDurationSeconds <= 0
     || windowEndTick <= windowStartTick
   ) return null
-  const trackEndTick = trackOffsetTicks + bufferDurationSeconds / TICK_SEC
-  const overlapStartTick = Math.max(windowStartTick, trackOffsetTicks)
-  const overlapEndTick = Math.min(windowEndTick, trackEndTick)
-  if (overlapEndTick <= overlapStartTick) return null
-  const sourceOffsetSeconds = Math.max(0, (overlapStartTick - trackOffsetTicks) * TICK_SEC)
+  const delay = tickRangeToSeconds(windowStartTick, trackOffsetTicks, tempoModel)
+  const sourceOffsetSeconds = Math.max(0, -delay)
+  const durationSeconds = Math.min(
+    bufferDurationSeconds - sourceOffsetSeconds,
+    tickRangeToSeconds(Math.max(windowStartTick, trackOffsetTicks), windowEndTick, tempoModel),
+  )
+  if (durationSeconds <= 0) return null
   return {
-    delaySeconds: Math.max(0, (trackOffsetTicks - windowStartTick) * TICK_SEC),
+    delaySeconds: Math.max(0, delay),
     sourceOffsetSeconds,
-    durationSeconds: Math.min(
-      bufferDurationSeconds - sourceOffsetSeconds,
-      (overlapEndTick - overlapStartTick) * TICK_SEC,
-    ),
+    durationSeconds,
   }
 }
 
@@ -260,6 +261,7 @@ export function useTimelinePlayback({
 
   const tempoModel = useMemo(() => buildTempoMap(tempoMap, {
     bpm: settings.bpm,
+    ticksPerQuarter: settings.ticksPerQuarter,
     timeSignature: {
       numerator: settings.timeSignature.numerator,
       denominator: settings.timeSignature.denominator,
@@ -267,6 +269,7 @@ export function useTimelinePlayback({
   }, Math.max(0, lengthTicks - 1)), [
     lengthTicks,
     settings.bpm,
+    settings.ticksPerQuarter,
     settings.timeSignature.denominator,
     settings.timeSignature.numerator,
     tempoMap,
@@ -411,6 +414,7 @@ export function useTimelinePlayback({
       cache: currentCache,
       tracks: currentTracks,
       settings: currentSettings,
+      tempoModel: currentTempoModel,
     } = latestRef.current
     const track = currentTracks.find(item => item.id === firing.trackId)
     const bus = trackBusesRef.current.get(firing.trackId)
@@ -435,7 +439,7 @@ export function useTimelinePlayback({
     markerGain.gain.value = firing.volume
     markerPan.pan.value = resolveMarkerPan(currentSettings.panLaw, firing.pan, track.pan)
     source.connect(markerGain).connect(markerPan).connect(bus.gain)
-    const when = playStartAudioTimeRef.current + (firing.tick - startTickRef.current) * TICK_SEC
+    const when = playStartAudioTimeRef.current + tickRangeToSeconds(startTickRef.current, firing.tick, currentTempoModel)
     const startWhen = Math.max(when, ctx.currentTime)
     source.start(startWhen)
     const active: ActiveScheduledSource = {
@@ -448,7 +452,8 @@ export function useTimelinePlayback({
     activeSourcesRef.current.push(active)
     if (firing.gateTicks && firing.gateTicks > 0) {
       // Gate time is tied to AudioContext/timeline time, never playbackRate.
-      scheduleEarliestSourceStop(active, startWhen + firing.gateTicks * TICK_SEC)
+      const duration = tickRangeToSeconds(firing.tick, firing.tick + firing.gateTicks, currentTempoModel)
+      scheduleEarliestSourceStop(active, startWhen + duration)
     }
     source.onended = () => {
       const index = activeSourcesRef.current.findIndex(active => active.node === source)
@@ -461,12 +466,12 @@ export function useTimelinePlayback({
 
   const scheduleSoundStop = useCallback((marker: Marker) => {
     if (!isSoundStopMarker(marker)) return
-    const { tracks: currentTracks, cache: currentCache } = latestRef.current
+    const { tracks: currentTracks, cache: currentCache, tempoModel: currentTempoModel } = latestRef.current
     const targetTrackIds = new Set(resolveSoundStopTrackIds(marker.action, currentTracks))
     const ctx = currentCache.getAudioContext()
     const when = Math.max(
       ctx.currentTime,
-      playStartAudioTimeRef.current + (marker.tick - startTickRef.current) * TICK_SEC,
+      playStartAudioTimeRef.current + tickRangeToSeconds(startTickRef.current, marker.tick, currentTempoModel),
     )
     for (const active of activeSourcesRef.current) {
       if (active.kind !== 'marker' || active.tick > marker.tick || !active.trackId) continue
@@ -476,7 +481,7 @@ export function useTimelinePlayback({
   }, [])
 
   const scheduleMetronome = useCallback((tick: number, accent: boolean) => {
-    const { settings: currentSettings } = latestRef.current
+    const { settings: currentSettings, tempoModel: currentTempoModel } = latestRef.current
     if (!currentSettings.metronomeEnabled) return
     const ctx = ensureGraph()
     const oscillator = ctx.createOscillator()
@@ -485,7 +490,7 @@ export function useTimelinePlayback({
     gain.gain.value = currentSettings.metronomeVolume
     const when = Math.max(
       ctx.currentTime,
-      playStartAudioTimeRef.current + (tick - startTickRef.current) * TICK_SEC,
+      playStartAudioTimeRef.current + tickRangeToSeconds(startTickRef.current, tick, currentTempoModel),
     )
     gain.gain.setValueAtTime(currentSettings.metronomeVolume, when)
     gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.035)
@@ -521,6 +526,7 @@ export function useTimelinePlayback({
       cache: currentCache,
       tracks: currentTracks,
       referenceAudio: currentReferenceAudio,
+      tempoModel: currentTempoModel,
     } = latestRef.current
     const hasSolo = currentTracks.some(track => track.solo)
       || currentReferenceAudio.some(track => track.solo)
@@ -535,6 +541,7 @@ export function useTimelinePlayback({
         buffer.duration,
         windowStartTick,
         windowEndTick,
+        currentTempoModel,
       )
       if (!window || window.durationSeconds <= 0) continue
       const source = ctx.createBufferSource()
@@ -588,11 +595,11 @@ export function useTimelinePlayback({
     if (masterAnalyserRef.current) setMasterMeter(readMeter(masterAnalyserRef.current, scratch))
   }, [])
 
-  const stopInternal = useCallback(() => {
+  const stopInternal = useCallback((letNotesFinish = false) => {
     playingRef.current = false
     pausedRef.current = false
     completedLoopCountRef.current = 0
-    stopSources()
+    if (!letNotesFinish) stopSources()
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
     rafRef.current = null
     setIsPlaying(false)
@@ -600,33 +607,39 @@ export function useTimelinePlayback({
   }, [stopSources])
 
   const tick = useCallback((timestamp: number) => {
-    const { cache: currentCache, settings: currentSettings, markers: currentMarkers, lengthTicks: currentLength } = latestRef.current
+    const {
+      cache: currentCache,
+      settings: currentSettings,
+      markers: currentMarkers,
+      lengthTicks: currentLength,
+      tempoModel: currentTempoModel,
+    } = latestRef.current
     const ctx = currentCache.getAudioContext()
-    const cur = startTickRef.current + (ctx.currentTime - playStartAudioTimeRef.current) / TICK_SEC
+    let currentSeconds = tickToSeconds(startTickRef.current, currentTempoModel)
+      + (ctx.currentTime - playStartAudioTimeRef.current)
+    let effectiveCurrent = secondsToTick(currentSeconds, currentTempoModel)
     const loop = currentSettings.loop
     const endTick = loop.enabled ? loop.endTick : currentLength
-    if (cur >= endTick) {
+    if (currentSeconds >= tickToSeconds(endTick, currentTempoModel)) {
       if (loop.enabled && canRestartLoop(loop.maxLoopCount, completedLoopCountRef.current)) {
         completedLoopCountRef.current++
         stopSources()
         startTickRef.current = loop.startTick
         metronomeScanTickRef.current = loop.startTick
         playStartAudioTimeRef.current = ctx.currentTime
-        setCurrentTick(loop.startTick)
+        effectiveCurrent = loop.startTick
+        currentSeconds = tickToSeconds(loop.startTick, currentTempoModel)
         scheduleReferenceAudio(loop.startTick, loop.endTick)
       }
       else {
         setCurrentTick(currentLength)
-        stopInternal()
+        stopInternal(!loop.enabled && currentTempoModel.ticksPerQuarter !== undefined)
         return
       }
     }
-    else {
-      setCurrentTick(cur)
-    }
+    setCurrentTick(effectiveCurrent)
 
-    const effectiveCurrent = cur >= endTick && loop.enabled ? loop.startTick : cur
-    const lookahead = effectiveCurrent + 0.12 / TICK_SEC
+    const lookahead = secondsToTick(currentSeconds + 0.12, currentTempoModel)
     const trackIndexById = new Map(latestRef.current.tracks.map((track, index) => [track.id, index]))
     const scheduleEvents: TimelineScheduleEvent[] = []
     for (const marker of currentMarkers) {
@@ -666,7 +679,7 @@ export function useTimelinePlayback({
       )) {
         const beatTick = event.tick
         const key = `metro#${beatTick}`
-        if (beatTick < effectiveCurrent - 1 || beatTick > lookahead || scheduledKeysRef.current.has(key)) continue
+        if (beatTick < effectiveCurrent - 1 || beatTick > lookahead || beatTick >= endTick || scheduledKeysRef.current.has(key)) continue
         scheduleMetronome(beatTick, event.accent)
         scheduledKeysRef.current.add(key)
       }
@@ -692,6 +705,7 @@ export function useTimelinePlayback({
     const { lengthTicks: currentLength, settings: currentSettings } = latestRef.current
     const ctx = ensureGraph()
     void ctx.resume()
+    stopSources()
     let start = currentTick >= currentLength ? 0 : currentTick
     if (currentSettings.loop.enabled && (start < currentSettings.loop.startTick || start >= currentSettings.loop.endTick)) {
       start = currentSettings.loop.startTick
@@ -710,8 +724,8 @@ export function useTimelinePlayback({
       start,
       currentSettings.loop.enabled ? currentSettings.loop.endTick : currentLength,
     )
-    rafRef.current = requestAnimationFrame(tick)
-  }, [currentTick, ensureGraph, scheduleReferenceAudio, tick])
+    tick(performance.now())
+  }, [currentTick, ensureGraph, scheduleReferenceAudio, stopSources, tick])
 
   const pause = useCallback(() => {
     if (!playingRef.current || pausedRef.current) return
@@ -759,16 +773,18 @@ export function useTimelinePlayback({
           ? currentSettings.loop.endTick
           : latestRef.current.lengthTicks,
       )
-      rafRef.current = replaceTransportAnimationFrame(rafRef.current, !pausedRef.current, tick)
+      if (!pausedRef.current) tick(performance.now())
     }
   }, [scheduleReferenceAudio, stopSources, tick])
 
   useEffect(() => {
     if (!playingRef.current) return
     const ctx = latestRef.current.cache.getAudioContext()
+    const currentTempoModel = latestRef.current.tempoModel
     const transportTick = pausedRef.current
       ? startTickRef.current
-      : startTickRef.current + (ctx.currentTime - playStartAudioTimeRef.current) / TICK_SEC
+      : secondsToTick(tickToSeconds(startTickRef.current, currentTempoModel)
+        + (ctx.currentTime - playStartAudioTimeRef.current), currentTempoModel)
     const currentSettings = latestRef.current.settings
     scheduleReferenceAudio(
       transportTick,

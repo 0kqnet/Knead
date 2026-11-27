@@ -20,6 +20,7 @@ import {
   type MidiSoundMapping,
 } from '../utils/midi'
 import { buildMidiImportPreview } from '../utils/midiPreview'
+import { secondsToTick, tickToSeconds, type TempoMapModel } from '../utils/tempoMap'
 
 export interface LiveMidiRecordedNote {
   channel: number
@@ -36,6 +37,7 @@ interface ActiveLiveVoice {
   released: boolean
   startedAtTick: number
   startedAtTimestampMs: number
+  tempoModel?: TempoMapModel
   generation: number
   updateRecordedNote: (id: string, patch: Partial<Marker>) => void
 }
@@ -52,9 +54,17 @@ function activeVoiceCount(voices: ReadonlyMap<string, readonly ActiveLiveVoice[]
   return count
 }
 
-export function liveMidiGateTicks(startedAtTimestampMs: number, endedAtTimestampMs: number): number {
-  const elapsedMs = Math.max(0, endedAtTimestampMs - startedAtTimestampMs)
-  return Math.max(1, Math.min(MAX_GATE_TICKS, Math.round(elapsedMs / 50)))
+export function liveMidiGateTicks(
+  startedAtTimestampMs: number,
+  endedAtTimestampMs: number,
+  startedAtTick = 0,
+  tempoModel?: TempoMapModel,
+): number {
+  const elapsedSeconds = Math.max(0, endedAtTimestampMs - startedAtTimestampMs) / 1_000
+  const elapsedTicks = tempoModel?.ticksPerQuarter === undefined
+    ? secondsToTick(elapsedSeconds)
+    : secondsToTick(tickToSeconds(startedAtTick, tempoModel) + elapsedSeconds, tempoModel) - startedAtTick
+  return Math.max(1, Math.min(MAX_GATE_TICKS, Math.round(elapsedTicks)))
 }
 
 function liveMidiNowMs(): number {
@@ -67,6 +77,7 @@ interface Props {
   open: boolean
   targetVersion: string
   currentTick: number
+  tempoModel?: TempoMapModel
   canRecord: boolean
   soundIds: readonly string[]
   defaultSoundId: string
@@ -105,6 +116,7 @@ export const MidiDialog: React.FC<Props> = ({
   open,
   targetVersion,
   currentTick,
+  tempoModel,
   canRecord,
   soundIds,
   defaultSoundId,
@@ -215,7 +227,7 @@ export const MidiDialog: React.FC<Props> = ({
       || !recordingTransactionRef.current
       || voice.generation !== recordingGenerationRef.current
     ) return
-    const gateTicks = liveMidiGateTicks(voice.startedAtTimestampMs, endedAtTimestampMs)
+    const gateTicks = liveMidiGateTicks(voice.startedAtTimestampMs, endedAtTimestampMs, voice.startedAtTick, voice.tempoModel)
     // Use the callback captured at note-on so a tab/callback swap cannot apply
     // the note-off to a different document that happens to reuse the marker ID.
     voice.updateRecordedNote(voice.id, { gateTicks })
@@ -296,12 +308,13 @@ export const MidiDialog: React.FC<Props> = ({
       released: false,
       startedAtTick: currentTickRef.current,
       startedAtTimestampMs: event.timestampMs,
+      tempoModel,
       generation: recordingGenerationRef.current,
       updateRecordedNote: onUpdateRecordedNote,
     })
     activeRef.current.set(key, voices)
     setActiveNoteCount(activeVoiceCount(activeRef.current))
-  }, [channelFilter, defaultSoundId, finishVoiceAt, liveSoundId, onRecordNote, onUpdateRecordedNote, rootNote])
+  }, [channelFilter, defaultSoundId, finishVoiceAt, liveSoundId, onRecordNote, onUpdateRecordedNote, rootNote, tempoModel])
 
   const liveMidi = useLiveMidi({ onMessage: handleMidiMessage })
   const setMidiArmed = liveMidi.setArmed
