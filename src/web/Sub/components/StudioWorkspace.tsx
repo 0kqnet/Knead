@@ -58,6 +58,10 @@ function displayName(path: string): string {
   return path.replace(/^.*[\\/]/u, '') || 'Untitled'
 }
 
+function songTabLabel(document: StudioDocument, untitled: string): string {
+  return !document.filePath && document.displayName === 'Untitled' ? untitled : document.displayName
+}
+
 function pathKey(path: string): string {
   return path.replace(/\\/gu, '/')
 }
@@ -619,7 +623,8 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   const closeDocumentNow = useCallback(async (documentId: string) => {
     await recoveryControllersRef.current.get(documentId)?.clear()
     await window.myAPI.timeline.releaseCurrentPath(documentId)
-    const name = workspaceRef.current.state.documents[documentId]?.displayName ?? ''
+    const document = workspaceRef.current.state.documents[documentId]
+    const name = document ? songTabLabel(document, t('studio.untitled')) : ''
     workspaceRef.current.closeDocument(documentId)
     setClosingDocumentId(null)
     setAnnouncement(t('studio.song_tab_closed', { name }))
@@ -776,11 +781,11 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     }
     return {
       id: document.id,
-      label: document.displayName,
+      label: songTabLabel(document, t('studio.untitled')),
       dirty: isStudioDocumentDirty(document),
       status,
     }
-  }), [activationError, activeDocument.id, editorReady, workspace.documents])
+  }), [activationError, activeDocument.id, editorReady, t, workspace.documents])
 
   const closingDocument = closingDocumentId
     ? workspace.state.documents[closingDocumentId]
@@ -1003,7 +1008,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
       />
       <DocumentCloseDialog
         open={Boolean(closingDocument) && nbsLossWarnings === null && workspaceWarnings === null}
-        name={closingDocument?.displayName ?? ''}
+        name={closingDocument ? songTabLabel(closingDocument, t('studio.untitled')) : ''}
         busy={closeBusy}
         error={closeError}
         onCancel={() => setClosingDocumentId(null)}

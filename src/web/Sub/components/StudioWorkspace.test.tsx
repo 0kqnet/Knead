@@ -13,6 +13,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) => ({
       'studio.song_tabs': 'Open songs',
+      'studio.untitled': 'Untitled',
       'studio.song_tab_unsaved': 'Unsaved',
       'studio.song_tab_saving': 'Saving',
       'studio.song_tab_new': 'New song tab',

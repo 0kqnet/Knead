@@ -47,6 +47,8 @@ test('shares live preferences and ready sound catalogs with a separate Studio wi
     await expect(studio.locator('html')).toHaveAttribute('data-mode', theme.toLowerCase())
     await main.getByText(language, { exact: true }).click()
     await expect(studio.getByRole('button', { name: locale.studio.add_marker, exact: true })).toBeVisible()
+    await expect(studio.getByRole('tab', { name: locale.studio.untitled, exact: true })).toBeVisible()
+    await expect(studio).toHaveTitle(`Knead Studio - (${locale.studio.unsaved})`)
   }
   await main.keyboard.press('Escape')
 

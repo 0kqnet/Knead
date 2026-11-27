@@ -390,9 +390,9 @@ export const TimelineEditor: React.FC<Props> = ({
   }, [currentTargetVersion, filePath, timeline])
 
   useEffect(() => {
-    const name = filePath ? filePath.replace(/^.*[\\/]/, '') : '(未保存)'
+    const name = filePath ? filePath.replace(/^.*[\\/]/, '') : `(${t('studio.unsaved')})`
     document.title = `${dirty ? '* ' : ''}Knead Studio - ${name}`
-  }, [dirty, filePath])
+  }, [dirty, filePath, t])
 
   const preloadKeyRef = useRef('')
   useEffect(() => {
