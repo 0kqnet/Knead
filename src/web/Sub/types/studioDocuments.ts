@@ -41,6 +41,7 @@ export interface StudioDocument {
   nbsTargetVersion: NbsTargetVersion | null
   displayName: string
   pristineUntitled: boolean
+  followsMainVersion: boolean
   selection: StudioDocumentSelection
   view: StudioDocumentView
   status: StudioDocumentStatus

@@ -51,7 +51,7 @@ type InstallStudioSongOutcome = 'opened' | 'remove-recent' | 'retain-recent'
 export interface StudioWorkspaceProps {
   defaultSoundId?: string
   defaultTargetVersion?: string
-  activateTargetVersion?: (version: string) => void | Promise<void>
+  activateTargetVersion?: (version: string, signal: AbortSignal) => void | Promise<void>
 }
 
 function displayName(path: string): string {
@@ -83,6 +83,12 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
   workspaceRef.current = workspace
   const activeDocument = workspace.activeDocument
   const activeState = activeDocument.history.current
+  const activeTargetVersion = (activeDocument.followsMainVersion ? defaultTargetVersion : activeState.targetVersion)
+    || defaultTargetVersion
+  const { syncMainVersion } = workspace
+  useEffect(() => {
+    syncMainVersion(defaultTargetVersion)
+  }, [defaultTargetVersion, syncMainVersion, workspace.state.order])
   const [blockingDialogOpen, setBlockingDialogOpen] = useState(false)
   const [isProjectDragOver, setIsProjectDragOver] = useState(false)
   const [announcement, setAnnouncement] = useState('')
@@ -171,42 +177,43 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
     error: string | null
   }>({
     documentId: activeDocument.id,
-    version: activeState.targetVersion || defaultTargetVersion,
+    version: activeTargetVersion,
     ready: !activateTargetVersion,
     error: null,
   })
-  const targetGenerationRef = useRef(0)
+  const [targetAttempt, setTargetAttempt] = useState(0)
 
   useEffect(() => {
-    const generation = ++targetGenerationRef.current
+    const controller = new AbortController()
     const documentId = activeDocument.id
-    const version = activeState.targetVersion || defaultTargetVersion
-    if (!activateTargetVersion || !version) {
+    const version = activeTargetVersion
+    if (!activateTargetVersion) {
       setTargetActivation({ documentId, version, ready: true, error: null })
       return
     }
     setTargetActivation({ documentId, version, ready: false, error: null })
-    void Promise.resolve(activateTargetVersion(version)).then(() => {
-      if (targetGenerationRef.current === generation) {
+    void Promise.resolve(activateTargetVersion(version, controller.signal)).then(() => {
+      if (!controller.signal.aborted) {
         setTargetActivation({ documentId, version, ready: true, error: null })
       }
     }).catch((error) => {
-      if (targetGenerationRef.current === generation) {
+      if (!controller.signal.aborted) {
         setTargetActivation({ documentId, version, ready: false, error: String(error) })
       }
     })
-  }, [activateTargetVersion, activeDocument.id, activeState.targetVersion, defaultTargetVersion])
+    return () => controller.abort()
+  }, [activateTargetVersion, activeDocument.id, activeTargetVersion, targetAttempt])
 
   const audioReady = audioActivation.canMountEditor
     && audioActivation.activeProjectId === activeDocument.id
-  const activeTargetVersion = activeState.targetVersion || defaultTargetVersion
   const targetReady = targetActivation.documentId === activeDocument.id
     && targetActivation.version === activeTargetVersion
     && targetActivation.ready
   const editorReady = audioReady && targetReady
-  const activationError = audioActivation.requestedProjectId === activeDocument.id
-    ? audioActivation.error
-    : targetActivation.documentId === activeDocument.id ? targetActivation.error : undefined
+  const targetError = targetActivation.documentId === activeDocument.id && targetActivation.version === activeTargetVersion
+    ? targetActivation.error
+    : null
+  const activationError = (audioActivation.requestedProjectId === activeDocument.id && audioActivation.error) || targetError
 
   const registerRecoveryController = useCallback((
     documentId: string,
@@ -267,7 +274,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
         filePath: null,
         displayName: name,
       })
-      controller.updateDocument(reusable.id, { pristineUntitled: false })
+      controller.updateDocument(reusable.id, { pristineUntitled: false, followsMainVersion: false })
     }
     else {
       const id = controller.openDocument(state, {
@@ -863,7 +870,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
                 documentFilePath={activeDocument.filePath}
                 documentDirty={isStudioDocumentDirty(activeDocument)}
                 defaultSoundId={defaultSoundId}
-                currentTargetVersion={activeState.targetVersion || defaultTargetVersion}
+                currentTargetVersion={activeTargetVersion}
                 projectAudioManagedExternally
                 recoveryEnabled={false}
                 autoOpenRecoveryDialog={false}
@@ -888,7 +895,7 @@ export const StudioWorkspace: React.FC<StudioWorkspaceProps> = ({
               <Box h="100%" display="flex" flexDir="column" alignItems="center" justifyContent="center" gap="3">
                 <Text>{activationError ?? t('studio.song_tab_switching_audio')}</Text>
                 {activationError && (
-                  <Button size="sm" onClick={() => window.location.reload()}>{t('studio.retry')}</Button>
+                  <Button size="sm" onClick={() => targetError ? setTargetAttempt(attempt => attempt + 1) : window.location.reload()}>{t('studio.retry')}</Button>
                 )}
               </Box>
             )}

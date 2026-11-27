@@ -1,28 +1,16 @@
 import './Studio.css'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAddDispatch, useAppSelector } from '../../store/_store'
-import { updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
+import { updateSoundList } from '../../store/fetchSlice'
 import { StudioWorkspace } from './components/StudioWorkspace'
-import { VersionInfoType } from '../../types/VersionInfo'
 
 export const SubApp = () => {
   const dispatch = useAddDispatch()
   const targetVersion = useAppSelector(s => s.fetch.targetVersion)
 
-  useEffect(() => {
-    ;(async () => {
-      const version = await window.myAPI.getSetting('selectedVersion')
-      if (version) dispatch(updateTargetVersion({ targetVersion: version as VersionInfoType }))
-      else {
-        const list = await window.myAPI.getCurrentSounds()
-        if (Array.isArray(list)) dispatch(updateSoundList({ sounds: list }))
-      }
-    })()
-  }, [dispatch])
-
-  const activateTargetVersion = useCallback(async (version: string) => {
-    const list = await window.myAPI.get_mcSounds(version)
-    dispatch(updateSoundList({ sounds: list }))
+  const activateTargetVersion = useCallback(async (version: string, signal: AbortSignal) => {
+    const sounds = version ? await window.myAPI.get_mcSounds(version) : await window.myAPI.getCurrentSounds()
+    if (!signal.aborted) dispatch(updateSoundList({ sounds }))
   }, [dispatch])
 
   const [mainSelectedId, setMainSelectedId] = useState<string>('')

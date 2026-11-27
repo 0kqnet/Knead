@@ -3,18 +3,12 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   Box, Button, ChevronDownIcon, CircleCheckIcon, DownloadIcon, HStack, Text,
 } from '@yamada-ui/react'
-import { useAddDispatch } from '../../store/_store'
-import { Sound, updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
+import { useAddDispatch, useAppSelector } from '../../store/_store'
+import { updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
 import { VersionInfoType, compareReleaseVersionInfo, compareSnapshotVersionInfo, comparePreReleaseVersionInfo, compareReleaseCandidateVersionInfo, parseVersion } from '../../types/VersionInfo'
 import { useTranslation } from 'react-i18next'
-import { listen } from '@tauri-apps/api/event'
 import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window'
-
-type AssetDownloadProgress = {
-  version: string
-  completedAssets: number
-  totalAssets: number
-}
+import type { AssetDownloadProgress } from '../../../@types/global'
 
 type AvailableVersion = VersionInfoType & {
   downloaded: boolean
@@ -241,7 +235,10 @@ export const VersionSelector = () => {
   const dispatch = useAddDispatch()
 
   const [versions, setVersions] = useState<AvailableVersion[]>([])
-  const [SelectedVersion, setSelectedVersion] = useState('')
+  const savedVersion = useAppSelector(state => state.fetch.targetVersion?.raw ?? '')
+  const [requestedVersion, setRequestedVersion] = useState('')
+  const versionToLoad = requestedVersion || savedVersion
+  const loadedVersion = useRef('')
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<AssetDownloadProgress | null>(null)
 
@@ -267,23 +264,30 @@ export const VersionSelector = () => {
   }, [])
 
   useEffect(() => {
-    if (!SelectedVersion) return
+    if (!versionToLoad || versionToLoad === loadedVersion.current) return
     let cancelled = false
     void (async () => {
       setIsDownloading(true)
       setDownloadProgress(null)
       let stopListening: (() => void) | undefined
       try {
-        stopListening = await listen<AssetDownloadProgress>('asset-download-progress', (event) => {
-          if (!cancelled && event.payload.version === SelectedVersion) {
-            setDownloadProgress(event.payload)
+        stopListening = await window.myAPI.onAssetDownloadProgress((progress) => {
+          if (!cancelled && progress.version === versionToLoad) {
+            setDownloadProgress(progress)
           }
         })
-        await window.myAPI.downloadVersionAssets(SelectedVersion)
-        const sounds: Sound[] = await window.myAPI.get_mcSounds(SelectedVersion)
+        if (cancelled) return
+        await window.myAPI.downloadVersionAssets(versionToLoad)
+        if (cancelled) return
+        const sounds = await window.myAPI.get_mcSounds(versionToLoad)
+        if (cancelled) return
+        const selectedVersion = parseVersion(versionToLoad)
+        await window.myAPI.updateSettings({ selectedVersion })
         if (!cancelled) {
+          loadedVersion.current = versionToLoad
+          dispatch(updateTargetVersion({ targetVersion: selectedVersion }))
           setVersions(versions => versions.map((version) => {
-            return version.raw === SelectedVersion ? { ...version, downloaded: true } : version
+            return version.raw === versionToLoad ? { ...version, downloaded: true } : version
           }))
           dispatch(updateSoundList({ sounds }))
         }
@@ -297,13 +301,14 @@ export const VersionSelector = () => {
         stopListening?.()
         if (!cancelled) {
           setIsDownloading(false)
+          setRequestedVersion('')
         }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [SelectedVersion, dispatch])
+  }, [versionToLoad, requestedVersion, dispatch])
 
   const versionRows = useMemo<VersionRow[]>(() => {
     const major_versions = versions.filter(v => v.kind === 'release').sort(compareReleaseVersionInfo).reverse()
@@ -318,20 +323,14 @@ export const VersionSelector = () => {
     ]
   }, [t, versions])
 
-  const onChangeVersion = useCallback((version: string) => {
-    setSelectedVersion(version)
-    const parsedVersion = parseVersion(version)
-    dispatch(updateTargetVersion({ targetVersion: parsedVersion }))
-  }, [dispatch])
-
   return (
     <HStack gap={2}>
       <VirtualVersionSelect
         disabled={isDownloading}
-        onChange={onChangeVersion}
+        onChange={(version) => { if (version !== loadedVersion.current) setRequestedVersion(version) }}
         placeholder={t('version_select')}
         rows={versionRows}
-        value={SelectedVersion}
+        value={versionToLoad}
       />
       {isDownloading && (
         <HStack gap={1} whiteSpace="nowrap">

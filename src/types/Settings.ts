@@ -6,3 +6,5 @@ export interface SoundSort {
 }
 
 export type SettingType = string | number | number[] | boolean | SoundSort | VersionInfoType | null | undefined
+
+export type Settings = Record<string, SettingType>

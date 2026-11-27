@@ -170,6 +170,7 @@ static EXPORT_JOB_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Default)]
 struct AppState {
+    settings_lock: Mutex<()>,
     selected_sound: Mutex<String>,
     current_sounds: Mutex<Vec<Sound>>,
     timeline_paths: Mutex<HashMap<(String, String), PathBuf>>,
@@ -1010,6 +1011,12 @@ fn rating_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn merged_settings(app: &AppHandle) -> Result<Value, String> {
+    let state = app.state::<AppState>();
+    let _guard = state.settings_lock.lock().map_err(|err| err.to_string())?;
+    read_settings(app)
+}
+
+fn read_settings(app: &AppHandle) -> Result<Value, String> {
     let defaults = default_settings();
     let stored = load_json(&settings_path(app)?, defaults.clone());
     let mut merged = defaults.as_object().cloned().unwrap_or_default();
@@ -1157,7 +1164,11 @@ async fn download_version_assets(
 }
 
 #[tauri::command]
-fn get_mc_sounds(version: String, state: State<'_, AppState>) -> Result<Vec<Sound>, String> {
+fn get_mc_sounds(
+    version: String,
+    window: tauri::Window,
+    state: State<'_, AppState>,
+) -> Result<Vec<Sound>, String> {
     validate_version(&version)?;
     let root = minecraft_dir()?;
     let version_json = root
@@ -1220,10 +1231,12 @@ fn get_mc_sounds(version: String, state: State<'_, AppState>) -> Result<Vec<Soun
         });
     }
     result.sort_by(|a, b| a.id.cmp(&b.id));
-    *state
-        .current_sounds
-        .lock()
-        .map_err(|error| error.to_string())? = result.clone();
+    if window.label() == "main" {
+        *state
+            .current_sounds
+            .lock()
+            .map_err(|error| error.to_string())? = result.clone();
+    }
     Ok(result)
 }
 
@@ -1274,7 +1287,9 @@ fn load_settings(app: AppHandle) -> Result<Value, String> {
 
 #[tauri::command]
 fn update_settings(app: AppHandle, partial: Value) -> Result<(), String> {
-    let mut settings = merged_settings(&app)?;
+    let state = app.state::<AppState>();
+    let _guard = state.settings_lock.lock().map_err(|err| err.to_string())?;
+    let mut settings = read_settings(&app)?;
     let target = settings
         .as_object_mut()
         .ok_or_else(|| "Invalid settings".to_string())?;
@@ -1282,7 +1297,17 @@ fn update_settings(app: AppHandle, partial: Value) -> Result<(), String> {
         .as_object()
         .ok_or_else(|| "Settings update must be an object".to_string())?;
     target.extend(values.clone());
-    write_json(&settings_path(&app)?, &settings)
+    write_json(&settings_path(&app)?, &settings)?;
+    let shared: serde_json::Map<_, _> = values
+        .iter()
+        .filter(|(key, _)| matches!(key.as_str(), "theme" | "language" | "selectedVersion"))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    if !shared.is_empty() {
+        app.emit("settings-changed", &shared)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1295,12 +1320,7 @@ fn get_setting(app: AppHandle, key: String) -> Result<Value, String> {
 
 #[tauri::command]
 fn set_setting(app: AppHandle, key: String, value: Value) -> Result<(), String> {
-    let mut settings = merged_settings(&app)?;
-    settings
-        .as_object_mut()
-        .ok_or_else(|| "Invalid settings".to_string())?
-        .insert(key, value);
-    write_json(&settings_path(&app)?, &settings)
+    update_settings(app, json!({ (key): value }))
 }
 
 #[tauri::command]

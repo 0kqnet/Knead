@@ -16,6 +16,28 @@ import {
 } from './useStudioDocuments'
 
 describe('useStudioDocuments', () => {
+  it('follows the main version across edits and undo until the song is saved', () => {
+    const { result } = renderHook(() => useStudioDocuments())
+    act(() => result.current.syncMainVersion('1.20.4'))
+    expect(isStudioDocumentDirty(result.current.activeDocument)).toBe(false)
+    act(() => {
+      result.current.activeTimeline.addMarker({ tick: 4, soundId: 'a' })
+    })
+    act(() => result.current.syncMainVersion('1.21.4'))
+    expect(result.current.activeTimeline.state.targetVersion).toBe('1.21.4')
+    expect(result.current.activeTimeline.state.markers).toHaveLength(1)
+    act(() => result.current.activeTimeline.undo())
+    expect(result.current.activeTimeline.state.targetVersion).toBe('1.21.4')
+    expect(isStudioDocumentDirty(result.current.activeDocument)).toBe(false)
+    act(() => result.current.activeTimeline.redo())
+    act(() => result.current.setDocumentSavePoint(
+      result.current.activeDocument.id, result.current.activeTimeline.state, { filePath: 'song.kp' },
+    ))
+    act(() => result.current.syncMainVersion('1.20.4'))
+    expect(result.current.activeTimeline.state.targetVersion).toBe('1.21.4')
+    expect(isStudioDocumentDirty(result.current.activeDocument)).toBe(false)
+  })
+
   it('stores direct NBS format and source version 0 without a truthy fallback', () => {
     const document = createStudioDocument({
       filePath: 'C:\\Music\\classic.nbs',

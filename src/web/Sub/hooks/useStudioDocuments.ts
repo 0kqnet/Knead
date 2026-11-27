@@ -45,6 +45,7 @@ export type StudioDocumentUpdate = Partial<Pick<
   | 'nbsTargetVersion'
   | 'displayName'
   | 'pristineUntitled'
+  | 'followsMainVersion'
   | 'selection'
   | 'view'
   | 'status'
@@ -55,6 +56,7 @@ export type StudioDocumentUpdate = Partial<Pick<
 
 export type StudioDocumentsAction =
   | { type: 'add', document: StudioDocument, activate: boolean }
+  | { type: 'mainVersion', version: string }
   | { type: 'activate', documentId: string }
   | { type: 'timeline', documentId: string, action: TimelineHistoryAction }
   | { type: 'update', documentId: string, patch: StudioDocumentUpdate }
@@ -99,6 +101,7 @@ export function createStudioDocument(options: CreateStudioDocumentOptions = {}):
     displayName: options.displayName ?? pathName(filePath) ?? 'Untitled',
     pristineUntitled: options.pristineUntitled
       ?? (options.state === undefined && filePath === null && saved),
+    followsMainVersion: options.state === undefined && filePath === null,
     selection: {
       markerIds: [],
       anchorMarkerId: null,
@@ -216,6 +219,34 @@ export function studioDocumentsReducer(
   action: StudioDocumentsAction,
 ): StudioDocumentsState {
   switch (action.type) {
+    case 'mainVersion': {
+      // Retargeting a new song is a preference change. Preserve undo and the
+      // shared identity between its save point and its history revisions.
+      const revisions = new Map<TimelineState, TimelineState>()
+      const retarget = (revision: TimelineState) => {
+        if (revision.targetVersion === action.version) return revision
+        const next = revisions.get(revision) ?? { ...revision, targetVersion: action.version }
+        revisions.set(revision, next)
+        return next
+      }
+      let documents = state.documents
+      for (const document of Object.values(documents)) {
+        const { history, savePoint } = document
+        if (!document.followsMainVersion || history.current.targetVersion === action.version) continue
+        if (documents === state.documents) documents = { ...documents }
+        documents[document.id] = {
+          ...document,
+          history: {
+            current: retarget(history.current),
+            past: history.past.map(retarget),
+            future: history.future.map(retarget),
+            txSnapshot: history.txSnapshot && retarget(history.txSnapshot),
+          },
+          savePoint: savePoint && retarget(savePoint),
+        }
+      }
+      return documents === state.documents ? state : { ...state, documents }
+    }
     case 'add': {
       if (
         state.documents[action.document.id]
@@ -279,6 +310,7 @@ export function studioDocumentsReducer(
             ...(hasFilePath ? { filePath: action.filePath ?? null } : {}),
             ...(action.displayName === undefined ? {} : { displayName: action.displayName }),
             pristineUntitled: hasFilePath && action.filePath ? false : document.pristineUntitled,
+            followsMainVersion: action.filePath ? false : document.followsMainVersion,
           },
         },
       }
@@ -353,6 +385,8 @@ export function useStudioDocuments(initialState?: StudioDocumentsState) {
   )
   const stateRef = useRef(state)
   stateRef.current = state
+
+  const syncMainVersion = useCallback((version: string) => dispatch({ type: 'mainVersion', version }), [])
 
   const dispatchTimeline = useCallback((documentId: string, action: TimelineHistoryAction) => {
     dispatch({ type: 'timeline', documentId, action })
@@ -457,6 +491,7 @@ export function useStudioDocuments(initialState?: StudioDocumentsState) {
     activeDocument,
     activeTimeline,
     dirtyDocumentIds,
+    syncMainVersion,
     canAddDocument: state.order.length < MAX_STUDIO_DOCUMENTS,
     dispatchTimeline,
     newDocument,
@@ -485,6 +520,7 @@ export function useStudioDocuments(initialState?: StudioDocumentsState) {
     pasteIntoDocument,
     setDocumentSavePoint,
     state,
+    syncMainVersion,
     updateDocument,
   ])
 }

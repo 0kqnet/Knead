@@ -1,8 +1,8 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import type { Sandbox } from '../@types/global'
-import type { SettingType } from './types/Settings'
+import type { AssetDownloadProgress, Sandbox } from '../@types/global'
+import type { Settings } from './types/Settings'
 import { createLocalTimelineRecoveryApi } from './web/Sub/utils/timelineRecovery'
 
 const invokeVoid = async (command: string, args?: Record<string, unknown>): Promise<void> => {
@@ -12,6 +12,7 @@ const invokeVoid = async (command: string, args?: Record<string, unknown>): Prom
 const api: Sandbox = {
   get_versions: () => invoke<{ id: string, downloaded: boolean }[]>('get_versions'),
   downloadVersionAssets: version => invoke('download_version_assets', { version }),
+  onAssetDownloadProgress: handler => listen<AssetDownloadProgress>('asset-download-progress', event => handler(event.payload)),
   get_mcSounds: version => invoke('get_mc_sounds', { version }),
   get_mcSoundHash: async (hash) => {
     const path = await invoke<string>('get_mc_sound_hash', { hash })
@@ -27,9 +28,8 @@ const api: Sandbox = {
     void invokeVoid('make_sub_window')
   },
   loadSettings: () => invoke('load_settings'),
-  updateSettings: (partial) => {
-    void invokeVoid('update_settings', { partial })
-  },
+  updateSettings: partial => invokeVoid('update_settings', { partial }),
+  onSettingsChanged: handler => listen<Settings>('settings-changed', event => handler(event.payload)),
   getSetting: key => invoke('get_setting', { key }),
   setSetting: (key, value) => {
     void invokeVoid('set_setting', { key, value })
@@ -123,7 +123,18 @@ const api: Sandbox = {
   },
 }
 
-const previewSettings = new Map<string, SettingType>()
+const previewSettingsPrefix = 'knead.preview.setting.'
+const readPreviewSetting = (key: string) => JSON.parse(localStorage.getItem(previewSettingsPrefix + key) ?? 'null')
+
+function updatePreviewSettings(changes: Settings) {
+  for (const [name, value] of Object.entries(changes)) {
+    const key = previewSettingsPrefix + name
+    const newValue = JSON.stringify(value ?? null)
+    localStorage.setItem(key, newValue)
+    // Browsers deliver storage events only to the other windows.
+    window.dispatchEvent(new StorageEvent('storage', { key, newValue, storageArea: localStorage }))
+  }
+}
 let previewSelectedSound = 'block.note_block.harp'
 const previewSound = {
   id: previewSelectedSound,
@@ -176,15 +187,28 @@ const previewTimelinePaths = new Map<string, string>()
 const previewApi: Sandbox = {
   get_versions: async () => [],
   downloadVersionAssets: async version => ({ version, assetIndex: '', downloadedAssets: 0, reusedAssets: 0 }),
+  onAssetDownloadProgress: async () => () => undefined,
   get_mcSounds: async () => [previewSound],
   get_mcSoundHash: async () => '',
   get_mcSoundData: async hash => hash === 'preview-tone' ? previewTone.slice(0) : new ArrayBuffer(0),
   get_mcMarkerIcons: async () => ({}),
   make_sub_window: () => undefined,
-  loadSettings: async () => null,
-  updateSettings: (partial) => { Object.entries(partial).forEach(([key, value]) => previewSettings.set(key, value)) },
-  getSetting: async key => previewSettings.get(key),
-  setSetting: (key, value) => { previewSettings.set(key, value) },
+  loadSettings: async () => Object.fromEntries(Object.keys(localStorage)
+    .filter(key => key.startsWith(previewSettingsPrefix))
+    .map(key => key.slice(previewSettingsPrefix.length))
+    .map(name => [name, readPreviewSetting(name)])),
+  updateSettings: async partial => updatePreviewSettings(partial),
+  onSettingsChanged: async (handler) => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key?.startsWith(previewSettingsPrefix) && event.newValue !== null) {
+        handler({ [event.key.slice(previewSettingsPrefix.length)]: JSON.parse(event.newValue) })
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  },
+  getSetting: async key => readPreviewSetting(key),
+  setSetting: (key, value) => updatePreviewSettings({ [key]: value }),
   loadRatingStar: async () => ({}),
   saveRatingStar: async () => undefined,
   saveRatingStarAsString: async () => undefined,

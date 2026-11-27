@@ -1,5 +1,5 @@
 import { Sound } from '../src/store/fetchSlice'
-import { SettingType } from '../src/types/Settings'
+import { Settings, SettingType } from '../src/types/Settings'
 import type { TimelineState } from '../src/web/Sub/types/timeline'
 import type { TimelineRecoveryApi } from '../src/web/Sub/types/recovery'
 
@@ -131,6 +131,12 @@ declare global {
   }
 }
 
+export interface AssetDownloadProgress {
+  version: string
+  completedAssets: number
+  totalAssets: number
+}
+
 export interface Sandbox {
   get_versions: () => Promise<{ id: string, downloaded: boolean }[]>
   downloadVersionAssets: (version: string) => Promise<{
@@ -139,6 +145,7 @@ export interface Sandbox {
     downloadedAssets: number
     reusedAssets: number
   }>
+  onAssetDownloadProgress: (handler: (progress: AssetDownloadProgress) => void) => Promise<() => void>
   get_mcSounds: (version: string) => Promise<Sound[]>
   get_mcSoundHash: (hash: string) => Promise<string>
   get_mcSoundData: (hash: string) => Promise<ArrayBuffer>
@@ -147,8 +154,9 @@ export interface Sandbox {
     soundIds: string[],
   ) => Promise<Record<string, MarkerVisualIcon>>
   make_sub_window: () => void
-  loadSettings: () => Promise<SettingType>
-  updateSettings: (partial: Record<string, SettingType>) => void
+  loadSettings: () => Promise<Settings>
+  updateSettings: (partial: Settings) => Promise<void>
+  onSettingsChanged: (handler: (changes: Settings) => void) => Promise<() => void>
   getSetting: <Key extends string>(key: Key) => Promise<SettingType>
   setSetting: <Key extends string>(key: Key, value: SettingType) => void
   loadRatingStar: () => Promise<{ [key: string]: number }>
