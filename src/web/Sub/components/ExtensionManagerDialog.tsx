@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { StudioDialogClose } from './StudioDialogClose'
+import { useModalDialog } from '../hooks/useModalDialog'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineState } from '../types/timeline'
 import { DeclarativeExtensionPackagesPanel } from './DeclarativeExtensionPackagesPanel'
@@ -91,6 +92,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
   const [extensions, setExtensions] = useState<readonly ExtensionInfo[]>(() => registry.list())
   const [busy, setBusy] = useState<string | null>(null)
   const [packagesBusy, setPackagesBusy] = useState(false)
+  const operationBusy = busy !== null || packagesBusy
+  const { dialogRef } = useModalDialog({ open, busy: operationBusy, onClose })
   const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [humanizeOptions, setHumanizeOptions] = useState<HumanizeOptions>(DEFAULT_HUMANIZE_OPTIONS)
   const [notePreset, setNotePreset] = useState<NoteBlockPreset>('major')
@@ -243,7 +246,6 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
   }
 
   const noSelection = selectedMarkerIds.length === 0
-  const operationBusy = busy !== null || packagesBusy
 
   return (
     <Box
@@ -254,7 +256,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
       <Box
         w="760px" maxW="calc(100vw - 32px)" maxH="92vh" overflowY="auto"
         bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
-        role="dialog" aria-modal="true" aria-label="Studio extensions"
+        ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Studio extensions"
       >
         <Flex align="start" gap="3">
           <Box>

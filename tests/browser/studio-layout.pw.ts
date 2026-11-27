@@ -32,6 +32,16 @@ test('opens select options above Studio dialogs and keeps the marker selected on
   await expect(macros).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(macros).toBeHidden()
+
+  await page.getByRole('button', { name: 'Tools' }).click()
+  await page.getByRole('menuitem', { name: 'Extensions', exact: true }).click()
+  const extensions = page.getByRole('dialog', { name: 'Studio extensions' })
+  await extensions.getByRole('combobox', { name: 'Note block preset' }).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('listbox')).toBeHidden()
+  await expect(extensions).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(extensions).toBeHidden()
 })
 
 test('keeps the selected track, inspector and mixer controls reachable together', async ({ page }) => {
