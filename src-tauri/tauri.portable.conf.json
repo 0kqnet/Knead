@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "com.neac.knead.portable",
+  "mainBinaryName": "Knead-Portable",
+  "app": {
+    "appDirectoriesOverride": "KneadData",
+    "security": {
+      "assetProtocol": {
+        "scope": {
+          "allow": ["$APPDATA/.minecraft/assets/objects/**/*"]
+        }
+      }
+    }
+  }
+}

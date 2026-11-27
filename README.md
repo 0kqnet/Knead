@@ -3,6 +3,20 @@ Minecraftの`/playsound`コマンドを容易にするためのデスクトッ�
 
 A desktop app that lets you easily create Minecraft `/playsound` commands
 
+## ダウンロード / Downloads
+
+Windows 版は x64・ARM64 それぞれにインストーラーとポータブル版があります。
+GitHub Actions の `windows-x64-portable` または `windows-arm64-portable` をダウンロードし、ZIP を書き込み可能なフォルダーに展開して `_portable.exe` を起動してください。タグ付きリリースでは同じ実行ファイルを直接ダウンロードできます。
+設定・お気に入り・Studio の復旧データ・Minecraft 音源は、実行ファイルの隣の `KneadData` に保存されます。別の PC へはフォルダーごと移し、更新時はアプリを終了して実行ファイルを入れ替えてください。起動には Microsoft Edge WebView2 Runtime が必要です。
+macOS 版は Universal DMG、Linux 版は x64・ARM64 の AppImage で配布しています。
+
+Windows x64 and ARM64 builds each include an installer and a portable executable.
+Extract the `windows-x64-portable` or `windows-arm64-portable` Actions artifact into a writable folder and run the `_portable.exe` file. Tagged releases also offer the executable directly.
+Keep its adjacent `KneadData` folder when moving or updating the app. It contains preferences, ratings, Studio recovery data and downloaded Minecraft sounds. Close Knead before replacing the executable. The portable build uses the Microsoft Edge WebView2 Runtime.
+macOS builds ship as a universal DMG and Linux builds as x64 and ARM64 AppImages.
+
+[GitHub Actions](https://github.com/0kqnet/Knead/actions/workflows/release.yml) · [Releases](https://github.com/0kqnet/Knead/releases)
+
 ## Ultimate Studio
 
 Studio can arrange sounds on a multi-track timeline with cached waveforms, an
@@ -198,6 +212,14 @@ npm run package:win
 npm run package:mac
 npm run package:linux
 ```
+
+Build the Windows portable executable locally with the following command.
+
+```sh
+npm run package:win:portable
+```
+
+The executable is written to `src-tauri/target/release/Knead-Portable.exe` when building for the host architecture.
 
 Application settings are stored in Tauri's application config directory.
 On first launch, existing `settings.json` and `ratingStar.json` files from the

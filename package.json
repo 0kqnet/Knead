@@ -9,6 +9,7 @@
     "build": "cross-env NODE_ENV=\"production\" webpack --config webpack.config.mts --progress",
     "package": "tauri build",
     "package:win": "tauri build --bundles nsis",
+    "package:win:portable": "tauri build --no-bundle --config src-tauri/tauri.portable.conf.json",
     "package:mac": "tauri build --bundles dmg",
     "package:linux": "tauri build --bundles appimage",
     "tauri": "tauri",

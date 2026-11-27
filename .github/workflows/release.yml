@@ -111,6 +111,49 @@ jobs:
           uploadWorkflowArtifacts: true
           workflowArtifactNamePattern: ${{ matrix.name }}
 
+      - name: Build Windows portable executable
+        if: runner.os == 'Windows'
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run package:win:portable -- --target ${{ matrix.rust-targets }}
+
+      - name: Verify portable startup and settings location
+        if: runner.os == 'Windows'
+        id: portable
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $stage = New-Item -ItemType Directory -Path (Join-Path $env:RUNNER_TEMP "Knead Portable ${{ github.run_attempt }}")
+          $binary = Join-Path $stage.FullName "Knead_${version}_${{ matrix.name }}_portable.exe"
+          Copy-Item -LiteralPath "src-tauri/target/${{ matrix.rust-targets }}/release/Knead-Portable.exe" -Destination $binary
+          $settings = Join-Path $stage.FullName 'KneadData/settings.json'
+          $process = Start-Process -FilePath $binary -WorkingDirectory $env:GITHUB_WORKSPACE -WindowStyle Hidden -PassThru
+          try {
+            $deadline = [DateTime]::UtcNow.AddSeconds(90)
+            while (!(Test-Path -LiteralPath $settings -PathType Leaf) -or (Get-Item -LiteralPath $settings).Length -eq 0) {
+              if ($process.HasExited) { throw "Portable executable exited with code $($process.ExitCode)" }
+              if ([DateTime]::UtcNow -ge $deadline) { throw "Portable startup did not create $settings" }
+              Start-Sleep -Milliseconds 250
+            }
+            if (!(Get-Content -Raw -LiteralPath $settings | ConvertFrom-Json).theme) {
+              throw "Portable settings are missing a theme"
+            }
+          } finally {
+            if (!$process.HasExited) {
+              $null = $process.CloseMainWindow()
+              if (!$process.WaitForExit(5000)) { $process.Kill() }
+            }
+          }
+          "path=$binary" >> $env:GITHUB_OUTPUT
+
+      - name: Upload Windows portable executable
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}-portable
+          path: ${{ steps.portable.outputs.path }}
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
     needs: build

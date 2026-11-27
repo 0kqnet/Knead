@@ -242,7 +242,18 @@ fn updater_text(language: &str) -> UpdaterText {
     }
 }
 
-fn minecraft_dir() -> Result<PathBuf, String> {
+fn is_portable(app: &AppHandle) -> bool {
+    app.config().identifier == "com.neac.knead.portable"
+}
+
+fn minecraft_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    if is_portable(app) {
+        return app
+            .path()
+            .app_data_dir()
+            .map(|dir| dir.join(".minecraft"))
+            .map_err(|error| error.to_string());
+    }
     #[cfg(target_os = "windows")]
     {
         env::var_os("APPDATA")
@@ -891,9 +902,9 @@ fn load_marker_icons(
     Ok(icons)
 }
 
-async fn ensure_client_jar(version: &str) -> Result<PathBuf, String> {
+async fn ensure_client_jar(app: &AppHandle, version: &str) -> Result<PathBuf, String> {
     validate_version(version)?;
-    let root = minecraft_dir()?;
+    let root = minecraft_dir(app)?;
     let client = reqwest::Client::new();
     let metadata = ensure_version_metadata(&client, &root, version).await?;
     let artifact = metadata
@@ -955,6 +966,10 @@ fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .app_config_dir()
         .map_err(|error| error.to_string())?;
     fs::create_dir_all(&target).map_err(|error| error.to_string())?;
+
+    if is_portable(app) {
+        return Ok(target);
+    }
 
     // Electron stored data under %APPDATA%/knead (or the platform equivalent).
     // Copy the two user files once so the desktop migration is lossless.
@@ -1077,8 +1092,8 @@ fn append_entry(
 }
 
 #[tauri::command]
-async fn get_versions() -> Result<Vec<MinecraftVersion>, String> {
-    let root = minecraft_dir()?;
+async fn get_versions(app: AppHandle) -> Result<Vec<MinecraftVersion>, String> {
+    let root = minecraft_dir(&app)?;
     let local = local_versions(&root)?;
     let mut versions = local
         .iter()
@@ -1112,7 +1127,7 @@ async fn download_version_assets(
     version: String,
 ) -> Result<AssetDownloadResult, String> {
     validate_version(&version)?;
-    let root = minecraft_dir()?;
+    let root = minecraft_dir(&app)?;
     let client = reqwest::Client::new();
     let metadata = ensure_version_metadata(&client, &root, &version).await?;
     let index = ensure_asset_index(&client, &root, &metadata.asset_index).await?;
@@ -1170,7 +1185,7 @@ fn get_mc_sounds(
     state: State<'_, AppState>,
 ) -> Result<Vec<Sound>, String> {
     validate_version(&version)?;
-    let root = minecraft_dir()?;
+    let root = minecraft_dir(window.app_handle())?;
     let version_json = root
         .join("versions")
         .join(&version)
@@ -1241,14 +1256,14 @@ fn get_mc_sounds(
 }
 
 #[tauri::command]
-fn get_mc_sound_hash(hash: String) -> Result<String, String> {
+fn get_mc_sound_hash(app: AppHandle, hash: String) -> Result<String, String> {
     if hash.is_empty() {
         return Ok(String::new());
     }
     if hash.len() < 2 || !hash.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err("Invalid sound hash".to_string());
     }
-    Ok(minecraft_dir()?
+    Ok(minecraft_dir(&app)?
         .join("assets/objects")
         .join(&hash[..2])
         .join(hash)
@@ -1257,11 +1272,11 @@ fn get_mc_sound_hash(hash: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn get_mc_sound_data(hash: String) -> Result<tauri::ipc::Response, String> {
+fn get_mc_sound_data(app: AppHandle, hash: String) -> Result<tauri::ipc::Response, String> {
     if hash.len() < 2 || !hash.chars().all(|character| character.is_ascii_hexdigit()) {
         return Err("Invalid sound hash".to_string());
     }
-    let path = minecraft_dir()?
+    let path = minecraft_dir(&app)?
         .join("assets/objects")
         .join(&hash[..2])
         .join(hash);
@@ -1271,10 +1286,11 @@ fn get_mc_sound_data(hash: String) -> Result<tauri::ipc::Response, String> {
 
 #[tauri::command]
 async fn get_mc_marker_icons(
+    app: AppHandle,
     version: String,
     sound_ids: Vec<String>,
 ) -> Result<HashMap<String, MarkerVisualIcon>, String> {
-    let jar_path = ensure_client_jar(&version).await?;
+    let jar_path = ensure_client_jar(&app, &version).await?;
     tauri::async_runtime::spawn_blocking(move || load_marker_icons(&jar_path, &sound_ids))
         .await
         .map_err(|error| error.to_string())?
@@ -3889,7 +3905,7 @@ async fn audio_export_start(
         }
     }
 
-    let root = minecraft_dir()?;
+    let root = minecraft_dir(&app)?;
     let job_id = format!(
         "export-{}-{}",
         std::process::id(),
@@ -4169,7 +4185,9 @@ pub fn run() {
             _ => {}
         })
         .setup(|app| {
-            start_update_check(app.handle().clone());
+            if !is_portable(app.handle()) {
+                start_update_check(app.handle().clone());
+            }
             let args: Vec<String> = env::args().collect();
             if let Ok(cwd) = env::current_dir() {
                 let projects = project_paths_from_args(&args, &cwd);
