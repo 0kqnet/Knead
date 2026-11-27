@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, Flex, Text } from '@yamada-ui/react'
+import { StudioDialogClose } from './StudioDialogClose'
+import { Box, Button, Flex, Input, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import {
   COMMAND_PALETTE_LIMITS,
@@ -268,7 +269,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
     <Box
       ref={overlayRef}
       role="dialog" aria-modal="true" aria-labelledby={`command-palette-title-${instanceId}`}
-      tabIndex={-1} position="fixed" inset="0" zIndex="2250" bg="rgba(0,0,0,.72)"
+      tabIndex={-1} position="fixed" inset="0" zIndex="2250" bg="var(--knead-scrim)"
       display="flex" alignItems="flex-start" justifyContent="center" p="clamp(16px, 8vh, 72px) 16px"
       onPointerDown={(event) => { if (event.target === event.currentTarget) onClose() }}
     >
@@ -284,7 +285,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
           <Flex gap="1">
             <Button
               size="xs" aria-pressed={view === 'commands'}
-              colorScheme={view === 'commands' ? 'cyan' : 'gray'}
+              variant="surface" colorScheme={view === 'commands' ? 'purple' : 'gray'}
               onClick={() => {
                 setView('commands')
                 setQuery('')
@@ -296,7 +297,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
             </Button>
             <Button
               size="xs" aria-pressed={view === 'shortcuts'}
-              colorScheme={view === 'shortcuts' ? 'purple' : 'gray'}
+              variant="surface" colorScheme={view === 'shortcuts' ? 'purple' : 'gray'}
               onClick={() => {
                 setView('shortcuts')
                 setQuery('')
@@ -306,12 +307,12 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
             >
               {t('studio.command_palette_shortcuts')}
             </Button>
-            <Button size="xs" aria-label={t('studio.command_palette_close')} onClick={onClose}>×</Button>
+            <StudioDialogClose aria-label={t('studio.command_palette_close')} onClick={onClose} />
           </Flex>
         </Flex>
 
         <Box px="4" py="3">
-          <input
+          <Input
             ref={inputRef}
             id={inputId}
             role="combobox"
@@ -333,10 +334,6 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
             placeholder={view === 'shortcuts'
               ? t('studio.command_palette_search_shortcuts')
               : t('studio.command_palette_search_commands')}
-            style={{
-              width: '100%', height: 44, borderRadius: 8, border: '1px solid #4b5563',
-              background: '#111827', color: 'white', padding: '0 14px', outline: 'none',
-            }}
           />
           {warningCount > 0 && (
             <Text mt="2" fontSize="xs" color="var(--studio-warning)">
@@ -378,7 +375,8 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
                       id={`command-palette-option-${instanceId}-${index}`}
                       role="option" aria-selected={selected} aria-disabled={command.disabled || undefined}
                       align="center" gap="3" px="3" py="2" borderRadius="md"
-                      bg={selected ? 'gray.700' : 'transparent'} opacity={command.disabled ? 0.55 : 1}
+                      bg={selected ? 'var(--studio-accent-soft)' : 'transparent'} opacity={command.disabled ? 0.55 : 1}
+                      color={selected ? 'var(--studio-accent-text)' : 'var(--studio-text)'}
                       cursor={command.disabled ? 'not-allowed' : 'pointer'}
                       onPointerMove={() => setSelectedIndex(index)}
                       onClick={() => { void execute(command) }}
@@ -389,10 +387,10 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
                             {command.label}
                           </Text>
                           {runningId === command.id && (
-                            <Text fontSize="xs" color="cyan.300">{t('studio.command_palette_running')}</Text>
+                            <Text fontSize="xs" color="var(--studio-accent-text)">{t('studio.command_palette_running')}</Text>
                           )}
                         </Flex>
-                        <Text fontSize="xs" color={disabledReason ? 'orange.300' : 'gray.400'}>
+                        <Text fontSize="xs" color={disabledReason ? 'var(--studio-warning)' : 'var(--studio-muted)'}>
                           {disabledReason || command.description}
                         </Text>
                       </Box>
@@ -400,8 +398,8 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
                         <kbd
                           style={{
                             maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            border: '1px solid #4b5563', borderBottomWidth: 2, borderRadius: 5,
-                            padding: '2px 7px', color: '#d1d5db', fontSize: 11,
+                            border: '1px solid var(--knead-control-line)', borderBottomWidth: 2, borderRadius: 5,
+                            padding: '2px 7px', color: 'var(--studio-muted)', fontSize: 11,
                           }}
                         >
                           {command.shortcut}
@@ -416,10 +414,10 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
         </Box>
 
         <Flex minH="38px" align="center" gap="3" px="4" py="2" bg="var(--studio-canvas)" borderTop="1px solid" borderColor="var(--studio-line)">
-          <Text role="status" aria-live="polite" flex="1" fontSize="xs" color={statusError ? 'red.300' : 'gray.400'}>
+          <Text role="status" aria-live="polite" flex="1" fontSize="xs" color={statusError ? 'var(--studio-error)' : 'var(--studio-muted)'}>
             {status || selectedCommand?.description || t('studio.command_palette_hint')}
           </Text>
-          <Text fontSize="10px" color="gray.600">↑↓ · Enter · Esc</Text>
+          <Text fontSize="10px" color="var(--studio-muted)">↑↓ · Enter · Esc</Text>
         </Flex>
       </Box>
     </Box>

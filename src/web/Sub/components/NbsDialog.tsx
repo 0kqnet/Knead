@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import type { TimelineState } from '../types/timeline'
 import {
   nbsToTimelineState,
@@ -302,7 +303,7 @@ export const NbsDialog: React.FC<Props> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2120" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2120" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
@@ -316,11 +317,11 @@ export const NbsDialog: React.FC<Props> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.nbs_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         {project.source?.format === 'nbs' && (
-          <Text mt="3" fontSize="xs" color="cyan.300">
+          <Text mt="3" fontSize="xs" color="var(--studio-accent-text)">
             {`Source: NBS v${project.source.sourceVersion} · ${project.source.name || 'Untitled'} · ${project.source.customInstruments.length} custom · loop ${project.source.loop ? (project.source.maxLoopCount || '∞') : 'off'}`}
           </Text>
         )}
@@ -329,10 +330,10 @@ export const NbsDialog: React.FC<Props> = ({
           <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_import')}</Text>
             <Text mt="1" minH="42px" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_import_hint')}</Text>
-            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="cyan" onClick={importNbs} loading={busy}>
+            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="purple" onClick={importNbs} loading={busy}>
               {t('studio.nbs_choose_file')}
             </Button>
-            <Button mt="2" w="full" colorScheme="teal" onClick={importBundle} loading={busy}>
+            <Button mt="2" w="full" variant="surface" colorScheme="purple" onClick={importBundle} loading={busy}>
               {t('studio.nbs_choose_bundle')}
             </Button>
           </Box>
@@ -355,14 +356,14 @@ export const NbsDialog: React.FC<Props> = ({
             <Button mt="2" w="full" colorScheme="purple" onClick={exportNbs} loading={busy}>
               {t('studio.nbs_export_button')}
             </Button>
-            <Button mt="2" w="full" colorScheme="green" onClick={exportBundle} loading={busy}>
+            <Button mt="2" w="full" variant="surface" colorScheme="purple" onClick={exportBundle} loading={busy}>
               {t('studio.nbs_export_bundle_button')}
             </Button>
           </Box>
         </Flex>
 
         {warnings.length > 0 && (
-          <Box mt="4" p="3" bg="orange.900" borderRadius="md">
+          <Box mt="4" p="3" bg="var(--studio-warning-soft)" borderRadius="md">
             {warnings.map(warning => (
               <Text key={warning} fontSize="xs">
                 •
@@ -372,7 +373,7 @@ export const NbsDialog: React.FC<Props> = ({
             ))}
           </Box>
         )}
-        {message && <Text mt="4" fontSize="sm" color={message.includes('Error') || message.includes('エラー') ? 'red.300' : 'green.300'}>{message}</Text>}
+        {message && <Text mt="4" fontSize="sm" color={message.includes('Error') || message.includes('エラー') ? 'var(--studio-error)' : 'var(--studio-success)'}>{message}</Text>}
         <Flex mt="5" justify="flex-end">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
         </Flex>

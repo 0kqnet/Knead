@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import type { TimelineState } from '../types/timeline'
 import {
   DEFAULT_NOTE_BLOCK_BUILD_OPTIONS,
@@ -203,7 +204,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
@@ -225,7 +226,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" aria-label={t('studio.close', { defaultValue: 'Close' })} onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose aria-label={t('studio.close', { defaultValue: 'Close' })} onClick={onClose} disabled={busy} />
         </Flex>
 
         <Box mt="5">
@@ -237,7 +238,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               data-dialog-initial-focus
               size="sm"
               aria-pressed={circuit === 'display'}
-              colorScheme={circuit === 'display' ? 'orange' : 'gray'}
+              variant="surface" colorScheme={circuit === 'display' ? 'purple' : 'gray'}
               disabled={busy}
               onClick={() => setCircuit('display')}
             >
@@ -246,7 +247,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             <Button
               size="sm"
               aria-pressed={circuit === 'playable-redstone'}
-              colorScheme={circuit === 'playable-redstone' ? 'red' : 'gray'}
+              variant="surface" colorScheme={circuit === 'playable-redstone' ? 'purple' : 'gray'}
               disabled={busy}
               onClick={() => setCircuit('playable-redstone')}
             >
@@ -317,7 +318,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         <Flex mt="4" align="center" gap="3" wrap="wrap">
           <Button
             size="sm" aria-pressed={includeLockedTracks}
-            colorScheme={includeLockedTracks ? 'orange' : 'gray'}
+            variant="surface" colorScheme={includeLockedTracks ? 'purple' : 'gray'}
             disabled={busy}
             onClick={() => setIncludeLockedTracks(value => !value)}
           >
@@ -331,7 +332,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
           </Text>
         </Flex>
 
-        <Text mt="3" p="3" borderRadius="md" bg={circuit === 'playable-redstone' ? 'red.900' : 'orange.900'} color={circuit === 'playable-redstone' ? 'red.100' : 'orange.100'} fontSize="sm">
+        <Text mt="3" p="3" borderRadius="md" bg={circuit === 'playable-redstone' ? 'var(--studio-error-soft)' : 'var(--studio-warning-soft)'} color={circuit === 'playable-redstone' ? 'var(--studio-error)' : 'var(--studio-warning)'} fontSize="sm">
           {circuit === 'playable-redstone'
             ? t('studio.note_block_build_playable_warning', {
                 defaultValue: 'Playable redstone uses OpenNBS-style repeaters on a reliable 2-game-tick grid. It plays one pass; loops and Sound Stopper actions are not physical circuitry.',
@@ -342,14 +343,14 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         </Text>
 
         {targetError && (
-          <Text mt="3" p="3" borderRadius="md" bg="red.900" color="var(--studio-error)" fontSize="sm">
+          <Text mt="3" p="3" borderRadius="md" bg="var(--studio-error-soft)" color="var(--studio-error)" fontSize="sm">
             {targetError}
           </Text>
         )}
         {summary && <Text mt="4" fontSize="sm" fontWeight="bold">{summary}</Text>}
         {timingSummary && <Text mt="1" fontSize="xs" color="var(--studio-error)">{timingSummary}</Text>}
         {warnings.length > 0 && (
-          <Box mt="3" p="3" bg="orange.900" borderRadius="md" aria-label={t('studio.warnings', { defaultValue: 'Warnings' })}>
+          <Box mt="3" p="3" bg="var(--studio-warning-soft)" borderRadius="md" aria-label={t('studio.warnings', { defaultValue: 'Warnings' })}>
             {warnings.map((warning, index) => (
               <Text key={`${index}-${warning}`} fontSize="xs">
                 •
@@ -361,7 +362,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         )}
         {generating && (
           <Box
-            mt="3" p="3" borderRadius="md" bg="blue.900"
+            mt="3" p="3" borderRadius="md" bg="var(--studio-accent-soft)"
             aria-label={t('studio.export_generation_status', { defaultValue: 'Export generation status' })}
           >
             <Flex align="center" gap="3">
@@ -379,7 +380,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
                   aria-valuenow={Math.round(generation.progress * 100)}
                   aria-label={t('studio.export_generation_progress', { defaultValue: 'Generating export' })}
                 >
-                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="blue.300" />
+                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="var(--knead-slider-accent)" />
                 </Box>
               </Box>
               <Text fontSize="xs">
@@ -394,7 +395,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             {t('studio.export_generation_canceled', { defaultValue: 'Generation canceled.' })}
           </Text>
         )}
-        {message && <Text mt="3" fontSize="sm" color={isError ? 'red.300' : 'green.300'}>{message}</Text>}
+        {message && <Text mt="3" fontSize="sm" color={isError ? 'var(--studio-error)' : 'var(--studio-success)'}>{message}</Text>}
 
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.close', { defaultValue: 'Close' })}</Button>
@@ -406,7 +407,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               )
             : (
                 <Button
-                  colorScheme="green" onClick={save} loading={saving}
+                  colorScheme="purple" onClick={save} loading={saving}
                   disabled={Boolean(targetError) || saving}
                 >
                   {t('studio.note_block_build_save', { defaultValue: 'Export build' })}

@@ -213,7 +213,7 @@ export const MixerPanel: React.FC<Props> = ({
             <Button
               mt="2" size="xs"
               aria-pressed={master.limiterEnabled}
-              colorScheme={master.limiterEnabled ? 'blue' : 'gray'}
+              colorScheme={master.limiterEnabled ? 'purple' : 'gray'}
               onClick={() => onMasterChange({ limiterEnabled: !master.limiterEnabled })}
             >
               LIMIT −1dB

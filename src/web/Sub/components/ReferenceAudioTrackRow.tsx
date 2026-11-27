@@ -147,7 +147,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
             <Flex align="center" gap="1">
               <Button title="Mute reference audio" size="xs" minW="24px" p="0" variant={track.muted ? 'solid' : 'outline'} colorScheme={track.muted ? 'red' : 'gray'} onClick={() => onChange({ muted: !track.muted })}>M</Button>
               <Button title="Solo reference audio" size="xs" minW="24px" p="0" variant={track.solo ? 'solid' : 'outline'} colorScheme={track.solo ? 'yellow' : 'gray'} onClick={() => onChange({ solo: !track.solo })}>S</Button>
-              <Button size="xs" minW="24px" p="0" colorScheme={track.locked ? 'blue' : 'gray'} onClick={() => onChange({ locked: !track.locked })}>
+              <Button size="xs" minW="24px" p="0" colorScheme={track.locked ? 'purple' : 'gray'} onClick={() => onChange({ locked: !track.locked })}>
                 {track.locked ? '🔒' : '🔓'}
               </Button>
               <Text fontSize="9px">Offset</Text>

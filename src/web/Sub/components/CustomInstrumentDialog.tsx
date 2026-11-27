@@ -20,6 +20,7 @@ import {
   prepareProjectCustomAudioAssets,
   prepareProjectCustomAudioRegistry,
 } from '../utils/projectCustomAudio'
+import { StudioDialogClose } from './StudioDialogClose'
 import { readReferenceAudioFileData } from '../utils/referenceAudio'
 import { useModalDialog } from '../hooks/useModalDialog'
 
@@ -241,7 +242,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose()
@@ -260,13 +261,13 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Flex mt="4" gap="4" minH="440px" maxH="calc(100vh - 230px)">
           <Box w="310px" minW="260px" display="flex" flexDir="column">
             <Flex gap="2">
-              <Button data-dialog-initial-focus size="sm" colorScheme="blue" onClick={add} disabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
+              <Button data-dialog-initial-focus size="sm" variant="surface" colorScheme="purple" onClick={add} disabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
                 {t('studio.custom_instrument_add')}
               </Button>
               <Text alignSelf="center" fontSize="xs" color="var(--studio-muted)">
@@ -288,7 +289,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                   <Button
                     key={instrument.id} mt="1" w="full" h="auto" minH="52px" p="2"
                     justifyContent="flex-start" textAlign="left"
-                    colorScheme={selectedId === instrument.id ? 'cyan' : 'gray'}
+                    colorScheme={selectedId === instrument.id ? 'purple' : 'gray'} aria-pressed={selectedId === instrument.id}
                     variant={selectedId === instrument.id ? 'solid' : 'outline'}
                     onClick={() => setSelectedId(instrument.id)}
                     aria-label={t('studio.custom_instrument_select_index', { index: index + 1 })}
@@ -313,7 +314,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
               : (
                   <Box>
                     {isProtectedProjectCustomInstrument(selected) && (
-                      <Text p="3" bg="purple.900" color="purple.100" borderRadius="md" fontSize="sm">
+                      <Text p="3" bg="var(--studio-accent-soft)" color="var(--studio-accent-text)" borderRadius="md" fontSize="sm">
                         {t('studio.custom_instrument_protected_hint')}
                       </Text>
                     )}
@@ -366,6 +367,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         />
                       </Box>
                       <Checkbox
+                        colorScheme="purple"
                         checked={selected.pressKey}
                         disabled={isProtectedProjectCustomInstrument(selected) || busy}
                         onChange={event => updateSelected({ pressKey: event.target.checked })}
@@ -388,7 +390,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                                 : t('studio.custom_instrument_attachment_empty')}
                             </Text>
                           </Box>
-                          <Button size="sm" colorScheme="green" loading={busy} onClick={() => { void attach() }}>
+                          <Button size="sm" variant="surface" colorScheme="purple" loading={busy} onClick={() => { void attach() }}>
                             {t('studio.custom_instrument_attach_replace')}
                           </Button>
                         </Flex>
@@ -411,7 +413,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
         </Flex>
 
         {warnings.length > 0 && (
-          <Box mt="3" p="3" maxH="110px" overflowY="auto" bg="yellow.900" color="yellow.100" borderRadius="md">
+          <Box mt="3" p="3" maxH="110px" overflowY="auto" bg="var(--studio-warning-soft)" color="var(--studio-warning)" borderRadius="md">
             {warnings.slice(0, MAX_VISIBLE_WARNINGS).map(warning => (
               <Text key={warning} fontSize="xs">
                 •
@@ -425,15 +427,15 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
           </Box>
         )}
         {(validationError || error) && (
-          <Text mt="3" p="3" bg="red.900" color="red.100" borderRadius="md" role="alert">
+          <Text mt="3" p="3" bg="var(--studio-error-soft)" color="var(--studio-error)" borderRadius="md" role="alert">
             {validationError || error}
           </Text>
         )}
-        {notice && !error && <Text mt="3" color="green.300" role="status">{notice}</Text>}
+        {notice && !error && <Text mt="3" color="var(--studio-success)" role="status">{notice}</Text>}
         <Flex mt="4" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
           <Button
-            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.custom_instrument_apply')}

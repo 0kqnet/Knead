@@ -526,12 +526,7 @@ export const CurveEditor: React.FC<Props> = ({
           transform={`translate(${contextMenu.x > window.innerWidth / 2 ? '-100%' : '0'}, ${contextMenu.y > window.innerHeight / 2 ? '-100%' : '0'})`}
           zIndex={2000}
           minW="140px"
-          p="1"
-          bg="var(--studio-panel)"
-          border="1px solid"
-          borderColor="var(--studio-line)"
-          borderRadius="md"
-          boxShadow="lg"
+          className="knead-popup"
           onPointerDown={e => e.stopPropagation()}
         >
           <Button size="xs" variant="ghost" w="full" justifyContent="flex-start" onClick={() => handleApplyPreset('ease-in')}>

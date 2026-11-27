@@ -238,11 +238,6 @@ export const Footer = () => {
               value={seekbar}
               onChange={onChangeSeekbar}
               step={0.01} min={0} max={100}
-              rangeFill="primary" trackFill="gray.200" thumbFill="primary"
-              thumbSize={2.5} readOnly={false}
-              thumbProps={{
-                _disabled: { color: 'primary' },
-              }}
             />
           </Box>
 
@@ -270,7 +265,7 @@ export const Footer = () => {
             </Tooltip>
             <Spacer maxW={1} />
             <Tooltip content={t('play_source')} placement="end" animationScheme="block-start">
-              <Select.Root value={PlaySource} disabled={!isTargetVersion15w49aOrHigher} items={PlaySourceItems} onChange={onChangePlaySource} includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }} />
+              <Select.Root value={PlaySource} disabled={!isTargetVersion15w49aOrHigher} items={PlaySourceItems} onChange={onChangePlaySource} includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end" />
             </Tooltip>
             <Spacer />
             <Tooltip content={t('max_volume')} placement="end" animationScheme="block-start">

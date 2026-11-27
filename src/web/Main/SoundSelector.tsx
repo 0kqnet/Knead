@@ -212,12 +212,12 @@ export const SoundSelector = () => {
 
         <Spacer minW={2} />
 
-        <Menu.Root animationScheme="block-start" gutter={0}>
+        <Menu.Root placement="end-end" gutter={4}>
           <Menu.Trigger>
             <IconButton aria-label={t('sort')} icon={<ArrowDownAZIcon fontSize="xl" />} variant="outline" borderColor="inherit" />
           </Menu.Trigger>
 
-          <MenuContent className="menu-list-no-style">
+          <MenuContent>
             <MenuOptionGroup label={t('id_sort')} type="radio" value={SoundsSort?.id} onChange={value => changeSoundSorts({ id: value })}>
               <MenuOptionItem value="ascending">{t('ascending')}</MenuOptionItem>
               <MenuOptionItem value="descending">{t('descending')}</MenuOptionItem>
@@ -232,7 +232,7 @@ export const SoundSelector = () => {
         </Menu.Root>
         <Spacer minW={2} />
 
-        <Menu.Root animationScheme="block-start" gutter={0} closeOnSelect={false}>
+        <Menu.Root placement="end-end" gutter={4} closeOnSelect={false}>
           <Menu.Trigger>
             <IconButton
               aria-label={t('rating_filter')}
@@ -243,7 +243,7 @@ export const SoundSelector = () => {
             />
           </Menu.Trigger>
 
-          <MenuContent className="menu-list-no-style">
+          <MenuContent>
             <MenuGroup label={t('rating_filter')}>
               <MenuItem onSelect={() => clearRatingFilters()}>
                 <XIcon fontSize="lg" />

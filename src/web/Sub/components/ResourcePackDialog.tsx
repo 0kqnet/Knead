@@ -5,6 +5,7 @@ import {
   MAX_EMBEDDED_CUSTOM_AUDIO_PROJECT_BYTES,
   type EmbeddedCustomAudioAsset,
 } from '../types/timeline'
+import { StudioDialogClose } from './StudioDialogClose'
 import type { ResourcePackSound } from '../utils/resourcePack'
 import {
   mergeResourcePackCustomAudio,
@@ -168,7 +169,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2150" bg="rgba(0,0,0,.78)"
+      position="fixed" inset="0" zIndex="2150" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
@@ -183,7 +184,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.resource_pack_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Box mt="5" p="4" bg="var(--studio-frame)" borderRadius="md">
@@ -192,7 +193,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
               <Text fontWeight="bold">{t('studio.resource_pack_layers')}</Text>
               <Text fontSize="xs" color="var(--studio-muted)">{t('studio.resource_pack_priority_hint')}</Text>
             </Box>
-            <Button data-dialog-initial-focus colorScheme="cyan" onClick={addPack} loading={busy}>
+            <Button data-dialog-initial-focus variant="surface" colorScheme="purple" onClick={addPack} loading={busy}>
               {t('studio.resource_pack_add')}
             </Button>
           </Flex>
@@ -252,7 +253,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
         </Box>
 
         {warnings.length > 0 && (
-          <Box mt="4" p="3" bg="orange.900" borderRadius="md">
+          <Box mt="4" p="3" bg="var(--studio-warning-soft)" borderRadius="md">
             <Text mb="1" fontSize="xs" fontWeight="bold">
               {t('studio.resource_pack_warnings', { count: warnings.length })}
             </Text>
@@ -271,14 +272,14 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
         {message && (
           <Text
             mt="4" fontSize="sm"
-            color={message.includes('Error') || message.includes('エラー') || message.includes('失敗') ? 'red.300' : 'green.300'}
+            color={message.includes('Error') || message.includes('エラー') || message.includes('失敗') ? 'var(--studio-error)' : 'var(--studio-success)'}
           >
             {message}
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="3">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
-          <Button colorScheme="green" onClick={install} loading={busy} disabled={!packs.length}>
+          <Button colorScheme="purple" onClick={install} loading={busy} disabled={!packs.length}>
             {t('studio.resource_pack_install')}
           </Button>
         </Flex>

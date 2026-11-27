@@ -3,7 +3,7 @@ import './Style.css'
 import { App } from './Main/App'
 import { AppInitialize } from './AppInitialize'
 import { createRoot } from 'react-dom/client'
-import { extendConfig, extendTheme, UIProvider } from '@yamada-ui/react'
+import { KneadUIProvider } from './components/KneadUIProvider'
 import { HashRouter, Routes, Route } from 'react-router'
 import { store } from '../store/_store'
 import { Provider } from 'react-redux'
@@ -21,23 +21,11 @@ const studio = (
   </React.Suspense>
 )
 
-const customConfig = extendConfig({ defaultColorMode: 'system' })
-
-const customTheme = extendTheme({
-  semanticTokens: {
-    colors: {
-      black: { base: ['#141414', '#1f1f1f'] },
-      white: { base: ['#f8f8f8', '#cccccc'] },
-      bg: { panel: 'var(--studio-panel)', float: 'var(--studio-panel)' },
-    },
-  },
-})
-
 const isSubWindow = window.location.pathname.endsWith('/sub.html')
 
 createRoot(document.getElementById('root') as Element).render(
   <Provider store={store}>
-    <UIProvider config={customConfig} theme={customTheme}>
+    <KneadUIProvider>
       <AppInitialize />
       {isSubWindow
         ? studio
@@ -49,6 +37,6 @@ createRoot(document.getElementById('root') as Element).render(
               </Routes>
             </HashRouter>
           )}
-    </UIProvider>
+    </KneadUIProvider>
   </Provider>,
 )

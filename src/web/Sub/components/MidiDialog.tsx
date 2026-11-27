@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Checkbox, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
+import { AudioSelectDropdown } from './AudioSelectDropdown'
 import { MAX_GATE_TICKS, type Marker, type TimelineState } from '../types/timeline'
 import {
   normalizeLiveMidiTimestampMs,
@@ -509,7 +511,7 @@ export const MidiDialog: React.FC<Props> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy && !liveMidi.armed) close() }}
     >
@@ -519,7 +521,7 @@ export const MidiDialog: React.FC<Props> = ({
         aria-modal="true"
         aria-label={t('studio.midi_title')}
         tabIndex={-1}
-        w="760px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)"
+        w="880px" maxW="calc(100vw - 32px)" maxH="calc(100vh - 32px)"
         overflowY="auto" bg="var(--studio-panel)" borderRadius="lg" boxShadow="xl" p="5"
       >
         <Flex align="start" gap="3">
@@ -528,11 +530,11 @@ export const MidiDialog: React.FC<Props> = ({
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.midi_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={close} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={close} disabled={busy} />
         </Flex>
 
-        <Flex mt="5" gap="3" align="stretch" flexWrap={{ base: 'wrap', md: 'nowrap' }}>
-          <Box flex="1" minW="280px" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
+        <div className="studio-midi-panels">
+          <Box minW="0" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.midi_file_import')}</Text>
             <Text mt="1" minH="54px" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_file_hint')}</Text>
             <Text mt="3" mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_preview_mapping')}</Text>
@@ -546,7 +548,7 @@ export const MidiDialog: React.FC<Props> = ({
               onChange={value => setSoundMapping(value as MidiSoundMapping)}
               disabled={busy || liveMidi.armed || liveMidi.requesting}
             />
-            <Flex mt="2" gap="2">
+            <div className="studio-midi-fields">
               <Box flex="1">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_quantize')}</Text>
                 <Select.Root
@@ -577,9 +579,10 @@ export const MidiDialog: React.FC<Props> = ({
                   disabled={busy || liveMidi.armed || liveMidi.requesting}
                 />
               </Box>
-            </Flex>
+            </div>
             <Box mt="3" p="2" border="1px solid" borderColor="var(--studio-line)" borderRadius="md">
               <Checkbox
+                colorScheme="purple"
                 checked={tailFadeEnabled}
                 onChange={event => setTailFadeEnabled(event.target.checked)}
                 disabled={
@@ -641,14 +644,14 @@ export const MidiDialog: React.FC<Props> = ({
               )}
             </Box>
             <Button
-              mt="3" w="full" colorScheme="cyan" onClick={selectMidiFile} loading={busy}
+              mt="3" w="full" colorScheme="purple" onClick={selectMidiFile} loading={busy}
               disabled={busy || liveMidi.armed || liveMidi.requesting}
             >
               {t('studio.midi_choose_file')}
             </Button>
           </Box>
 
-          <Box flex="1.35" minW="340px" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor={liveMidi.armed ? 'red.500' : 'gray.700'}>
+          <Box minW="0" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor={liveMidi.armed ? 'var(--studio-error)' : 'var(--studio-line)'}>
             <Flex align="center" gap="2">
               <Text fontWeight="bold">{t('studio.midi_live')}</Text>
               {liveMidi.armed && (
@@ -662,7 +665,7 @@ export const MidiDialog: React.FC<Props> = ({
             {liveMidi.inputs.length > 0 && (
               <Box mt="3">
                 <Text mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_device')}</Text>
-                <Select.Root size="sm" value={liveMidi.selectedInputId} items={inputItems} onChange={liveMidi.setSelectedInputId} disabled={liveMidi.armed} />
+                <Select.Root aria-label={t('studio.midi_device')} size="sm" value={liveMidi.selectedInputId} items={inputItems} onChange={liveMidi.setSelectedInputId} disabled={liveMidi.armed} />
               </Box>
             )}
             <Flex mt="2" gap="2">
@@ -676,17 +679,15 @@ export const MidiDialog: React.FC<Props> = ({
               </Box>
             </Flex>
             <Text mt="2" mb="1" fontSize="xs" color="var(--studio-muted)">{t('studio.midi_sound')}</Text>
-            <Input
-              size="sm" value={liveSoundId} list="knead-midi-sounds"
+            <AudioSelectDropdown
+              label={t('studio.midi_sound')}
+              options={soundIds}
+              value={liveSoundId}
               placeholder="block.note_block.harp"
-              onChange={(event) => {
-                setLiveSoundId(event.target.value)
-              }}
+              allowCustomValue
+              onSelect={setLiveSoundId}
               disabled={liveMidi.armed}
             />
-            <datalist id="knead-midi-sounds">
-              {soundIds.map(soundId => <option key={soundId} value={soundId} />)}
-            </datalist>
             <Button
               data-dialog-initial-focus
               mt="3" w="full" colorScheme={liveMidi.armed ? 'red' : 'purple'}
@@ -698,14 +699,14 @@ export const MidiDialog: React.FC<Props> = ({
             {!canRecord && <Text mt="2" fontSize="xs" color="var(--studio-warning)">{t('studio.midi_no_unlocked_track')}</Text>}
             {!liveMidi.supported && <Text mt="2" fontSize="xs" color="var(--studio-warning)">{t('studio.midi_unsupported')}</Text>}
           </Box>
-        </Flex>
+        </div>
 
         {preview && (
           <Box
             role="region"
             aria-label={t('studio.midi_preview_title')}
             mt="4" p="4" bg="var(--studio-frame)" borderRadius="md"
-            border="1px solid" borderColor="cyan.700"
+            border="1px solid" borderColor="var(--knead-accent-line)"
           >
             <Flex align="start" gap="3" flexWrap="wrap">
               <Box flex="1" minW="260px">
@@ -732,7 +733,7 @@ export const MidiDialog: React.FC<Props> = ({
                 </Text>
               </Box>
               <Button
-                colorScheme="cyan"
+                colorScheme="purple"
                 onClick={applyMidiPreview}
                 loading={busy}
                 disabled={busy || liveMidi.armed || liveMidi.requesting}
@@ -747,17 +748,14 @@ export const MidiDialog: React.FC<Props> = ({
             <Flex gap="2" flexWrap="wrap">
               {previewChannels.map(channel => (
                 <Box key={channel} w="180px">
-                  <Input
-                    aria-label={t('studio.midi_channel_override_label', { channel: channel + 1 })}
-                    size="sm"
-                    list="knead-midi-sounds"
+                  <AudioSelectDropdown
+                    label={t('studio.midi_channel_override_label', { channel: channel + 1 })}
+                    options={soundIds}
+                    allowCustomValue
                     maxLength={256}
                     value={channelSoundOverrides[channel] ?? ''}
                     placeholder={t('studio.midi_channel_override_placeholder')}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setChannelSoundOverrides(current => ({ ...current, [channel]: value }))
-                    }}
+                    onSelect={value => setChannelSoundOverrides(current => ({ ...current, [channel]: value }))}
                     disabled={busy || liveMidi.armed || liveMidi.requesting}
                   />
                 </Box>
@@ -787,7 +785,7 @@ export const MidiDialog: React.FC<Props> = ({
                           omitted: row.omittedProgramCount ? ` (+${row.omittedProgramCount})` : '',
                         })}
                   </Text>
-                  <Text fontSize="xs" color="cyan.200">
+                  <Text fontSize="xs" color="var(--studio-accent-text)">
                     {t('studio.midi_preview_sounds', {
                       sounds: row.soundIds.join(', ') || '—',
                       omitted: row.omittedSoundCount ? ` (+${row.omittedSoundCount})` : '',
@@ -812,7 +810,7 @@ export const MidiDialog: React.FC<Props> = ({
           </Text>
         )}
         {preview && preview.summary.displayedWarnings.length > 0 && (
-          <Box mt="4" p="3" bg="orange.900" borderRadius="md">
+          <Box mt="4" p="3" bg="var(--studio-warning-soft)" borderRadius="md">
             <Text mb="1" fontSize="xs" fontWeight="bold">{t('studio.midi_import_warnings')}</Text>
             {preview.summary.displayedWarnings.map((warning, index) => (
               <Text key={`${index}:${warning}`} fontSize="xs">{`• ${warning}`}</Text>

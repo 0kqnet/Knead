@@ -331,6 +331,7 @@
     "include_muted": "Include muted tracks",
     "export_start": "Export",
     "close": "Close",
+    "close_dialog": "Close dialog",
     "cancel": "Cancel",
     "recovery_title": "Recover unsaved projects",
     "recovery_short": "Recovery",

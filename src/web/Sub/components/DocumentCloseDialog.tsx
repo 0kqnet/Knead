@@ -37,7 +37,7 @@ export const DocumentCloseDialog: React.FC<DocumentCloseDialogProps> = ({
   if (!open) return null
   return (
     <Box
-      position="fixed" inset="0" zIndex="2160" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2160" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       role="dialog" aria-modal="true" aria-label={t('studio.song_tab_close_title')}
     >
@@ -50,7 +50,7 @@ export const DocumentCloseDialog: React.FC<DocumentCloseDialogProps> = ({
           <Button colorScheme="red" disabled={busy} onClick={onDiscard}>
             {t('studio.song_tab_discard')}
           </Button>
-          <Button colorScheme="blue" loading={busy} onClick={onSave}>
+          <Button colorScheme="purple" loading={busy} onClick={onSave}>
             {t('studio.save')}
           </Button>
         </Flex>

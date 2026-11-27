@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
+import { StudioDialogClose } from './StudioDialogClose'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineState } from '../types/timeline'
 import { DeclarativeExtensionPackagesPanel } from './DeclarativeExtensionPackagesPanel'
@@ -74,9 +75,9 @@ function transformedSelection(
 }
 
 function statusColor(info: ExtensionInfo | undefined): string {
-  if (info?.status === 'active') return 'green.300'
-  if (info?.status === 'activating' || info?.status === 'deactivating') return 'yellow.300'
-  return 'gray.400'
+  if (info?.status === 'active') return 'var(--studio-success)'
+  if (info?.status === 'activating' || info?.status === 'deactivating') return 'var(--studio-warning)'
+  return 'var(--studio-muted)'
 }
 
 export const ExtensionManagerDialog: React.FC<Props> = ({
@@ -246,7 +247,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.78)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !operationBusy) onClose() }}
     >
@@ -264,7 +265,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
           </Box>
           <Box flex="1" />
           <Box textAlign="right">
-            <Text fontSize="xs" color={noSelection ? 'orange.300' : 'cyan.200'}>
+            <Text fontSize="xs" color={noSelection ? 'var(--studio-warning)' : 'var(--studio-accent-text)'}>
               {selectedMarkerIds.length}
               {' '}
               marker
@@ -272,12 +273,12 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               {' '}
               selected
             </Text>
-            <Button mt="1" size="sm" onClick={onClose} disabled={operationBusy} aria-label="Close extensions">×</Button>
+            <StudioDialogClose onClick={onClose} disabled={operationBusy} aria-label="Close extensions" />
           </Box>
         </Flex>
 
         {noSelection && (
-          <Box mt="4" p="3" borderRadius="md" bg="orange.900" border="1px solid" borderColor="orange.600">
+          <Box mt="4" p="3" borderRadius="md" bg="var(--studio-warning-soft)" border="1px solid" borderColor="var(--studio-warning)">
             <Text fontSize="sm">Select one or more timeline markers to run a transform.</Text>
           </Box>
         )}
@@ -343,7 +344,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               />
             </Box>
             <Button
-              colorScheme="cyan" ml="auto" onClick={applyHumanize}
+              colorScheme="purple" ml="auto" onClick={applyHumanize}
               loading={busy === 'run:humanize'}
               disabled={noSelection || humanizeInfo?.status !== 'active' || operationBusy}
             >
@@ -435,8 +436,8 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
         {feedback && (
           <Box
             mt="4" p="3" borderRadius="md" border="1px solid"
-            bg={feedback.tone === 'error' ? 'red.900' : feedback.tone === 'success' ? 'green.900' : 'blue.900'}
-            borderColor={feedback.tone === 'error' ? 'red.500' : feedback.tone === 'success' ? 'green.500' : 'blue.500'}
+            bg={feedback.tone === 'error' ? 'var(--studio-error-soft)' : feedback.tone === 'success' ? 'var(--studio-success-soft)' : 'var(--studio-accent-soft)'}
+            borderColor={feedback.tone === 'error' ? 'var(--studio-error)' : feedback.tone === 'success' ? 'var(--studio-success)' : 'var(--knead-accent-line)'}
             role={feedback.tone === 'error' ? 'alert' : 'status'}
           >
             <Text fontSize="sm">{feedback.text}</Text>

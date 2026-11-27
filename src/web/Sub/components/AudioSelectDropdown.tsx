@@ -1,14 +1,16 @@
 import React, { FC, useState, useRef, useEffect, useId, useMemo, ChangeEvent } from 'react'
-import { Box, Input, Text, usePopper } from '@yamada-ui/react'
+import { Box, CheckIcon, ChevronDownIcon, Input, Text, usePopper } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import { List, type ListImperativeAPI, type RowComponentProps } from 'react-window'
 
 interface Props {
-  options: string[]
+  options: readonly string[]
   label: string
   value: string
   placeholder?: string
   onSelect: (val: string) => void
+  allowCustomValue?: boolean
+  maxLength?: number
   height?: number
   disabled?: boolean
   focusRequest?: number
@@ -16,7 +18,7 @@ interface Props {
 }
 
 interface SoundOptionRowProps {
-  options: string[]
+  options: readonly string[]
   value: string
   activeIndex: number
   listId: string
@@ -33,17 +35,9 @@ function SoundOptionRow({
   return (
     <div
       {...ariaAttributes}
-      style={{
-        ...style,
-        background: active || selected ? 'var(--studio-accent-soft)' : 'transparent',
-        color: active || selected ? 'var(--studio-accent-text)' : 'inherit',
-        padding: '6px 12px',
-        cursor: 'pointer',
-        userSelect: 'none',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }}
+      style={style}
+      className="knead-option"
+      data-active={active}
       id={`${listId}-option-${index}`}
       role="option"
       aria-selected={selected}
@@ -51,7 +45,8 @@ function SoundOptionRow({
       onClick={() => onSelect(opt)}
       onMouseEnter={() => onActivate(index)}
     >
-      {opt}
+      <CheckIcon aria-hidden boxSize="14px" flexShrink="0" opacity={selected ? 1 : 0} />
+      <span>{opt}</span>
     </div>
   )
 }
@@ -62,6 +57,8 @@ export const AudioSelectDropdown: FC<Props> = ({
   value,
   placeholder = '',
   onSelect,
+  allowCustomValue = false,
+  maxLength,
   height = 300,
   disabled = false,
   focusRequest = 0,
@@ -70,7 +67,7 @@ export const AudioSelectDropdown: FC<Props> = ({
   const { t } = useTranslation()
   const listId = useId()
   const [open, setOpen] = useState(false)
-  const [inputValue, setInputValue] = useState('')
+  const [query, setQuery] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -87,8 +84,8 @@ export const AudioSelectDropdown: FC<Props> = ({
     }
     if (disabled || handledFocusRequest.current === focusRequest) return
     handledFocusRequest.current = focusRequest
-    setInputValue(value)
-    setActiveIndex(0)
+    setQuery(null)
+    setActiveIndex(Math.max(0, options.indexOf(value)))
     setOpen(true)
     const frame = requestAnimationFrame(() => {
       inputRef.current?.focus()
@@ -96,11 +93,12 @@ export const AudioSelectDropdown: FC<Props> = ({
       onFocusRequestHandled?.()
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusRequest, disabled, value, onFocusRequestHandled])
+  }, [focusRequest, disabled, value, options, onFocusRequestHandled])
 
   const openDropdown = () => {
-    setInputValue(value)
-    setActiveIndex(Math.max(0, options.indexOf(value)))
+    setQuery(null)
+    const selectedIndex = options.indexOf(value)
+    setActiveIndex(allowCustomValue ? selectedIndex : Math.max(0, selectedIndex))
     setOpen(true)
     requestAnimationFrame(() => {
       inputRef.current?.select()
@@ -120,18 +118,18 @@ export const AudioSelectDropdown: FC<Props> = ({
 
   // 入力値でフィルタ (空白区切り AND 検索)
   const filteredOptions = useMemo(() => {
-    const tokens = inputValue.toLowerCase().split(/\s+/).filter(Boolean)
+    const tokens = (query ?? '').toLowerCase().split(/\s+/).filter(Boolean)
     if (tokens.length === 0) return options
     return options.filter((opt) => {
       const lower = opt.toLowerCase()
       return tokens.every(t => lower.includes(t))
     })
-  }, [options, inputValue])
+  }, [options, query])
 
-  const ITEM_H = 30
+  const ITEM_H = 32
 
   useEffect(() => {
-    if (!open || filteredOptions.length === 0) return
+    if (!open || activeIndex < 0 || filteredOptions.length === 0) return
     const nextIndex = Math.min(activeIndex, filteredOptions.length - 1)
     if (nextIndex !== activeIndex) setActiveIndex(nextIndex)
     listRef.current?.scrollToRow({ index: nextIndex, align: 'smart' })
@@ -139,13 +137,14 @@ export const AudioSelectDropdown: FC<Props> = ({
 
   const selectOption = (opt: string) => {
     onSelect(opt)
-    setInputValue('')
+    setQuery(null)
     setOpen(false)
   }
 
   return (
-    <Box {...getReferenceProps()} width="100%">
+    <Box {...getReferenceProps()} width="100%" position="relative">
       <Input
+        className="knead-select-trigger"
         ref={inputRef}
         role="combobox"
         aria-label={label}
@@ -153,23 +152,24 @@ export const AudioSelectDropdown: FC<Props> = ({
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-activedescendant={open && filteredOptions[activeIndex] ? `${listId}-option-${activeIndex}` : undefined}
-        value={open ? inputValue : value}
+        value={open ? query ?? value : value}
+        maxLength={maxLength}
         placeholder={placeholder}
         readOnly={disabled}
         onClick={() => {
           if (!disabled && !open) openDropdown()
         }}
         onChange={(e: ChangeEvent<HTMLInputElement>) => {
-          setInputValue(e.target.value)
-          setActiveIndex(0)
+          setQuery(e.target.value)
+          if (allowCustomValue) onSelect(e.target.value)
+          setActiveIndex(allowCustomValue ? -1 : 0)
           if (!open) setOpen(true)
         }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault()
             if (!open) {
-              setOpen(true)
-              setActiveIndex(0)
+              openDropdown()
               return
             }
             const direction = e.key === 'ArrowDown' ? 1 : -1
@@ -179,25 +179,30 @@ export const AudioSelectDropdown: FC<Props> = ({
             e.preventDefault()
             selectOption(filteredOptions[activeIndex])
           }
+          else if (e.key === 'Enter' && open && allowCustomValue) {
+            e.preventDefault()
+            setOpen(false)
+          }
           else if (e.key === 'Escape' && open) {
             e.preventDefault()
+            setOpen(false)
+          }
+          else if (e.key === 'Tab' && open) {
             setOpen(false)
           }
         }}
         cursor="pointer"
         disabled={disabled}
       />
+      <ChevronDownIcon aria-hidden className="knead-select-chevron" transform={open ? 'rotate(180deg)' : undefined} />
       {open && (
         <Box
           {...getPopperProps({ ref })}
           id={listId}
           role="listbox"
           aria-label={label}
-          bg="var(--studio-panel)"
-          color="var(--studio-text)"
-          border="1px solid var(--studio-line)"
-          borderRadius="md"
-          boxShadow="md"
+          className="knead-popup"
+          w="0"
           zIndex="recoome"
         >
           {filteredOptions.length > 0

@@ -129,7 +129,7 @@ export const TrackHeader: React.FC<Props> = ({
           </Button>
           <IconButton
             size="xs" minW="26px" p="0"
-            colorScheme={track.locked ? 'blue' : 'gray'}
+            colorScheme={track.locked ? 'purple' : 'gray'}
             variant={track.locked ? 'solid' : 'ghost'}
             icon={track.locked ? <LockIcon boxSize="3.5" /> : <LockOpenIcon boxSize="3.5" />}
             aria-label={t('studio.track_lock')}

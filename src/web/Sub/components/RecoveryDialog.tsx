@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Box, Button, Flex, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import type { TimelineRecoveryApi, TimelineRecoveryMetadata } from '../types/recovery'
 import type { TimelineState } from '../types/timeline'
 import {
@@ -114,7 +115,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       role="dialog" aria-modal="true" aria-label={t('studio.recovery_title')}
       onPointerDown={(event) => {
@@ -131,7 +132,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
             <Text mt="1" fontSize="sm" color="var(--studio-muted)">{t('studio.recovery_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={!!busyId}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={!!busyId} />
         </Flex>
 
         {loading && <Text mt="5" color="var(--studio-muted)">{t('studio.recovery_loading')}</Text>}
@@ -167,7 +168,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
                   )}
                 </Box>
                 <Button
-                  size="sm" colorScheme="blue" loading={busyId === snapshot.id}
+                  size="sm" colorScheme="purple" loading={busyId === snapshot.id}
                   disabled={!!busyId && busyId !== snapshot.id}
                   aria-label={t('studio.recovery_restore_named', { name })}
                   onClick={() => { void restore(snapshot) }}
@@ -188,7 +189,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
         })}
 
         {error && (
-          <Text mt="4" p="3" borderRadius="md" bg="red.900" color="red.100" role="alert">
+          <Text mt="4" p="3" borderRadius="md" bg="var(--studio-error-soft)" color="var(--studio-error)" role="alert">
             {t('studio.recovery_error', { error })}
           </Text>
         )}

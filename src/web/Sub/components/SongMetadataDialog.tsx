@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Input, Text, Textarea } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
   DEFAULT_SONG_METADATA,
@@ -162,7 +163,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.song_metadata_title')}
       onPointerDown={(event) => {
@@ -181,7 +182,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Flex mt="4" gap="3" wrap="wrap">
@@ -207,7 +208,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
               <Text fontSize="xs" color="var(--studio-muted)">{t('studio.song_metadata_loop_hint')}</Text>
             </Box>
             <Button
-              size="sm" colorScheme={draft.loop.enabled ? 'green' : 'gray'}
+              size="sm" variant="surface" colorScheme={draft.loop.enabled ? 'purple' : 'gray'}
               aria-pressed={draft.loop.enabled}
               onClick={() => updateLoop({ enabled: !draft.loop.enabled })}
             >
@@ -270,7 +271,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
                 />
               </Box>
               <Button
-                size="sm" colorScheme={draft.metadata.autoSave ? 'cyan' : 'gray'}
+                size="sm" variant="surface" colorScheme={draft.metadata.autoSave ? 'purple' : 'gray'}
                 aria-pressed={draft.metadata.autoSave}
                 onClick={() => updateMetadata({ autoSave: !draft.metadata.autoSave })}
               >
@@ -306,14 +307,14 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
         )}
 
         {(validationError || submitError) && (
-          <Text mt="4" p="3" borderRadius="md" bg="red.900" color="red.100" role="alert">
+          <Text mt="4" p="3" borderRadius="md" bg="var(--studio-error-soft)" color="var(--studio-error)" role="alert">
             {validationError || t('studio.song_metadata_submit_error', { error: submitError })}
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.song_metadata_cancel')}</Button>
           <Button
-            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.song_metadata_apply')}

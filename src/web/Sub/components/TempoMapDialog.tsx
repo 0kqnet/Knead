@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
   MAX_TEMPO_MAP_EVENTS,
@@ -135,7 +136,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.tempo_map_title')}
       onPointerDown={(event) => {
@@ -154,10 +155,10 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
-        <Text mt="3" fontSize="xs" color="cyan.300">
+        <Text mt="3" fontSize="xs" color="var(--studio-accent-text)">
           {t('studio.tempo_map_anchor_hint')}
         </Text>
 
@@ -249,14 +250,14 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
         </Text>
 
         {(validationError || submitError) && (
-          <Text mt="4" p="3" borderRadius="md" bg="red.900" color="red.100" role="alert">
+          <Text mt="4" p="3" borderRadius="md" bg="var(--studio-error-soft)" color="var(--studio-error)" role="alert">
             {t('studio.tempo_map_error', { error: validationError || submitError })}
           </Text>
         )}
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
           <Button
-            colorScheme="blue" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.tempo_map_apply')}

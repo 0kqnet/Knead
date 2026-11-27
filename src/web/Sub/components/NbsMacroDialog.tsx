@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import { useModalDialog } from '../hooks/useModalDialog'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineState } from '../types/timeline'
@@ -179,7 +180,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.nbs_macros_title')}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
@@ -193,7 +194,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="md">
@@ -275,7 +276,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
             {type === 'set-panning' && numberControl(t('studio.nbs_macro_panning'), -100, 100)}
             {type === 'set-pitch' && numberControl(t('studio.nbs_macro_pitch'), -1200, 1200)}
             {(type === 'stereo' || type === 'portamento' || type === 'set-velocity' || type === 'set-pitch') && (
-              <Button mt="3" size="sm" colorScheme={toggle ? 'purple' : 'gray'} disabled={busy} onClick={() => setToggle(value => !value)}>
+              <Button mt="3" size="sm" variant="surface" colorScheme={toggle ? 'purple' : 'gray'} aria-pressed={toggle} disabled={busy} onClick={() => setToggle(value => !value)}>
                 {type === 'set-velocity'
                   ? t('studio.nbs_macro_percent_mode')
                   : type === 'set-pitch'
@@ -290,7 +291,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
           </Box>
         </Box>
 
-        <Text mt="3" fontSize="xs" color={selectionCount ? 'cyan.300' : 'orange.300'}>
+        <Text mt="3" fontSize="xs" color={selectionCount ? 'var(--studio-accent-text)' : 'var(--studio-warning)'}>
           {t('studio.nbs_macro_selection_hint', { count: selectionCount })}
         </Text>
         <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md" aria-live="polite">
@@ -305,7 +306,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
           )}
           {preview && (
             <>
-              <Text mt="1" fontSize="sm" color={hasPreviewChanges ? 'cyan.200' : 'gray.400'}>
+              <Text mt="1" fontSize="sm" color={hasPreviewChanges ? 'var(--studio-accent-text)' : 'var(--studio-muted)'}>
                 {t('studio.nbs_macro_preview_summary', {
                   changed: preview.changedCount,
                   added: preview.addedCount,
@@ -338,7 +339,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
         {message && (
           <Text
             mt="3" fontSize="sm"
-            color={message.startsWith('Error:') || message.startsWith('エラー:') ? 'red.300' : 'green.300'}
+            color={message.startsWith('Error:') || message.startsWith('エラー:') ? 'var(--studio-error)' : 'var(--studio-success)'}
           >
             {message}
           </Text>

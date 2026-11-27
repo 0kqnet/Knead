@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { TimelineState } from '../types/timeline'
 import {
@@ -155,7 +156,7 @@ export const NbpDialog: React.FC<Props> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2130" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2130" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
     >
@@ -171,7 +172,7 @@ export const NbpDialog: React.FC<Props> = ({
             </Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Flex mt="5" gap="3" align="stretch">
@@ -209,7 +210,7 @@ export const NbpDialog: React.FC<Props> = ({
                 </Flex>
               </Flex>
             )}
-            <Button mt="3" w="full" colorScheme="cyan" onClick={importPattern} loading={busy}>
+            <Button mt="3" w="full" colorScheme="purple" onClick={importPattern} loading={busy}>
               {t('studio.nbp_choose_file')}
             </Button>
           </Box>
@@ -238,7 +239,7 @@ export const NbpDialog: React.FC<Props> = ({
         </Flex>
 
         {warnings.length > 0 && (
-          <Box mt="4" p="3" bg="orange.900" borderRadius="md">
+          <Box mt="4" p="3" bg="var(--studio-warning-soft)" borderRadius="md">
             {warnings.map(warning => (
               <Text key={warning} fontSize="xs">
                 •
@@ -249,7 +250,7 @@ export const NbpDialog: React.FC<Props> = ({
           </Box>
         )}
         {message && (
-          <Text mt="4" fontSize="sm" color={message.startsWith('Error:') || message.startsWith('エラー:') ? 'red.300' : 'green.300'}>{message}</Text>
+          <Text mt="4" fontSize="sm" color={message.startsWith('Error:') || message.startsWith('エラー:') ? 'var(--studio-error)' : 'var(--studio-success)'}>{message}</Text>
         )}
         <Flex mt="5" justify="flex-end">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>

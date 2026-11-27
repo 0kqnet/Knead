@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, Flex, Text } from '@yamada-ui/react'
+import { Box, Button, Flex, Text, Textarea } from '@yamada-ui/react'
 import type { TimelineState } from '../types/timeline'
 import {
   EXTENSION_PERMISSIONS,
@@ -395,22 +395,19 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
   }
 
   return (
-    <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="lg" border="1px solid" borderColor="purple.700">
+    <Box mt="4" p="4" bg="var(--studio-frame)" borderRadius="lg" border="1px solid" borderColor="var(--knead-accent-line)">
       <Text fontWeight="bold">Declarative Extension Packages</Text>
       <Text fontSize="xs" color="var(--studio-muted)">
         Install local JSON packages built from a fixed transform/command DSL. Packages cannot contain or execute JavaScript.
       </Text>
 
       <Flex mt="3" gap="2" align="start" wrap="wrap">
-        <textarea
+        <Textarea
           aria-label="Extension package JSON"
           value={packageJson}
           onChange={event => setPackageJson(event.target.value)}
           placeholder="Paste a .knead-extension.json package here"
-          style={{
-            minWidth: '280px', minHeight: '82px', flex: 1, padding: '8px', borderRadius: '6px',
-            color: 'white', background: '#171923', border: '1px solid #4a5568', fontFamily: 'monospace',
-          }}
+          minH="82px" flex="1 1 280px" p="2" fontFamily="mono" resize="vertical"
         />
         <Flex direction="column" gap="2">
           <Button size="sm" onClick={() => validateImport(packageJson)} disabled={!packageJson.trim() || busy !== null}>
@@ -487,7 +484,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
                   {' · schema 1'}
                 </Text>
               </Box>
-              <Text fontSize="xs" color={isActive ? 'green.300' : 'gray.400'}>{info?.status ?? 'inactive'}</Text>
+              <Text fontSize="xs" color={isActive ? 'var(--studio-success)' : 'var(--studio-muted)'}>{info?.status ?? 'inactive'}</Text>
               <Button size="xs" onClick={() => void togglePackage(record)} disabled={busy !== null}>
                 {isActive ? 'Disable' : 'Enable'}
               </Button>
@@ -539,7 +536,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
             <Flex mt="2" gap="2" wrap="wrap">
               {extensionPackage.contributes.commands?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" colorScheme="blue"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
                   disabled={!isActive || busy !== null}
                   onClick={() => void runCommand(record, contribution.id)}
                 >
@@ -550,7 +547,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               ))}
               {extensionPackage.contributes.markerTransforms?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" colorScheme="cyan"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
                   disabled={!isActive || busy !== null || selectedMarkerIds.length === 0}
                   onClick={() => void runMarkerTransform(record, contribution.id)}
                 >
@@ -561,7 +558,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               ))}
               {extensionPackage.contributes.trackTransforms?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" colorScheme="green"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
                   disabled={!isActive || busy !== null || selectedTrackIds.length === 0}
                   onClick={() => void runTrackTransform(record, contribution.id)}
                 >

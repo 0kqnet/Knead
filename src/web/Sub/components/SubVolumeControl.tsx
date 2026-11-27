@@ -29,11 +29,6 @@ export const SubVolumeControl: React.FC<Props> = ({ volume, muted, onChangeVolum
         <Slider.Root
           value={volume} disabled={muted} onChange={onChangeVolume}
           marginBottom={-2} step={0.01} min={0} max={1}
-          rangeFill="primary" trackFill="gray.200" thumbFill="primary"
-          thumbSize={2.5} readOnly={false}
-          thumbProps={{
-            _disabled: { color: 'primary' },
-          }}
         />
       </Box>
     </Flex>

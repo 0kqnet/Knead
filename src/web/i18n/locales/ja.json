@@ -330,6 +330,7 @@
     "include_muted": "Muteトラックも出力",
     "export_start": "書き出す",
     "close": "閉じる",
+    "close_dialog": "ダイアログを閉じる",
     "cancel": "キャンセル",
     "recovery_title": "未保存プロジェクトを復元",
     "recovery_short": "復元",

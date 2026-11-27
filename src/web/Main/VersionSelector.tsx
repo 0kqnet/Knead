@@ -1,7 +1,7 @@
 import React from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
-  Box, Button, ChevronDownIcon, CircleCheckIcon, DownloadIcon, HStack, Text, useColorModeValue,
+  Box, Button, ChevronDownIcon, CircleCheckIcon, DownloadIcon, HStack, Text,
 } from '@yamada-ui/react'
 import { useAddDispatch } from '../../store/_store'
 import { Sound, updateSoundList, updateTargetVersion } from '../../store/fetchSlice'
@@ -26,10 +26,8 @@ type VersionRow =
 
 type VersionRowData = {
   activeIndex: number
-  headingColor: string
-  hoverBackground: string
+  listId: string
   rows: VersionRow[]
-  selectedBackground: string
   selectedVersion: string
   onActivate: (index: number) => void
   onSelect: (version: string) => void
@@ -43,12 +41,12 @@ type VirtualVersionSelectProps = {
   onChange: (version: string) => void
 }
 
-const VERSION_ROW_HEIGHT = 36
+const VERSION_ROW_HEIGHT = 32
 const VERSION_LIST_HEIGHT = VERSION_ROW_HEIGHT * 8
 
 const VersionStatusIcon = ({ downloaded }: { downloaded: boolean }) => downloaded
-  ? <CircleCheckIcon aria-hidden color="green.500" fontSize="md" />
-  : <DownloadIcon aria-hidden color="gray.500" fontSize="md" />
+  ? <CircleCheckIcon aria-hidden color="var(--studio-success)" boxSize="14px" />
+  : <DownloadIcon aria-hidden color="var(--studio-muted)" boxSize="14px" />
 
 function VirtualVersionRow({ index, style, data }: RowComponentProps<{ data: VersionRowData }>) {
   const row = data.rows[index]
@@ -56,8 +54,8 @@ function VirtualVersionRow({ index, style, data }: RowComponentProps<{ data: Ver
     return (
       <Box
         style={style}
-        color={data.headingColor}
-        fontSize="sm"
+        color="var(--studio-muted)"
+        fontSize="xs"
         fontWeight="semibold"
         paddingX={3}
         paddingY={2}
@@ -73,12 +71,11 @@ function VirtualVersionRow({ index, style, data }: RowComponentProps<{ data: Ver
   return (
     <HStack
       aria-selected={selected}
-      bg={selected ? data.selectedBackground : active ? data.hoverBackground : 'transparent'}
-      cursor="pointer"
-      gap={2}
+      id={`${data.listId}-${index}`}
+      className="knead-option"
+      data-active={active}
       onClick={() => data.onSelect(row.version.raw)}
       onMouseEnter={() => data.onActivate(index)}
-      paddingX={3}
       role="option"
       style={style}
       title={row.version.raw}
@@ -93,15 +90,11 @@ function VirtualVersionRow({ index, style, data }: RowComponentProps<{ data: Ver
 }
 
 const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: VirtualVersionSelectProps) => {
+  const listId = useId()
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<ListImperativeAPI>(null)
-  const menuBackground = useColorModeValue('white', 'gray.800')
-  const borderColor = useColorModeValue('gray.200', 'gray.600')
-  const hoverBackground = useColorModeValue('gray.100', 'gray.700')
-  const selectedBackground = useColorModeValue('blue.50', 'gray.600')
-  const headingColor = useColorModeValue('gray.600', 'gray.300')
   const selectedVersion = useMemo(() => {
     const row = rows.find((row): row is Extract<VersionRow, { type: 'version' }> => {
       return row.type === 'version' && row.version.raw === value
@@ -157,22 +150,25 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
 
   const rowData = useMemo<VersionRowData>(() => ({
     activeIndex,
-    headingColor,
-    hoverBackground,
+    listId,
     rows,
-    selectedBackground,
     selectedVersion: value,
     onActivate: activate,
     onSelect: selectVersion,
-  }), [activeIndex, activate, headingColor, hoverBackground, rows, selectedBackground, selectVersion, value])
+  }), [activeIndex, activate, listId, rows, selectVersion, value])
 
   return (
     <Box ref={containerRef} position="relative" width="14rem" zIndex={open ? 100 : undefined}>
       <Button
+        className="knead-select-trigger"
+        role="combobox"
+        aria-label={placeholder}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open ? `${listId}-${activeIndex}` : undefined}
         aria-expanded={open}
         aria-haspopup="listbox"
-        disabled={disabled}
-        endIcon={<ChevronDownIcon transform={open ? 'rotate(180deg)' : undefined} transition="transform 0.15s" />}
+        disabled={disabled || firstVersionIndex < 0}
+        endIcon={<ChevronDownIcon aria-hidden className="knead-select-chevron" transform={open ? 'rotate(180deg)' : undefined} />}
         justifyContent="space-between"
         onClick={() => open ? setOpen(false) : openList()}
         onKeyDown={(event) => {
@@ -194,24 +190,25 @@ const VirtualVersionSelect = ({ disabled, placeholder, rows, value, onChange }: 
             event.preventDefault()
             setOpen(false)
           }
+          else if (event.key === 'Tab' && open) {
+            setOpen(false)
+          }
         }}
         variant="subtle"
         width="full"
       >
         <HStack gap={2} minW={0}>
           {selectedVersion && <VersionStatusIcon downloaded={selectedVersion.downloaded} />}
-          <Text color={selectedVersion ? undefined : 'muted'} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+          <Text color={selectedVersion ? undefined : 'var(--studio-muted)'} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
             {selectedVersion?.raw ?? placeholder}
           </Text>
         </HStack>
       </Button>
       {open && rows.length > 0 && (
         <Box
-          bg={menuBackground}
-          border="1px solid"
-          borderColor={borderColor}
-          borderRadius="md"
-          boxShadow="md"
+          className="knead-popup"
+          id={listId}
+          aria-label={placeholder}
           left={0}
           overflow="hidden"
           position="absolute"

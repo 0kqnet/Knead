@@ -76,11 +76,6 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
           <Slider.Root
             onChange={onChangePitchValue} value={safePitchFloat}
             w={32} h={10} step={0.01} min={0.5} max={2}
-            rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
-            thumbSize={2.5} readOnly={false}
-            thumbProps={{
-              _disabled: { color: 'primary' },
-            }}
           />
           <Spacer minW={3} />
           <CommitNumberInput
@@ -93,7 +88,7 @@ export const PitchInput = ({ pitch: safePitch, onChange }: PitchInputProps): JSX
       <Tooltip content={t('pitch_scale')} placement="end" animationScheme="block-start">
         <Select.Root
           onChange={onChangePitchScaleMenu} items={pitchScaleItems} value={selectedPitchScale}
-          includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end" contentProps={{ padding: 0, margin: 0 }}
+          includePlaceholder={false} rootProps={{ w: 32 }} animationScheme="block-end"
         />
       </Tooltip>
     </>

@@ -66,11 +66,11 @@ const toolButton = { size: 'xs', variant: 'ghost' } as const
 const timeUnits = ['ticks', 'seconds', 'bars'] as const
 
 const ToolbarMenu = ({ label, children }: { label: string, children: React.ReactNode }) => (
-  <Menu.Root placement="end-start">
+  <Menu.Root placement="end-start" gutter={4}>
     <Menu.Trigger>
       <Button {...toolButton} endIcon={<ChevronDownIcon boxSize="3" />}>{label}</Button>
     </Menu.Trigger>
-    <MenuContent className="studio-menu" minW="194px" maxH="60vh" overflowY="auto">
+    <MenuContent minW="194px" maxH="60vh" overflowY="auto">
       {children}
     </MenuContent>
   </Menu.Root>
@@ -292,7 +292,7 @@ export const TimelineToolbar: React.FC<Props> = ({
           <Text as="span" className="studio-field-label">{t('studio.snap')}</Text>
           <Select.Root
             aria-label={t('studio.snap')}
-            size="xs" rootProps={{ w: '82px' }}
+            size="xs" rootProps={{ w: '94px' }}
             value={snapValue}
             items={snapItems}
             onChange={(value) => {

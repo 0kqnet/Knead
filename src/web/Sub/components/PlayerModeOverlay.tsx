@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { StudioDialogClose } from './StudioDialogClose'
 import { Box, Button, Flex, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -350,7 +351,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
               {t('studio.player_shortcuts')}
             </Text>
           </Box>
-          <Button aria-label={t('studio.player_close')} variant="ghost" onClick={onClose}>×</Button>
+          <StudioDialogClose aria-label={t('studio.player_close')} onClick={onClose} />
         </Flex>
 
         <Flex direction="column" align="center" textAlign="center" gap="1" aria-live="polite">

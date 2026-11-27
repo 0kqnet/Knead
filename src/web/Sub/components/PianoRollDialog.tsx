@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Select, Text } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import { useModalDialog } from '../hooks/useModalDialog'
 import { CommitNumberInput } from '../../components/CommitNumberInput'
 import type { Marker, TempoMapEvent, TimelineState } from '../types/timeline'
@@ -370,7 +371,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2140" bg="rgba(0,0,0,.78)"
+      position="fixed" inset="0" zIndex="2140" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('studio.piano_roll_title')}
       onPointerDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}
@@ -411,7 +412,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
           <Button size="sm" onClick={() => setPxPerTick(fitPianoRollPxPerTick(visible.markers, MIN_CANVAS_WIDTH, project.lengthTicks))}>
             {t('studio.piano_roll_fit')}
           </Button>
-          <Button size="sm" onClick={onClose} disabled={busy}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={busy} />
         </Flex>
 
         <Flex mt="3" gap="3" fontSize="xs" color="var(--studio-muted)">
@@ -531,7 +532,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   position="absolute" pointerEvents="none" zIndex="5"
                   left={`${rectangleStyle.left}px`} top={`${rectangleStyle.top}px`}
                   w={`${rectangleStyle.width}px`} h={`${rectangleStyle.height}px`}
-                  border="1px solid" borderColor="cyan.200" bg="rgba(0,200,255,.15)"
+                  border="1px solid" borderColor="var(--knead-accent-line)" bg="var(--studio-accent-soft)"
                   data-testid="piano-roll-selection-rectangle"
                 />
               )}

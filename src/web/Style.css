@@ -14,6 +14,25 @@
     --studio-accent-soft: #ede9fd;
     --studio-warning: #a15b12;
     --studio-error: #b13654;
+    --studio-success: #246946;
+    --studio-error-soft: #fcebf0;
+    --studio-warning-soft: #fff2df;
+    --studio-success-soft: #e7f4ec;
+    --knead-scrim: rgb(30 38 65 / 34%);
+    --knead-control-bg: #fbfcff;
+    --knead-control-hover: #edf0f8;
+    --knead-control-line: #909db1;
+    --knead-control-line-hover: #62728f;
+    --knead-accent-line: #a79adf;
+    --knead-focus: #6650c9;
+    --knead-track: #c6cede;
+    --knead-slider-accent: #6b56cc;
+    --knead-popup-shadow: 0 8px 24px rgb(39 46 72 / 16%), 0 2px 5px rgb(39 46 72 / 9%);
+    --knead-control-height: 36px;
+    --knead-control-font: 14px;
+    --knead-control-radius: 6px;
+    --knead-option-height: 32px;
+    --knead-popup-gap: 4px;
 }
 
 .studio-shell {
@@ -38,6 +57,165 @@
     --studio-accent-soft: #30294d;
     --studio-warning: #efb46b;
     --studio-error: #ffa0b5;
+    --studio-success: #8cd8af;
+    --studio-error-soft: #392331;
+    --studio-warning-soft: #382d24;
+    --studio-success-soft: #1c352f;
+    --knead-scrim: rgb(5 9 18 / 64%);
+    --knead-control-bg: #141b2b;
+    --knead-control-hover: #293249;
+    --knead-control-line: #586580;
+    --knead-control-line-hover: #8997b4;
+    --knead-accent-line: #7566ab;
+    --knead-focus: #ad9cff;
+    --knead-track: #46526c;
+    --knead-slider-accent: #aa97f4;
+    --knead-popup-shadow: 0 10px 28px rgb(0 0 0 / 40%), 0 2px 6px rgb(0 0 0 / 26%);
+}
+
+/* The menu and select portals live outside the editor and share these rules
+   with the virtualized sound and version lists in their respective windows. */
+:root :is(.ui-select__root, .ui-number-input__root) {
+    --height: var(--knead-control-height);
+    display: flex;
+    min-width: 0;
+    height: var(--knead-control-height);
+    min-height: var(--knead-control-height);
+}
+
+:root :is(.ui-select__field, .ui-input, .ui-number-input__field, .ui-textarea, .knead-select-trigger) {
+    min-width: 0;
+    border: 1px solid var(--knead-control-line);
+    border-radius: var(--knead-control-radius);
+    background: var(--knead-control-bg);
+    color: var(--studio-text);
+    font-size: var(--knead-control-font);
+    line-height: 1.4;
+}
+
+:root :is(.ui-select__field, .ui-input, .ui-number-input__field, .knead-select-trigger) {
+    height: var(--knead-control-height);
+    min-height: var(--knead-control-height);
+}
+
+:root :is(.ui-select__field, .knead-select-trigger) {
+    padding-inline: 10px 30px;
+}
+
+:root .ui-select__root > [data-input-element] {
+    min-width: 29px;
+    width: 29px;
+    height: 100%;
+    color: var(--studio-muted);
+}
+
+:root .ui-select__icon,
+.knead-select-chevron {
+    color: var(--studio-muted);
+    width: 14px;
+    height: 14px;
+    flex: none;
+}
+
+.knead-select-chevron {
+    position: absolute;
+    pointer-events: none;
+    inset-inline-end: 9px;
+    top: calc(50% - 7px);
+}
+
+:root :is(.ui-input, .ui-textarea)::placeholder {
+    color: var(--studio-muted);
+}
+
+:root :is(.ui-select__field, .ui-input, .ui-number-input__field, .ui-textarea, .knead-select-trigger):hover:where(:not(:disabled, [aria-disabled="true"], :focus-visible, [aria-expanded="true"])) {
+    border-color: var(--knead-control-line-hover);
+}
+
+:root :is(.ui-select__field, .ui-input, .ui-number-input__field, .ui-textarea, .knead-select-trigger):is(:focus-visible, [aria-expanded="true"]) {
+    border-color: var(--knead-focus);
+    box-shadow: inset 0 0 0 1px var(--knead-focus);
+    outline: none;
+}
+
+:root :is(.ui-button, .ui-icon-button, .ui-toggle, .ui-slider__thumb):focus-visible {
+    outline: 2px solid var(--knead-focus);
+    outline-offset: -2px;
+}
+
+:root :is(.ui-input, .ui-textarea, .ui-number-input__field, .ui-select__field)[aria-invalid="true"] {
+    border-color: var(--studio-error);
+}
+
+:root :is(.ui-select__content, .ui-menu__content, .knead-popup) {
+    padding: var(--knead-popup-gap);
+    border: 1px solid var(--knead-control-line);
+    border-radius: 8px;
+    background: var(--studio-panel);
+    color: var(--studio-text);
+    box-shadow: var(--knead-popup-shadow);
+    font-size: 13px;
+    line-height: 1.4;
+    scrollbar-width: thin;
+    scrollbar-color: var(--knead-control-line) transparent;
+}
+
+:root :is(.ui-select__option, .ui-menu__item, .knead-option) {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: var(--knead-option-height);
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--studio-text);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+:root :is(.ui-select__indicator, .ui-menu__indicator) {
+    flex: none;
+    width: 14px;
+    color: var(--studio-accent-text);
+}
+
+:root :is(.ui-select__option, .ui-menu__item, .knead-option):is(:hover, [data-activedescendant], [data-active="true"]):where(:not([aria-disabled="true"])) {
+    background: var(--knead-control-hover);
+}
+
+:root :is(.ui-select__option, .ui-menu__item, .knead-option):is([aria-selected="true"], [aria-checked="true"]) {
+    background: var(--studio-accent-soft);
+    color: var(--studio-accent-text);
+    font-weight: 600;
+}
+
+.knead-option {
+    cursor: pointer;
+    user-select: none;
+}
+
+.knead-option > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:root .ui-segmented-control__root {
+    background: var(--knead-control-bg);
+    border: 1px solid var(--knead-control-line);
+    border-radius: var(--knead-control-radius);
+}
+
+:root .ui-segmented-control__indicator {
+    background: var(--studio-accent-soft);
+    box-shadow: none;
+}
+
+:root .ui-segmented-control__item:has(input:checked) {
+    color: var(--studio-accent-text);
+}
+
+:root input[type="checkbox"] {
+    accent-color: var(--studio-accent);
 }
 
 :root {
@@ -129,8 +307,7 @@
     overflow-y: auto;
 }
 
-.sound-list-ul,
-.menu-list-no-style {
+.sound-list-ul {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -158,8 +335,4 @@
 .sound-list-flex.selected {
     color: var(--studio-accent-text);
     background: var(--studio-accent-soft);
-}
-
-.menu-list-no-style {
-    user-select: none;
 }

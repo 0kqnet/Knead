@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Flex, Input, Select, Text, Textarea } from '@yamada-ui/react'
 import { useTranslation } from 'react-i18next'
+import { StudioDialogClose } from './StudioDialogClose'
 import type { TimelineState } from '../types/timeline'
 import {
   COMMAND_LISTENER_PAN_LIMITS,
@@ -181,7 +182,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
 
   return (
     <Box
-      position="fixed" inset="0" zIndex="2100" bg="rgba(0,0,0,.75)"
+      position="fixed" inset="0" zIndex="2100" bg="var(--knead-scrim)"
       display="flex" alignItems="center" justifyContent="center"
       onPointerDown={(event) => { if (event.target === event.currentTarget && !saving) onClose() }}
     >
@@ -196,11 +197,11 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             <Text fontSize="sm" color="var(--studio-muted)">{t('studio.command_export_description')}</Text>
           </Box>
           <Box flex="1" />
-          <Button size="sm" onClick={onClose} disabled={saving}>×</Button>
+          <StudioDialogClose onClick={onClose} disabled={saving} />
         </Flex>
 
-        <Flex mt="4" gap="3" wrap="wrap" align="end">
-          <Box flex="1" minW="220px">
+        <div className="studio-form-row">
+          <Box>
             <Text fontSize="xs" mb="1">{t('studio.namespace')}</Text>
             <Input
               data-dialog-initial-focus
@@ -213,7 +214,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.range')}</Text>
             <Select.Root
-              rootProps={{ w: '160px' }} value={options.range}
+              value={options.range}
               items={[
                 { label: t('studio.project_range'), value: 'project' },
                 { label: t('studio.loop_range'), value: 'loop' },
@@ -224,18 +225,18 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_source')}</Text>
             <Select.Root
-              rootProps={{ w: '130px' }} value={options.source}
+              value={options.source}
               items={['master', 'music', 'record', 'weather', 'block', 'hostile', 'neutral', 'player', 'ambient', 'voice', 'ui'].map(value => ({ label: value, value }))}
               onChange={source => update({ source })}
             />
           </Box>
-        </Flex>
+        </div>
 
-        <Flex mt="3" gap="3" wrap="wrap" align="end">
+        <div className="studio-form-row">
           <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_audience')}</Text>
             <Select.Root
-              rootProps={{ w: '170px' }} value={options.audience}
+              value={options.audience}
               items={[
                 { label: t('studio.audience_all'), value: 'all' },
                 { label: t('studio.audience_nearby'), value: 'nearby' },
@@ -245,7 +246,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             />
           </Box>
           {options.audience === 'custom' && (
-            <Box flex="1" minW="180px">
+            <Box>
               <Text fontSize="xs" mb="1">{t('studio.command_target')}</Text>
               <Input value={options.target} onChange={event => update({ target: event.target.value })} fontFamily="mono" />
             </Box>
@@ -254,16 +255,16 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             <Box>
               <Text fontSize="xs" mb="1">{t('studio.nearby_radius')}</Text>
               <CommitNumberInput
-                w="120px" value={options.nearbyRadius} min={1} max={4096} step={1} precision={0}
+                value={options.nearbyRadius} min={1} max={4096} step={1} precision={0}
                 onCommit={nearbyRadius => update({ nearbyRadius })}
               />
             </Box>
           )}
-          <Box flex="1" minW="200px">
+          <Box>
             <Text fontSize="xs" mb="1">{t('studio.command_position')}</Text>
             <Input value={options.position} onChange={event => update({ position: event.target.value })} fontFamily="mono" />
           </Box>
-        </Flex>
+        </div>
 
         <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Flex align="end" gap="3" wrap="wrap">
@@ -295,7 +296,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
               </Box>
             )}
           </Flex>
-          <Text mt="2" fontSize="xs" color={options.panMode === 'listener' && !listenerPanSupported ? 'orange.300' : 'gray.500'}>
+          <Text mt="2" fontSize="xs" color={options.panMode === 'listener' && !listenerPanSupported ? 'var(--studio-warning)' : 'var(--studio-muted)'}>
             {options.panMode === 'listener'
               ? t(listenerPanSupported
                   ? 'studio.command_pan_listener_hint'
@@ -350,7 +351,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             <Flex mt="3" align="end" gap="3" wrap="wrap">
               <Button
                 size="sm"
-                colorScheme={options.visualizerGlow ? 'yellow' : 'gray'}
+                variant="surface" colorScheme={options.visualizerGlow ? 'purple' : 'gray'} aria-pressed={options.visualizerGlow}
                 onClick={() => update({ visualizerGlow: !options.visualizerGlow })}
               >
                 {t('studio.command_visualizer_glow')}
@@ -404,26 +405,26 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
 
         <Flex mt="4" gap="2" align="center" wrap="wrap">
           <Button
-            size="sm" colorScheme={options.includeMutedTracks ? 'blue' : 'gray'}
+            size="sm" variant="surface" colorScheme={options.includeMutedTracks ? 'purple' : 'gray'} aria-pressed={options.includeMutedTracks}
             onClick={() => update({ includeMutedTracks: !options.includeMutedTracks })}
           >
             {t('studio.include_muted')}
           </Button>
           <Button
-            size="sm" colorScheme={options.includeStopCommands ? 'blue' : 'gray'}
+            size="sm" variant="surface" colorScheme={options.includeStopCommands ? 'purple' : 'gray'} aria-pressed={options.includeStopCommands}
             onClick={() => update({ includeStopCommands: !options.includeStopCommands })}
           >
             {t('studio.stop_sounds_on_stop')}
           </Button>
           <Button
-            size="sm" colorScheme={options.loopPlayback ? 'purple' : 'gray'}
+            size="sm" variant="surface" colorScheme={options.loopPlayback ? 'purple' : 'gray'} aria-pressed={options.loopPlayback}
             onClick={() => update({ loopPlayback: !options.loopPlayback })}
           >
             {t('studio.repeat_playback')}
           </Button>
           <Box flex="1" />
           <Box textAlign="right">
-            <Text fontSize="sm" color="cyan.200">
+            <Text fontSize="sm" color="var(--studio-accent-text)">
               {t('studio.command_export_summary', {
                 events: generated?.eventCount ?? 0,
                 ticks: generated?.durationTicks ?? 0,
@@ -475,7 +476,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
 
         {generation.status === 'running' && (
           <Box
-            mt="3" p="3" bg="blue.900" border="1px solid" borderColor="blue.500" borderRadius="md"
+            mt="3" p="3" bg="var(--studio-accent-soft)" border="1px solid" borderColor="var(--knead-accent-line)" borderRadius="md"
             aria-label={t('studio.export_generation_status', { defaultValue: 'Export generation status' })}
           >
             <Flex align="center" gap="3">
@@ -493,7 +494,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                   aria-valuenow={Math.round(generation.progress * 100)}
                   aria-label={t('studio.export_generation_progress', { defaultValue: 'Generating export' })}
                 >
-                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="blue.300" />
+                  <Box h="100%" w={`${Math.round(generation.progress * 100)}%`} bg="var(--knead-slider-accent)" />
                 </Box>
               </Box>
               <Text fontSize="xs" minW="42px" textAlign="right">
@@ -509,9 +510,9 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         {(generation.status === 'canceled' || generation.status === 'error') && (
           <Flex
             mt="3" p="3" gap="3" align="center" borderRadius="md"
-            bg={generation.status === 'error' ? 'red.900' : 'gray.900'}
+            bg={generation.status === 'error' ? 'var(--studio-error-soft)' : 'var(--studio-frame)'}
           >
-            <Text flex="1" fontSize="sm" color={generation.status === 'error' ? 'red.200' : 'gray.300'}>
+            <Text flex="1" fontSize="sm" color={generation.status === 'error' ? 'var(--studio-error)' : 'var(--studio-muted)'}>
               {generation.status === 'error'
                 ? t('studio.export_generation_failed', {
                     defaultValue: 'Generation failed: {{error}}',
@@ -526,7 +527,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         )}
 
         {(generated?.warnings.length ?? 0) > 0 && (
-          <Box mt="3" p="3" bg="orange.900" border="1px solid" borderColor="orange.500" borderRadius="md">
+          <Box mt="3" p="3" bg="var(--studio-warning-soft)" border="1px solid" borderColor="var(--studio-warning)" borderRadius="md">
             {generated?.warnings.map(warning => (
               <Text key={warning} fontSize="xs">
                 •
@@ -552,8 +553,8 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
                 key={diagnostic.code}
                 fontSize="xs"
                 color={diagnostic.severity === 'error'
-                  ? 'red.300'
-                  : diagnostic.severity === 'warning' ? 'orange.300' : 'gray.300'}
+                  ? 'var(--studio-error)'
+                  : diagnostic.severity === 'warning' ? 'var(--studio-warning)' : 'var(--studio-muted)'}
               >
                 {diagnostic.disposition.toUpperCase()}
                 {' · '}
@@ -572,7 +573,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
 
         <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Text fontSize="sm" fontWeight="bold">{t('studio.command_resource_pack_title')}</Text>
-          <Text mt="1" fontSize="xs" color={generated?.resourcePack ? 'green.200' : 'gray.500'}>
+          <Text mt="1" fontSize="xs" color={generated?.resourcePack ? 'var(--studio-success)' : 'var(--studio-muted)'}>
             {generated?.resourcePack
               ? t('studio.command_resource_pack_summary', {
                   events: generated.resourcePack.eventCount,
@@ -588,16 +589,16 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
         <Box mt="3" p="3" bg="var(--studio-frame)" borderRadius="md">
           <Text fontSize="xs" color="var(--studio-muted)">{t('studio.after_install')}</Text>
           <Flex mt="1" gapX="4" gapY="1" wrap="wrap">
-            <Text minW="200px" fontFamily="mono" color="green.200">{generated?.startCommand ?? '—'}</Text>
+            <Text minW="200px" fontFamily="mono" color="var(--studio-success)">{generated?.startCommand ?? '—'}</Text>
             <Text minW="200px" fontFamily="mono" color="var(--studio-warning)">{generated?.pauseCommand ?? '—'}</Text>
-            <Text minW="200px" fontFamily="mono" color="cyan.200">{generated?.resumeCommand ?? '—'}</Text>
+            <Text minW="200px" fontFamily="mono" color="var(--studio-accent-text)">{generated?.resumeCommand ?? '—'}</Text>
             <Text minW="200px" fontFamily="mono" color="var(--studio-error)">{generated?.stopCommand ?? '—'}</Text>
             <Text minW="200px" fontFamily="mono" color="var(--studio-warning)">{generated?.uninstallCommand ?? '—'}</Text>
           </Flex>
           <Text mt="2" fontSize="xs" color="var(--studio-muted)">{t('studio.pause_resume_hint')}</Text>
         </Box>
 
-        {resultMessage && <Text mt="3" fontSize="sm" color={resultMessage.includes('失敗') || resultMessage.includes('Failed') ? 'red.300' : 'green.300'}>{resultMessage}</Text>}
+        {resultMessage && <Text mt="3" fontSize="sm" color={resultMessage.includes('失敗') || resultMessage.includes('Failed') ? 'var(--studio-error)' : 'var(--studio-success)'}>{resultMessage}</Text>}
 
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={copyCommands} disabled={!generated || generation.status === 'running'}>
@@ -613,7 +614,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             {t('studio.export_companion_resource_pack')}
           </Button>
           <Button
-            colorScheme="green"
+            colorScheme="purple"
             onClick={() => void save('data-pack')}
             loading={savingKind === 'data-pack'}
             disabled={!generated || generated.eventCount === 0 || saving || generation.status === 'running'}

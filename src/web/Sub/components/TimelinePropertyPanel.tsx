@@ -336,11 +336,6 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               value={Math.max(0.5, Math.min(2, displayNum(pitchCommon, 1)))}
               onChange={value => onChange({ pitch: value })}
               w="full" h={8} step={0.01} min={0.5} max={2}
-              rangeFill="gray.200" trackFill="gray.200" thumbFill="primary"
-              thumbSize={2.5} readOnly={false}
-              thumbProps={{
-                _disabled: { color: 'primary' },
-              }}
             />
           </Box>
 
@@ -355,11 +350,6 @@ export const TimelinePropertyPanel: React.FC<Props> = React.memo(function Timeli
               value={displayNum(panCommon, 0)}
               onChange={value => onChange({ pan: value })}
               w="full" h={10} step={0.01} min={-1} max={1}
-              rangeFill="cyan.300" trackFill="gray.600" thumbFill="cyan.300"
-              thumbSize={2.5} readOnly={false}
-              thumbProps={{
-                _disabled: { color: 'cyan.300' },
-              }}
             />
             <Flex justify="space-between" mt="-1">
               <Text fontSize="xs" color="var(--studio-muted)">L</Text>

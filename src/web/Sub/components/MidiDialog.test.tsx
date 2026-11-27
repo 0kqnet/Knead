@@ -52,6 +52,7 @@ vi.mock('react-i18next', () => ({
       'studio.midi_unsupported': 'Web MIDI is unavailable.',
       'studio.midi_error': `MIDI error: ${values?.error ?? ''}`,
       'studio.close': 'Close',
+      'studio.close_dialog': 'Close dialog',
     }[key] ?? key),
   }),
 }))
@@ -566,7 +567,7 @@ describe('MidiDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'MIDI Studio' })
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     const preferred = screen.getByRole('button', { name: 'Connect MIDI device' })
-    const first = screen.getByRole('button', { name: '×' })
+    const first = screen.getByRole('button', { name: 'Close dialog' })
     const last = screen.getByRole('button', { name: 'Close' })
     await waitFor(() => expect(document.activeElement).toBe(preferred))
     last.focus()
@@ -624,7 +625,7 @@ describe('MidiDialog', () => {
     renderDialog({ onBeginRecording, onEndRecording, onClose })
 
     fireEvent.click(screen.getByRole('button', { name: 'Connect MIDI device' }))
-    fireEvent.click(screen.getByRole('button', { name: '×' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
     expect(onClose).toHaveBeenCalledTimes(1)
     await act(async () => {
       resolveAccess(access)
