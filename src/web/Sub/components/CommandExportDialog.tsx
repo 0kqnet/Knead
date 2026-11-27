@@ -351,7 +351,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             <Flex mt="3" align="end" gap="3" wrap="wrap">
               <Button
                 size="sm"
-                variant="surface" colorScheme={options.visualizerGlow ? 'purple' : 'gray'} aria-pressed={options.visualizerGlow}
+                variant="surface" colorScheme={options.visualizerGlow ? 'primary' : 'gray'} aria-pressed={options.visualizerGlow}
                 onClick={() => update({ visualizerGlow: !options.visualizerGlow })}
               >
                 {t('studio.command_visualizer_glow')}
@@ -405,19 +405,19 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
 
         <Flex mt="4" gap="2" align="center" wrap="wrap">
           <Button
-            size="sm" variant="surface" colorScheme={options.includeMutedTracks ? 'purple' : 'gray'} aria-pressed={options.includeMutedTracks}
+            size="sm" variant="surface" colorScheme={options.includeMutedTracks ? 'primary' : 'gray'} aria-pressed={options.includeMutedTracks}
             onClick={() => update({ includeMutedTracks: !options.includeMutedTracks })}
           >
             {t('studio.include_muted')}
           </Button>
           <Button
-            size="sm" variant="surface" colorScheme={options.includeStopCommands ? 'purple' : 'gray'} aria-pressed={options.includeStopCommands}
+            size="sm" variant="surface" colorScheme={options.includeStopCommands ? 'primary' : 'gray'} aria-pressed={options.includeStopCommands}
             onClick={() => update({ includeStopCommands: !options.includeStopCommands })}
           >
             {t('studio.stop_sounds_on_stop')}
           </Button>
           <Button
-            size="sm" variant="surface" colorScheme={options.loopPlayback ? 'purple' : 'gray'} aria-pressed={options.loopPlayback}
+            size="sm" variant="surface" colorScheme={options.loopPlayback ? 'primary' : 'gray'} aria-pressed={options.loopPlayback}
             onClick={() => update({ loopPlayback: !options.loopPlayback })}
           >
             {t('studio.repeat_playback')}
@@ -606,7 +606,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
           </Button>
           <Button onClick={onClose} disabled={saving}>{t('studio.close')}</Button>
           <Button
-            colorScheme="purple"
+            colorScheme="primary"
             onClick={() => void save('resource-pack')}
             loading={savingKind === 'resource-pack'}
             disabled={!generated?.resourcePack || saving || generation.status === 'running'}
@@ -614,7 +614,7 @@ export const CommandExportDialog: React.FC<Props> = ({ open, project, defaultNam
             {t('studio.export_companion_resource_pack')}
           </Button>
           <Button
-            colorScheme="purple"
+            colorScheme="primary"
             onClick={() => void save('data-pack')}
             loading={savingKind === 'data-pack'}
             disabled={!generated || generated.eventCount === 0 || saving || generation.status === 'running'}

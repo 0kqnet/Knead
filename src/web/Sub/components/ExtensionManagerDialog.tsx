@@ -346,7 +346,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               />
             </Box>
             <Button
-              colorScheme="purple" ml="auto" onClick={applyHumanize}
+              colorScheme="primary" ml="auto" onClick={applyHumanize}
               loading={busy === 'run:humanize'}
               disabled={noSelection || humanizeInfo?.status !== 'active' || operationBusy}
             >
@@ -416,7 +416,7 @@ export const ExtensionManagerDialog: React.FC<Props> = ({
               />
             </Box>
             <Button
-              colorScheme="purple" ml="auto" onClick={applyNoteBlockComposer}
+              colorScheme="primary" ml="auto" onClick={applyNoteBlockComposer}
               loading={busy === 'run:composer'}
               disabled={noSelection || composerInfo?.status !== 'active' || operationBusy}
             >

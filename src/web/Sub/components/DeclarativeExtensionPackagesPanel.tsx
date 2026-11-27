@@ -453,7 +453,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               {pendingPackage.manifest.permissions.required.includes(permission) ? ' (required)' : ' (optional)'}
             </label>
           ))}
-          <Button mt="3" size="sm" colorScheme="purple" onClick={installPending} loading={busy === 'install'}>
+          <Button mt="3" size="sm" colorScheme="primary" onClick={installPending} loading={busy === 'install'}>
             Install Package
           </Button>
         </Box>
@@ -536,7 +536,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
             <Flex mt="2" gap="2" wrap="wrap">
               {extensionPackage.contributes.commands?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="primary"
                   disabled={!isActive || busy !== null}
                   onClick={() => void runCommand(record, contribution.id)}
                 >
@@ -547,7 +547,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               ))}
               {extensionPackage.contributes.markerTransforms?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="primary"
                   disabled={!isActive || busy !== null || selectedMarkerIds.length === 0}
                   onClick={() => void runMarkerTransform(record, contribution.id)}
                 >
@@ -558,7 +558,7 @@ export const DeclarativeExtensionPackagesPanel: React.FC<Props> = ({
               ))}
               {extensionPackage.contributes.trackTransforms?.map(contribution => (
                 <Button
-                  key={contribution.id} size="xs" variant="surface" colorScheme="purple"
+                  key={contribution.id} size="xs" variant="surface" colorScheme="primary"
                   disabled={!isActive || busy !== null || selectedTrackIds.length === 0}
                   onClick={() => void runTrackTransform(record, contribution.id)}
                 >

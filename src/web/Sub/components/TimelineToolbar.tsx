@@ -156,7 +156,7 @@ export const TimelineToolbar: React.FC<Props> = ({
         <Flex className="studio-transport" role="group" aria-label={t('studio.transport')}>
           <Button
             size="xs"
-            colorScheme="purple"
+            colorScheme="primary"
             className="studio-play"
             startIcon={isPlaying ? <PauseIcon boxSize="3.5" /> : <PlayIcon boxSize="3.5" />}
             onClick={onTogglePlay}

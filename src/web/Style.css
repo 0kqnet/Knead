@@ -1,33 +1,35 @@
 :root {
-    --studio-canvas: #edf0f7;
-    --studio-frame: #f5f6fb;
+    --knead-brand: #3fbc6e;
+    --studio-canvas: #eff3f0;
+    --studio-frame: #f6f8f6;
     --studio-panel: #ffffff;
-    --studio-raised: #e9edf6;
-    --studio-line: #d6ddec;
-    --studio-grid: rgb(97 114 157 / 16%);
-    --studio-lane-grid: rgb(97 114 157 / 8%);
-    --studio-text: #252b43;
-    --studio-muted: #56617a;
-    --studio-accent: #5948c6;
-    --studio-accent-hover: #4939ad;
-    --studio-accent-text: #4b3aae;
-    --studio-accent-soft: #ede9fd;
+    --studio-raised: #e5ece7;
+    --studio-line: #d2ded6;
+    --studio-grid: rgb(85 118 98 / 17%);
+    --studio-lane-grid: rgb(85 118 98 / 8%);
+    --studio-text: #1f3028;
+    --studio-muted: #516459;
+    --studio-accent: #237c60;
+    --studio-accent-contrast: #ffffff;
+    --studio-accent-text: #19573c;
+    --studio-accent-soft: #dff2e5;
+    --studio-selection-fill: color-mix(in srgb, var(--knead-focus) 14%, transparent);
     --studio-warning: #a15b12;
     --studio-error: #b13654;
     --studio-success: #246946;
     --studio-error-soft: #fcebf0;
     --studio-warning-soft: #fff2df;
     --studio-success-soft: #e7f4ec;
-    --knead-scrim: rgb(30 38 65 / 34%);
-    --knead-control-bg: #fbfcff;
-    --knead-control-hover: #edf0f8;
-    --knead-control-line: #909db1;
-    --knead-control-line-hover: #62728f;
-    --knead-accent-line: #a79adf;
-    --knead-focus: #6650c9;
-    --knead-track: #c6cede;
-    --knead-slider-accent: #6b56cc;
-    --knead-popup-shadow: 0 8px 24px rgb(39 46 72 / 16%), 0 2px 5px rgb(39 46 72 / 9%);
+    --knead-scrim: rgb(23 43 32 / 34%);
+    --knead-control-bg: #fbfdfb;
+    --knead-control-hover: #eaf1eb;
+    --knead-control-line: #819487;
+    --knead-control-line-hover: #596f61;
+    --knead-accent-line: #a4c8af;
+    --knead-focus: var(--studio-accent);
+    --knead-track: #c3cfc6;
+    --knead-slider-accent: var(--knead-focus);
+    --knead-popup-shadow: 0 8px 24px rgb(32 54 41 / 16%), 0 2px 5px rgb(32 54 41 / 9%);
     --knead-control-height: 36px;
     --knead-control-font: 14px;
     --knead-control-radius: 6px;
@@ -42,34 +44,33 @@
 }
 
 :root[data-mode="dark"] {
-    --studio-canvas: #0e1321;
-    --studio-frame: #131827;
-    --studio-panel: #191f30;
-    --studio-raised: #222a40;
-    --studio-line: #303951;
-    --studio-grid: rgb(155 173 219 / 13%);
-    --studio-lane-grid: rgb(155 173 219 / 6%);
-    --studio-text: #eff1fd;
-    --studio-muted: #a8b3d0;
-    --studio-accent: #6754d4;
-    --studio-accent-hover: #745ee4;
-    --studio-accent-text: #c7baff;
-    --studio-accent-soft: #30294d;
+    --studio-canvas: #101613;
+    --studio-frame: #151d19;
+    --studio-panel: #1b241f;
+    --studio-raised: #25322a;
+    --studio-line: #35433b;
+    --studio-grid: rgb(163 190 171 / 14%);
+    --studio-lane-grid: rgb(163 190 171 / 7%);
+    --studio-text: #edf4ef;
+    --studio-muted: #aabcb0;
+    --studio-accent: var(--knead-brand);
+    --studio-accent-contrast: #0d2518;
+    --studio-accent-text: #8be1a5;
+    --studio-accent-soft: #203e2e;
     --studio-warning: #efb46b;
     --studio-error: #ffa0b5;
     --studio-success: #8cd8af;
     --studio-error-soft: #392331;
     --studio-warning-soft: #382d24;
     --studio-success-soft: #1c352f;
-    --knead-scrim: rgb(5 9 18 / 64%);
-    --knead-control-bg: #141b2b;
-    --knead-control-hover: #293249;
-    --knead-control-line: #586580;
-    --knead-control-line-hover: #8997b4;
-    --knead-accent-line: #7566ab;
-    --knead-focus: #ad9cff;
-    --knead-track: #46526c;
-    --knead-slider-accent: #aa97f4;
+    --knead-scrim: rgb(4 12 7 / 64%);
+    --knead-control-bg: #18211b;
+    --knead-control-hover: #2b382f;
+    --knead-control-line: #64776a;
+    --knead-control-line-hover: #90a799;
+    --knead-accent-line: #365e45;
+    --knead-focus: #4ed567;
+    --knead-track: #435449;
     --knead-popup-shadow: 0 10px 28px rgb(0 0 0 / 40%), 0 2px 6px rgb(0 0 0 / 26%);
 }
 
@@ -140,7 +141,7 @@
 
 :root :is(.ui-button, .ui-icon-button, .ui-toggle, .ui-slider__thumb):focus-visible {
     outline: 2px solid var(--knead-focus);
-    outline-offset: -2px;
+    outline-offset: 2px;
 }
 
 :root :is(.ui-input, .ui-textarea, .ui-number-input__field, .ui-select__field)[aria-invalid="true"] {
@@ -256,15 +257,6 @@
 .knead-sound-search,
 .knead-command-bar {
     flex: 0 0 auto;
-}
-
-:root .knead-main-toolbar button.knead-studio-button {
-    background: var(--studio-accent);
-    color: #fff;
-}
-
-:root .knead-main-toolbar button.knead-studio-button:hover {
-    background: var(--studio-accent-hover);
 }
 
 .sound-list-pane,

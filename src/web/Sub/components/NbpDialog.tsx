@@ -210,7 +210,7 @@ export const NbpDialog: React.FC<Props> = ({
                 </Flex>
               </Flex>
             )}
-            <Button mt="3" w="full" colorScheme="purple" onClick={importPattern} loading={busy}>
+            <Button mt="3" w="full" colorScheme="primary" onClick={importPattern} loading={busy}>
               {t('studio.nbp_choose_file')}
             </Button>
           </Box>
@@ -230,7 +230,7 @@ export const NbpDialog: React.FC<Props> = ({
               onChange={value => setVersion(Number(value) as NbpVersion)}
             />
             <Button
-              mt="3" w="full" colorScheme="purple" onClick={exportPattern}
+              mt="3" w="full" colorScheme="primary" onClick={exportPattern}
               loading={busy} disabled={!selectionCount}
             >
               {t('studio.nbp_save_selection')}

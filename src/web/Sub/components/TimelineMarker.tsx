@@ -49,8 +49,8 @@ export const TimelineMarker: React.FC<Props> = ({
   const left = TIMELINE_LEADING_PADDING_PX + tickToPx(marker.tick, pxPerTick) - size / 2
   const color = soundStop ? '#f43f5e' : invalidSound ? '#dc2626' : track.muted ? '#64748b' : COLOR_MAP[track.color]
   const endpointBorder = selected ? '#f8fafc' : 'rgba(255,255,255,.45)'
-  const lineColor = invalidSound ? '#7f1d1d' : selected ? '#93c5fd' : color
-  const waveformColor = selected ? '#e0f2fe' : color
+  const lineColor = invalidSound ? '#7f1d1d' : color
+  const waveformColor = selected ? '#dff2e5' : color
   const iconScale = markerIcon && markerIcon.cropWidth > 0 && markerIcon.cropHeight > 0
     ? Math.min(size / markerIcon.cropWidth, size / markerIcon.cropHeight)
     : 0
@@ -108,7 +108,7 @@ export const TimelineMarker: React.FC<Props> = ({
                   outlineWidth: '1px',
                   outlineStyle: 'solid',
                   outlineColor: endpointBorder,
-                  boxShadow: selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)',
+                  boxShadow: selected ? '0 0 0 2px var(--knead-focus)' : '0 2px 5px rgba(0,0,0,.4)',
                   overflow: 'hidden',
                   pointerEvents: 'none',
                 }}
@@ -140,7 +140,7 @@ export const TimelineMarker: React.FC<Props> = ({
                 bg={color}
                 border="2px solid"
                 borderColor={endpointBorder}
-                boxShadow={selected ? '0 0 0 2px #2563eb' : '0 2px 5px rgba(0,0,0,.4)'}
+                boxShadow={selected ? '0 0 0 2px var(--knead-focus)' : '0 2px 5px rgba(0,0,0,.4)'}
                 pointerEvents="none"
               />
             )}

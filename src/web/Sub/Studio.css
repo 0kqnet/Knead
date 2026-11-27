@@ -138,14 +138,8 @@
     white-space: nowrap;
 }
 
-:root .studio-transport button.studio-play {
+.studio-transport .studio-play {
     min-width: 76px;
-    background: var(--studio-accent);
-    color: #fff;
-}
-
-:root .studio-transport button.studio-play:hover:not(:disabled) {
-    background: var(--studio-accent-hover);
 }
 
 .studio-time-readout,
@@ -343,6 +337,25 @@
 
 .studio-navigator canvas {
     display: block;
+}
+
+.studio-navigator-viewport,
+.studio-navigator-playhead {
+    position: absolute;
+    inset-block: 0;
+    pointer-events: none;
+}
+
+.studio-navigator-viewport {
+    min-width: 2px;
+    border: 1px solid var(--knead-focus);
+    background: var(--studio-selection-fill);
+}
+
+.studio-navigator-playhead {
+    width: 1.5px;
+    transform: translateX(-50%);
+    background: #f87171;
 }
 
 .studio-mixer {

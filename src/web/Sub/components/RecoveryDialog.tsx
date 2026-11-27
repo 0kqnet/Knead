@@ -168,7 +168,7 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
                   )}
                 </Box>
                 <Button
-                  size="sm" colorScheme="purple" loading={busyId === snapshot.id}
+                  size="sm" colorScheme="primary" loading={busyId === snapshot.id}
                   disabled={!!busyId && busyId !== snapshot.id}
                   aria-label={t('studio.recovery_restore_named', { name })}
                   onClick={() => { void restore(snapshot) }}

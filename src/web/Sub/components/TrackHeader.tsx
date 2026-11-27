@@ -129,7 +129,7 @@ export const TrackHeader: React.FC<Props> = ({
           </Button>
           <IconButton
             size="xs" minW="26px" p="0"
-            colorScheme={track.locked ? 'purple' : 'gray'}
+            colorScheme={track.locked ? 'primary' : 'gray'}
             variant={track.locked ? 'solid' : 'ghost'}
             icon={track.locked ? <LockIcon boxSize="3.5" /> : <LockOpenIcon boxSize="3.5" />}
             aria-label={t('studio.track_lock')}
@@ -190,7 +190,7 @@ export const TrackHeader: React.FC<Props> = ({
             {track.gainDb.toFixed(1)}
           </Text>
           <Slider.Root
-            size="sm" colorScheme="purple"
+            size="sm" colorScheme="primary"
             thumbProps={{ 'aria-label': t('studio.mixer_gain') }}
             value={track.gainDb}
             min={-60}
@@ -205,7 +205,7 @@ export const TrackHeader: React.FC<Props> = ({
             {track.pan.toFixed(1)}
           </Text>
           <Slider.Root
-            size="sm" colorScheme="purple"
+            size="sm" colorScheme="primary"
             thumbProps={{ 'aria-label': t('studio.mixer_pan') }}
             value={track.pan}
             min={-1}

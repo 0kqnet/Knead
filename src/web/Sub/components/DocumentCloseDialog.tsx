@@ -50,7 +50,7 @@ export const DocumentCloseDialog: React.FC<DocumentCloseDialogProps> = ({
           <Button colorScheme="red" disabled={busy} onClick={onDiscard}>
             {t('studio.song_tab_discard')}
           </Button>
-          <Button colorScheme="purple" loading={busy} onClick={onSave}>
+          <Button colorScheme="primary" loading={busy} onClick={onSave}>
             {t('studio.save')}
           </Button>
         </Flex>

@@ -276,7 +276,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
             {type === 'set-panning' && numberControl(t('studio.nbs_macro_panning'), -100, 100)}
             {type === 'set-pitch' && numberControl(t('studio.nbs_macro_pitch'), -1200, 1200)}
             {(type === 'stereo' || type === 'portamento' || type === 'set-velocity' || type === 'set-pitch') && (
-              <Button mt="3" size="sm" variant="surface" colorScheme={toggle ? 'purple' : 'gray'} aria-pressed={toggle} disabled={busy} onClick={() => setToggle(value => !value)}>
+              <Button mt="3" size="sm" variant="surface" colorScheme={toggle ? 'primary' : 'gray'} aria-pressed={toggle} disabled={busy} onClick={() => setToggle(value => !value)}>
                 {type === 'set-velocity'
                   ? t('studio.nbs_macro_percent_mode')
                   : type === 'set-pitch'
@@ -346,7 +346,7 @@ export const NbsMacroDialog: React.FC<Props> = ({ open, project, selectedIds, on
         )}
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
-          <Button colorScheme="purple" onClick={() => void apply()} loading={busy} disabled={!hasPreviewChanges || busy}>
+          <Button colorScheme="primary" onClick={() => void apply()} loading={busy} disabled={!hasPreviewChanges || busy}>
             {t('studio.nbs_macro_apply')}
           </Button>
         </Flex>

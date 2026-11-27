@@ -267,7 +267,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
         <Flex mt="4" gap="4" minH="440px" maxH="calc(100vh - 230px)">
           <Box w="310px" minW="260px" display="flex" flexDir="column">
             <Flex gap="2">
-              <Button data-dialog-initial-focus size="sm" variant="surface" colorScheme="purple" onClick={add} disabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
+              <Button data-dialog-initial-focus size="sm" variant="surface" colorScheme="primary" onClick={add} disabled={busy || draft.length >= MAX_PROJECT_CUSTOM_INSTRUMENTS}>
                 {t('studio.custom_instrument_add')}
               </Button>
               <Text alignSelf="center" fontSize="xs" color="var(--studio-muted)">
@@ -289,7 +289,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                   <Button
                     key={instrument.id} mt="1" w="full" h="auto" minH="52px" p="2"
                     justifyContent="flex-start" textAlign="left"
-                    colorScheme={selectedId === instrument.id ? 'purple' : 'gray'} aria-pressed={selectedId === instrument.id}
+                    colorScheme={selectedId === instrument.id ? 'primary' : 'gray'} aria-pressed={selectedId === instrument.id}
                     variant={selectedId === instrument.id ? 'solid' : 'outline'}
                     onClick={() => setSelectedId(instrument.id)}
                     aria-label={t('studio.custom_instrument_select_index', { index: index + 1 })}
@@ -367,7 +367,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                         />
                       </Box>
                       <Checkbox
-                        colorScheme="purple"
+                        colorScheme="primary"
                         checked={selected.pressKey}
                         disabled={isProtectedProjectCustomInstrument(selected) || busy}
                         onChange={event => updateSelected({ pressKey: event.target.checked })}
@@ -390,7 +390,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
                                 : t('studio.custom_instrument_attachment_empty')}
                             </Text>
                           </Box>
-                          <Button size="sm" variant="surface" colorScheme="purple" loading={busy} onClick={() => { void attach() }}>
+                          <Button size="sm" variant="surface" colorScheme="primary" loading={busy} onClick={() => { void attach() }}>
                             {t('studio.custom_instrument_attach_replace')}
                           </Button>
                         </Flex>
@@ -435,7 +435,7 @@ export const CustomInstrumentDialog: React.FC<CustomInstrumentDialogProps> = ({
         <Flex mt="4" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
           <Button
-            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="primary" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.custom_instrument_apply')}

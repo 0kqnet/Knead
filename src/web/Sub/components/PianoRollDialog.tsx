@@ -455,7 +455,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   key={`row-${note}`} position="absolute" pointerEvents="none"
                   left="0" right="0" top={`${index * rowHeight}px`} h={`${rowHeight}px`}
                   bg={isBlackKey(note) ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.02)'}
-                  borderBottom="1px solid" borderColor="whiteAlpha.100"
+                  borderBottom="1px solid" borderColor="var(--studio-lane-grid)"
                 />
               ))}
               {gridLines.map(line => (
@@ -463,7 +463,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   key={`${line.kind}-${line.tick}`} position="absolute" pointerEvents="none"
                   top="0" bottom="0" left={`${line.tick * pxPerTick}px`}
                   borderLeft="1px solid"
-                  borderColor={line.kind === 'bar' ? 'purple.300' : line.kind === 'beat' ? 'whiteAlpha.400' : 'whiteAlpha.100'}
+                  borderColor={line.kind === 'bar' ? 'var(--knead-accent-line)' : line.kind === 'beat' ? 'var(--studio-grid)' : 'var(--studio-lane-grid)'}
                 >
                   {line.kind !== 'tick' && (
                     <Text ml="1" fontSize="10px" color="var(--studio-muted)">{Math.round(line.tick)}</Text>
@@ -488,8 +488,8 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                     key={marker.id} position="absolute" overflow="hidden" cursor={locked ? 'not-allowed' : 'grab'}
                     left={`${rect.left}px`} top={`${rect.top}px`} w={`${rect.width}px`} h={`${rect.height}px`}
                     bg={panColor(markerPan)} opacity={0.35 + marker.volume * 0.65}
-                    border="2px solid" borderColor={selected ? 'yellow.200' : locked ? 'gray.500' : 'whiteAlpha.500'}
-                    borderRadius="sm" boxShadow={selected ? '0 0 0 2px rgba(236,201,75,.35)' : undefined}
+                    border="2px solid" borderColor={selected ? 'white' : locked ? 'gray.500' : 'whiteAlpha.500'}
+                    borderRadius="sm" boxShadow={selected ? '0 0 0 2px var(--knead-focus)' : undefined}
                     role="button" tabIndex={0} aria-pressed={selected}
                     aria-disabled={locked}
                     aria-label={t('studio.piano_roll_note_label', {
@@ -532,7 +532,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
                   position="absolute" pointerEvents="none" zIndex="5"
                   left={`${rectangleStyle.left}px`} top={`${rectangleStyle.top}px`}
                   w={`${rectangleStyle.width}px`} h={`${rectangleStyle.height}px`}
-                  border="1px solid" borderColor="var(--knead-accent-line)" bg="var(--studio-accent-soft)"
+                  border="1px solid" borderColor="var(--knead-focus)" bg="var(--studio-selection-fill)"
                   data-testid="piano-roll-selection-rectangle"
                 />
               )}
@@ -587,7 +587,7 @@ export const PianoRollDialog: React.FC<PianoRollDialogProps> = ({
         {error && <Text mt="2" role="alert" color="var(--studio-error)">{t('studio.piano_roll_error', { error })}</Text>}
         <Flex mt="3" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.cancel')}</Button>
-          <Button colorScheme="purple" loading={busy} disabled={changedCount === 0} onClick={() => { void apply() }}>
+          <Button colorScheme="primary" loading={busy} disabled={changedCount === 0} onClick={() => { void apply() }}>
             {t('studio.piano_roll_apply', { count: changedCount })}
           </Button>
         </Flex>

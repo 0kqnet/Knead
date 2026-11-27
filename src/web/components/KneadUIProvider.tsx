@@ -6,10 +6,13 @@ const config = extendConfig({ defaultColorMode: 'system' })
 const theme = extendTheme({
   styles: {
     globalStyle: { ':host, body': { colorScheme: 'gray' } },
-    layerStyles: { solid: { border: '1px solid {colorScheme.muted}' } },
+    layerStyles: {
+      'solid': { border: '1px solid {colorScheme.muted}' },
+      'solid.hover': { bg: 'color-mix(in srgb, {colorScheme.solid} 88%, var(--studio-text))' },
+    },
   },
   semanticTokens: {
-    colorSchemes: { primary: 'purple' },
+    colorSchemes: { primary: 'emerald' },
     colors: {
       bg: {
         base: 'var(--studio-canvas)', panel: 'var(--studio-panel)', float: 'var(--studio-panel)',
@@ -25,8 +28,9 @@ const theme = extendTheme({
         ghost: 'var(--knead-control-hover)', subtle: 'var(--knead-control-bg)',
         muted: 'var(--knead-control-line)', fg: 'var(--studio-text)',
       },
-      purple: {
-        solid: 'var(--studio-accent)', contrast: '#fff', outline: 'var(--studio-accent-text)',
+      emerald: {
+        base: 'var(--studio-accent)', bg: 'var(--studio-accent-soft)', emphasized: 'var(--knead-focus)',
+        solid: 'var(--studio-accent)', contrast: 'var(--studio-accent-contrast)', outline: 'var(--studio-accent-text)',
         ghost: 'var(--studio-accent-soft)', subtle: 'var(--studio-accent-soft)',
         muted: 'var(--knead-accent-line)', fg: 'var(--studio-accent-text)',
       },
@@ -47,7 +51,7 @@ const selectDefaults = {
 } as const
 
 const sliderDefaults = {
-  size: 'sm', colorScheme: 'purple', trackFill: 'var(--knead-track)',
+  size: 'sm', colorScheme: 'primary', trackFill: 'var(--knead-track)',
   rangeFill: 'var(--knead-slider-accent)', thumbStroke: 'var(--knead-slider-accent)',
   thumbFill: 'var(--studio-panel)', thumbSize: '14px',
 } as const

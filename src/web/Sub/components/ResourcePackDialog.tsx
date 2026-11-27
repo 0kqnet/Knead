@@ -193,7 +193,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
               <Text fontWeight="bold">{t('studio.resource_pack_layers')}</Text>
               <Text fontSize="xs" color="var(--studio-muted)">{t('studio.resource_pack_priority_hint')}</Text>
             </Box>
-            <Button data-dialog-initial-focus variant="surface" colorScheme="purple" onClick={addPack} loading={busy}>
+            <Button data-dialog-initial-focus variant="surface" colorScheme="primary" onClick={addPack} loading={busy}>
               {t('studio.resource_pack_add')}
             </Button>
           </Flex>
@@ -279,7 +279,7 @@ export const ResourcePackDialog: React.FC<ResourcePackDialogProps> = ({
         )}
         <Flex mt="5" justify="flex-end" gap="3">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
-          <Button colorScheme="purple" onClick={install} loading={busy} disabled={!packs.length}>
+          <Button colorScheme="primary" onClick={install} loading={busy} disabled={!packs.length}>
             {t('studio.resource_pack_install')}
           </Button>
         </Flex>

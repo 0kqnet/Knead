@@ -208,7 +208,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
               <Text fontSize="xs" color="var(--studio-muted)">{t('studio.song_metadata_loop_hint')}</Text>
             </Box>
             <Button
-              size="sm" variant="surface" colorScheme={draft.loop.enabled ? 'purple' : 'gray'}
+              size="sm" variant="surface" colorScheme={draft.loop.enabled ? 'primary' : 'gray'}
               aria-pressed={draft.loop.enabled}
               onClick={() => updateLoop({ enabled: !draft.loop.enabled })}
             >
@@ -271,7 +271,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
                 />
               </Box>
               <Button
-                size="sm" variant="surface" colorScheme={draft.metadata.autoSave ? 'purple' : 'gray'}
+                size="sm" variant="surface" colorScheme={draft.metadata.autoSave ? 'primary' : 'gray'}
                 aria-pressed={draft.metadata.autoSave}
                 onClick={() => updateMetadata({ autoSave: !draft.metadata.autoSave })}
               >
@@ -314,7 +314,7 @@ export const SongMetadataDialog: React.FC<SongMetadataDialogProps> = ({
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.song_metadata_cancel')}</Button>
           <Button
-            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="primary" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.song_metadata_apply')}

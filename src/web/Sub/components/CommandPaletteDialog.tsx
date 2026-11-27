@@ -285,7 +285,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
           <Flex gap="1">
             <Button
               size="xs" aria-pressed={view === 'commands'}
-              variant="surface" colorScheme={view === 'commands' ? 'purple' : 'gray'}
+              variant="surface" colorScheme={view === 'commands' ? 'primary' : 'gray'}
               onClick={() => {
                 setView('commands')
                 setQuery('')
@@ -297,7 +297,7 @@ export const CommandPaletteDialog: React.FC<CommandPaletteDialogProps> = ({
             </Button>
             <Button
               size="xs" aria-pressed={view === 'shortcuts'}
-              variant="surface" colorScheme={view === 'shortcuts' ? 'purple' : 'gray'}
+              variant="surface" colorScheme={view === 'shortcuts' ? 'primary' : 'gray'}
               onClick={() => {
                 setView('shortcuts')
                 setQuery('')

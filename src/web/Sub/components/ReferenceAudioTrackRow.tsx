@@ -147,7 +147,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
             <Flex align="center" gap="1">
               <Button title="Mute reference audio" size="xs" minW="24px" p="0" variant={track.muted ? 'solid' : 'outline'} colorScheme={track.muted ? 'red' : 'gray'} onClick={() => onChange({ muted: !track.muted })}>M</Button>
               <Button title="Solo reference audio" size="xs" minW="24px" p="0" variant={track.solo ? 'solid' : 'outline'} colorScheme={track.solo ? 'yellow' : 'gray'} onClick={() => onChange({ solo: !track.solo })}>S</Button>
-              <Button size="xs" minW="24px" p="0" colorScheme={track.locked ? 'purple' : 'gray'} onClick={() => onChange({ locked: !track.locked })}>
+              <Button size="xs" minW="24px" p="0" colorScheme={track.locked ? 'primary' : 'gray'} onClick={() => onChange({ locked: !track.locked })}>
                 {track.locked ? '🔒' : '🔓'}
               </Button>
               <Text fontSize="9px">Offset</Text>
@@ -176,7 +176,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 {track.gainDb.toFixed(1)}
               </Text>
               <Slider.Root
-                size="sm" colorScheme="purple"
+                size="sm" colorScheme="primary"
                 thumbProps={{ 'aria-label': 'Reference audio gain' }}
                 value={track.gainDb}
                 min={-60}
@@ -192,7 +192,7 @@ export const ReferenceAudioTrackRow: React.FC<Props> = ({
                 {track.pan.toFixed(1)}
               </Text>
               <Slider.Root
-                size="sm" colorScheme="purple"
+                size="sm" colorScheme="primary"
                 thumbProps={{ 'aria-label': 'Reference audio pan' }}
                 value={track.pan}
                 min={-1}

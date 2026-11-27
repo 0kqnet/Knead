@@ -368,8 +368,9 @@ export const TimelineTrack: React.FC<Props> = ({
           top="2px"
           bottom="2px"
           w={`${Math.abs(selectionRect.end - selectionRect.start)}px`}
-          bg="rgba(59,130,246,.2)"
-          border="1px solid #60a5fa"
+          bg="var(--studio-selection-fill)"
+          border="1px solid"
+          borderColor="var(--knead-focus)"
           pointerEvents="none"
           zIndex="8"
         />

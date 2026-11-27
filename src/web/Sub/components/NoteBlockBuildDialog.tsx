@@ -238,7 +238,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               data-dialog-initial-focus
               size="sm"
               aria-pressed={circuit === 'display'}
-              variant="surface" colorScheme={circuit === 'display' ? 'purple' : 'gray'}
+              variant="surface" colorScheme={circuit === 'display' ? 'primary' : 'gray'}
               disabled={busy}
               onClick={() => setCircuit('display')}
             >
@@ -247,7 +247,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
             <Button
               size="sm"
               aria-pressed={circuit === 'playable-redstone'}
-              variant="surface" colorScheme={circuit === 'playable-redstone' ? 'purple' : 'gray'}
+              variant="surface" colorScheme={circuit === 'playable-redstone' ? 'primary' : 'gray'}
               disabled={busy}
               onClick={() => setCircuit('playable-redstone')}
             >
@@ -318,7 +318,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
         <Flex mt="4" align="center" gap="3" wrap="wrap">
           <Button
             size="sm" aria-pressed={includeLockedTracks}
-            variant="surface" colorScheme={includeLockedTracks ? 'purple' : 'gray'}
+            variant="surface" colorScheme={includeLockedTracks ? 'primary' : 'gray'}
             disabled={busy}
             onClick={() => setIncludeLockedTracks(value => !value)}
           >
@@ -407,7 +407,7 @@ export const NoteBlockBuildDialog: React.FC<NoteBlockBuildDialogProps> = ({
               )
             : (
                 <Button
-                  colorScheme="purple" onClick={save} loading={saving}
+                  colorScheme="primary" onClick={save} loading={saving}
                   disabled={Boolean(targetError) || saving}
                 >
                   {t('studio.note_block_build_save', { defaultValue: 'Export build' })}

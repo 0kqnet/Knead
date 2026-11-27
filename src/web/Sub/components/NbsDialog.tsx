@@ -330,10 +330,10 @@ export const NbsDialog: React.FC<Props> = ({
           <Box flex="1" p="4" bg="var(--studio-frame)" borderRadius="md" border="1px solid" borderColor="var(--studio-line)">
             <Text fontWeight="bold">{t('studio.nbs_import')}</Text>
             <Text mt="1" minH="42px" fontSize="xs" color="var(--studio-muted)">{t('studio.nbs_import_hint')}</Text>
-            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="purple" onClick={importNbs} loading={busy}>
+            <Button data-dialog-initial-focus mt="3" w="full" colorScheme="primary" onClick={importNbs} loading={busy}>
               {t('studio.nbs_choose_file')}
             </Button>
-            <Button mt="2" w="full" variant="surface" colorScheme="purple" onClick={importBundle} loading={busy}>
+            <Button mt="2" w="full" variant="surface" colorScheme="primary" onClick={importBundle} loading={busy}>
               {t('studio.nbs_choose_bundle')}
             </Button>
           </Box>
@@ -353,10 +353,10 @@ export const NbsDialog: React.FC<Props> = ({
               ]}
               onChange={value => setNbsVersion(Number(value) as NbsTargetVersion)}
             />
-            <Button mt="2" w="full" colorScheme="purple" onClick={exportNbs} loading={busy}>
+            <Button mt="2" w="full" colorScheme="primary" onClick={exportNbs} loading={busy}>
               {t('studio.nbs_export_button')}
             </Button>
-            <Button mt="2" w="full" variant="surface" colorScheme="purple" onClick={exportBundle} loading={busy}>
+            <Button mt="2" w="full" variant="surface" colorScheme="primary" onClick={exportBundle} loading={busy}>
               {t('studio.nbs_export_bundle_button')}
             </Button>
           </Box>

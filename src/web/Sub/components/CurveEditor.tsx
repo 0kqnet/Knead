@@ -395,7 +395,7 @@ export const CurveEditor: React.FC<Props> = ({
           <Button
             size="xs"
             variant={snapEnabled ? 'solid' : 'outline'}
-            colorScheme="purple"
+            colorScheme="primary"
             aria-pressed={snapEnabled}
             onClick={() => setSnapEnabled(enabled => !enabled)}
           >
@@ -449,7 +449,7 @@ export const CurveEditor: React.FC<Props> = ({
           </defs>
         )}
         {/* カーブ */}
-        <path d={pathD} stroke="#3b82f6" strokeWidth={2} fill="none" pointerEvents="none" />
+        <path d={pathD} stroke="var(--studio-accent)" strokeWidth={2} fill="none" pointerEvents="none" />
         {warningRange && (
           <path
             d={pathD}
@@ -506,7 +506,7 @@ export const CurveEditor: React.FC<Props> = ({
               <circle
                 cx={cx} cy={cy}
                 r={5}
-                fill={isSel ? '#fbbf24' : (kf.interpolation === 'bezier' ? '#a78bfa' : '#60a5fa')}
+                fill={isSel ? '#fbbf24' : (kf.interpolation === 'bezier' ? 'var(--knead-slider-accent)' : '#60a5fa')}
                 stroke={isSel ? '#fde68a' : '#1f2937'}
                 strokeWidth={2}
                 cursor="grab"

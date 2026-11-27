@@ -33,6 +33,7 @@ export const ArrangementOverview: React.FC<Props> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [size, setSize] = useState({ width: 1, height: 64 })
+  const tickPercent = (tick: number) => `${tick / Math.max(1, lengthTicks) * 100}%`
 
   useEffect(() => {
     const element = wrapperRef.current
@@ -63,7 +64,7 @@ export const ArrangementOverview: React.FC<Props> = ({
     const tickToX = (tick: number) => tick / Math.max(1, lengthTicks) * size.width
     const totalRows = tracks.length + referenceAudio.length
     const rowHeight = size.height / Math.max(1, totalRows)
-    context.strokeStyle = 'rgba(148,163,184,.12)'
+    context.strokeStyle = 'rgba(124,151,134,.18)'
     context.lineWidth = 1
     for (let index = 1; index < totalRows; index++) {
       const y = Math.round(index * rowHeight) + 0.5
@@ -109,23 +110,7 @@ export const ArrangementOverview: React.FC<Props> = ({
       context.fillRect(x, y, width, Math.max(1, rowHeight * 0.64))
     }
     context.globalAlpha = 1
-
-    const viewX = tickToX(viewport.startTick)
-    const viewWidth = tickToX(viewport.endTick) - viewX
-    context.fillStyle = 'rgba(147,197,253,.07)'
-    context.fillRect(viewX, 0, Math.max(2, viewWidth), size.height)
-    context.strokeStyle = '#8976dc'
-    context.lineWidth = 1
-    context.strokeRect(viewX + 0.5, 0.5, Math.max(1, viewWidth - 1), size.height - 1)
-
-    const playheadX = tickToX(currentTick)
-    context.strokeStyle = '#f87171'
-    context.lineWidth = 1.5
-    context.beginPath()
-    context.moveTo(playheadX, 0)
-    context.lineTo(playheadX, size.height)
-    context.stroke()
-  }, [currentTick, lengthTicks, markers, referenceAudio, settings.loop, size, tracks, viewport])
+  }, [lengthTicks, markers, referenceAudio, settings.loop, size, tracks])
 
   const seekAtPointer = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -165,6 +150,11 @@ export const ArrangementOverview: React.FC<Props> = ({
       }}
     >
       <canvas ref={canvasRef} aria-hidden="true" />
+      <div
+        aria-hidden="true" className="studio-navigator-viewport"
+        style={{ left: tickPercent(viewport.startTick), width: tickPercent(viewport.endTick - viewport.startTick) }}
+      />
+      <div aria-hidden="true" className="studio-navigator-playhead" style={{ left: tickPercent(currentTick) }} />
       <Text position="absolute" top="1" left="2" fontSize="xs" color="var(--studio-text)" px="1" bg="var(--studio-frame)" borderRadius="sm" pointerEvents="none">
         {label}
       </Text>

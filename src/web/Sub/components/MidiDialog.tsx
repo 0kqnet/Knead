@@ -582,7 +582,7 @@ export const MidiDialog: React.FC<Props> = ({
             </div>
             <Box mt="3" p="2" border="1px solid" borderColor="var(--studio-line)" borderRadius="md">
               <Checkbox
-                colorScheme="purple"
+                colorScheme="primary"
                 checked={tailFadeEnabled}
                 onChange={event => setTailFadeEnabled(event.target.checked)}
                 disabled={
@@ -644,7 +644,7 @@ export const MidiDialog: React.FC<Props> = ({
               )}
             </Box>
             <Button
-              mt="3" w="full" colorScheme="purple" onClick={selectMidiFile} loading={busy}
+              mt="3" w="full" colorScheme="primary" onClick={selectMidiFile} loading={busy}
               disabled={busy || liveMidi.armed || liveMidi.requesting}
             >
               {t('studio.midi_choose_file')}
@@ -690,7 +690,7 @@ export const MidiDialog: React.FC<Props> = ({
             />
             <Button
               data-dialog-initial-focus
-              mt="3" w="full" colorScheme={liveMidi.armed ? 'red' : 'purple'}
+              mt="3" w="full" colorScheme={liveMidi.armed ? 'red' : 'primary'}
               onClick={toggleArmed} loading={liveMidi.requesting}
               disabled={!liveMidi.supported || !canRecord || busy}
             >
@@ -733,7 +733,7 @@ export const MidiDialog: React.FC<Props> = ({
                 </Text>
               </Box>
               <Button
-                colorScheme="purple"
+                colorScheme="primary"
                 onClick={applyMidiPreview}
                 loading={busy}
                 disabled={busy || liveMidi.armed || liveMidi.requesting}

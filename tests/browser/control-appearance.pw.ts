@@ -18,11 +18,11 @@ async function expectAlignedList(page: Page, trigger: Locator) {
 }
 
 const themes = [
-  { mode: 'light', theme: 'Light', language: 'English', locale: en },
-  { mode: 'dark', theme: 'Dark', language: '日本語', locale: ja },
+  { mode: 'light', theme: 'Light', language: 'English', locale: en, accent: 'rgb(35, 124, 96)', ink: 'rgb(255, 255, 255)' },
+  { mode: 'dark', theme: 'Dark', language: '日本語', locale: ja, accent: 'rgb(63, 188, 110)', ink: 'rgb(13, 37, 24)' },
 ] as const
 
-for (const { mode, theme, language, locale } of themes) {
+for (const { mode, theme, language, locale, accent, ink } of themes) {
   test(`aligns the main and Studio dropdowns in ${mode} mode`, async ({ page }) => {
     const labels = locale.studio
     await page.goto('/')
@@ -32,6 +32,10 @@ for (const { mode, theme, language, locale } of themes) {
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toBeHidden()
     await expect(page.locator('html')).toHaveAttribute('data-mode', mode)
+    await page.mouse.move(0, 0)
+    const launchStudio = page.getByRole('button', { name: labels.title, exact: true })
+    await expect(launchStudio).toHaveCSS('background-color', accent)
+    await expect(launchStudio).toHaveCSS('color', ink)
 
     // The browser preview has no native version catalog. Supply two entries
     // before remounting the main screen to exercise its virtualized selector.
@@ -40,7 +44,12 @@ for (const { mode, theme, language, locale } of themes) {
       window.location.hash = '/sub'
     })
     const snap = page.getByRole('combobox', { name: labels.snap })
+    const play = page.getByRole('button', { name: labels.play, exact: true })
+    await expect(play).toHaveCSS('background-color', accent)
+    await expect(play).toHaveCSS('color', ink)
     await snap.click()
+    const focusColor = await page.locator('.studio-navigator-viewport').evaluate(el => getComputedStyle(el).borderTopColor)
+    await expect(snap).toHaveCSS('border-top-color', focusColor)
     await expectAlignedList(page, snap)
     await page.keyboard.press('Escape')
     await page.evaluate(() => { window.location.hash = '/' })
@@ -61,6 +70,9 @@ for (const { mode, theme, language, locale } of themes) {
     await page.getByRole('button', { name: labels.export, exact: true }).click()
     await page.getByRole('menuitem', { name: labels.audio_export }).click()
     const dialog = page.getByRole('dialog', { name: labels.audio_export })
+    const start = dialog.getByRole('button', { name: labels.export_start, exact: true })
+    await expect(start).toHaveCSS('background-color', accent)
+    await expect(start).toHaveCSS('color', ink)
     const format = dialog.getByRole('combobox', { name: labels.format })
     const range = dialog.getByRole('combobox', { name: labels.range })
     const output = dialog.getByRole('group', { name: labels.output })

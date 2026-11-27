@@ -310,14 +310,14 @@ export const ExportDialog: React.FC<Props> = ({
             )}
             <Button
               size="sm"
-              variant="surface" colorScheme={options.includeTails ? 'purple' : 'gray'} aria-pressed={options.includeTails}
+              variant="surface" colorScheme={options.includeTails ? 'primary' : 'gray'} aria-pressed={options.includeTails}
               onClick={() => update({ includeTails: !options.includeTails })}
             >
               {t('studio.include_tails')}
             </Button>
             <Button
               size="sm"
-              variant="surface" colorScheme={options.includeMutedTracks ? 'purple' : 'gray'} aria-pressed={options.includeMutedTracks}
+              variant="surface" colorScheme={options.includeMutedTracks ? 'primary' : 'gray'} aria-pressed={options.includeMutedTracks}
               onClick={() => update({ includeMutedTracks: !options.includeMutedTracks })}
             >
               {t('studio.include_muted')}
@@ -369,7 +369,7 @@ export const ExportDialog: React.FC<Props> = ({
                 <>
                   <Button onClick={onClose} disabled={exportBusy}>{t('studio.close')}</Button>
                   <Button
-                    colorScheme="purple"
+                    colorScheme="primary"
                     onClick={start}
                     disabled={missingSounds.length > 0 || !!validationError || exportBusy}
                   >

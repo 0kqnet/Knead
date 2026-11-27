@@ -18,7 +18,7 @@ export const App = () => {
         <VolumeChange />
         <Button
           className="knead-studio-button"
-          colorScheme="purple"
+          colorScheme="primary"
           startIcon={<AudioLinesIcon boxSize="4" />}
           onClick={() => window.myAPI.make_sub_window()}
         >

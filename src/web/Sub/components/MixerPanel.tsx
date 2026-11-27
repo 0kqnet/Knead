@@ -106,7 +106,7 @@ export const MixerPanel: React.FC<Props> = ({
                   dB
                 </Text>
                 <Slider.Root
-                  size="sm" colorScheme="purple"
+                  size="sm" colorScheme="primary"
                   thumbProps={{ 'aria-label': `${track.name} · ${t('studio.mixer_gain')}` }}
                   value={track.gainDb} min={-60} max={12} step={0.5}
                   onChange={gainDb => onTrackChange(track.id, { gainDb })}
@@ -117,7 +117,7 @@ export const MixerPanel: React.FC<Props> = ({
                   {track.pan.toFixed(2)}
                 </Text>
                 <Slider.Root
-                  size="sm" colorScheme="purple"
+                  size="sm" colorScheme="primary"
                   thumbProps={{ 'aria-label': `${track.name} · ${t('studio.mixer_pan')}` }}
                   value={track.pan} min={-1} max={1} step={0.01}
                   onChange={pan => onTrackChange(track.id, { pan })}
@@ -161,7 +161,7 @@ export const MixerPanel: React.FC<Props> = ({
                   dB
                 </Text>
                 <Slider.Root
-                  size="sm" colorScheme="purple"
+                  size="sm" colorScheme="primary"
                   thumbProps={{ 'aria-label': `${track.name} · ${t('studio.mixer_gain')}` }}
                   value={track.gainDb}
                   min={-60}
@@ -175,7 +175,7 @@ export const MixerPanel: React.FC<Props> = ({
                   {track.pan.toFixed(2)}
                 </Text>
                 <Slider.Root
-                  size="sm" colorScheme="purple"
+                  size="sm" colorScheme="primary"
                   thumbProps={{ 'aria-label': `${track.name} · ${t('studio.mixer_pan')}` }}
                   value={track.pan}
                   min={-1}
@@ -205,7 +205,7 @@ export const MixerPanel: React.FC<Props> = ({
               dB
             </Text>
             <Slider.Root
-              size="sm" colorScheme="purple"
+              size="sm" colorScheme="primary"
               thumbProps={{ 'aria-label': `${t('studio.mixer_master')} · ${t('studio.mixer_gain')}` }}
               value={master.gainDb} min={-60} max={12} step={0.5}
               onChange={gainDb => onMasterChange({ gainDb })}
@@ -213,7 +213,7 @@ export const MixerPanel: React.FC<Props> = ({
             <Button
               mt="2" size="xs"
               aria-pressed={master.limiterEnabled}
-              colorScheme={master.limiterEnabled ? 'purple' : 'gray'}
+              colorScheme={master.limiterEnabled ? 'primary' : 'gray'}
               onClick={() => onMasterChange({ limiterEnabled: !master.limiterEnabled })}
             >
               LIMIT −1dB

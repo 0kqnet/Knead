@@ -67,7 +67,7 @@ export const Configuration = () => {
                     </HStack>
                   </CardHeader>
                   <CardBody>
-                    <Switch colorScheme="purple" checked={holdSoundsSort} onChange={() => changesetHoldSoundsSort(!holdSoundsSort)}>{t('hold_sounds_sort')}</Switch>
+                    <Switch colorScheme="primary" checked={holdSoundsSort} onChange={() => changesetHoldSoundsSort(!holdSoundsSort)}>{t('hold_sounds_sort')}</Switch>
                   </CardBody>
                 </Card.Root>
 
@@ -79,7 +79,7 @@ export const Configuration = () => {
                     </HStack>
                   </CardHeader>
                   <CardBody>
-                    <Switch colorScheme="purple" checked={holdRatingFilter} onChange={() => changeHoldRatingFilter(!holdRatingFilter)}>{t('hold_rating_filter')}</Switch>
+                    <Switch colorScheme="primary" checked={holdRatingFilter} onChange={() => changeHoldRatingFilter(!holdRatingFilter)}>{t('hold_rating_filter')}</Switch>
                   </CardBody>
                 </Card.Root>
 

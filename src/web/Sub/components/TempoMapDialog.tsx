@@ -257,7 +257,7 @@ export const TempoMapDialog: React.FC<TempoMapDialogProps> = ({
         <Flex mt="5" justify="flex-end" gap="2">
           <Button onClick={onClose} disabled={busy}>{t('studio.close')}</Button>
           <Button
-            colorScheme="purple" loading={busy} disabled={Boolean(validationError)}
+            colorScheme="primary" loading={busy} disabled={Boolean(validationError)}
             onClick={() => { void apply() }}
           >
             {t('studio.tempo_map_apply')}

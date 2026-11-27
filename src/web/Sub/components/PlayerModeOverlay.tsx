@@ -375,7 +375,7 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
           </Flex>
           <Text
             aria-label={t('studio.player_tempo_meter_label')}
-            fontFamily="mono" fontSize="clamp(14px, 2vw, 24px)" color="cyan.200"
+            fontFamily="mono" fontSize="clamp(14px, 2vw, 24px)" color="var(--knead-brand)"
           >
             {t('studio.player_tempo_meter', {
               bpm: formatBpm(musicalPosition.bpm),
@@ -399,13 +399,13 @@ export const PlayerModeOverlay: React.FC<PlayerModeOverlayProps> = ({
                 bg="green.900" opacity=".8"
               />
             )}
-            <Box position="absolute" inset="0 auto 0 0" w={`${progress * 100}%`} bg="cyan.400" />
+            <Box position="absolute" inset="0 auto 0 0" w={`${progress * 100}%`} bg="var(--knead-brand)" />
           </Box>
           <input
             aria-label={t('studio.player_seek')}
             type="range" min={0} max={maximumTick} step={0.1} value={safeCurrentTick}
             onChange={event => onSeek(Number(event.currentTarget.value))}
-            style={{ width: '100%', accentColor: '#22d3ee', marginTop: 8 }}
+            style={{ width: '100%', accentColor: 'var(--knead-brand)', marginTop: 8 }}
           />
           <Flex justify="space-between" fontFamily="mono" fontSize="xs" color="gray.500">
             <Text>00:00.0</Text>
